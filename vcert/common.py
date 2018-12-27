@@ -201,8 +201,7 @@ class Policy:
 
 class CertificateRequest:
     def __init__(self, id=None,
-                 status=None,
-                 dns_names=None,
+                 san_dns=None,
                  email_addresses="",
                  ip_addresses=None,
                  attributes=None,
@@ -210,22 +209,38 @@ class CertificateRequest:
                  key_length=2048,
                  key_curve="P521",
                  private_key=None,
-                 csr_origin=None,
                  key_password=None,
                  csr=None,
                  friendly_name=None,
                  chain_option="first",
                  common_name=None,
                  thumbprint=None):
+        """
+        :param str id: Certificate request id. Generating by server.
+        :param list[str] san_dns: Alternative names for SNI.
+        :param str email_addresses: String with separated by comma emails.
+        :param list[str] ip_addresses: IP addresses
+        :param attributes:
+        :param str key_type: Type of asymetric cryptography algorithm. Available values in vcert.KeyTypes.
+        :param int key_length: Key length for rsa algorithm
+        :param str key_curve: Curves name for ecdsa algorithm
+        :param asymmetric.PrivateKey private_key: String with pem encoded private key or  asymmetric.PrivateKey
+        :param str key_password: Password for encrypted private key. Not supported at this moment.
+        :param str csr: Certificate Signing Request in pem format
+        :param str friendly_name: Name for certificate in the platform. If not specified common name will be used.
+        :param str chain_option: Specify ordering certificates in chain. Root can be "first" or "last"
+        :param str common_name: Common name of certificate. Usually domain name.
+        :param str thumbprint: Certificate thumbprint. Can be used for identifying certificate on the platform.
+        """
 
         self.csr = csr
         self.chain_option = chain_option
-        self.dns_names = dns_names or []
+        self.san_dns = san_dns or []
         self.email_addresses = email_addresses
         self.ip_addresses = ip_addresses or []
         self.attributes = attributes
 
-        self.key_type = key_type
+        self.key_type = key_type  # todo: key types validation and replace to KeyType class
         self.key_length = key_length
         self.key_curve = key_curve
         if isinstance(private_key, str):
@@ -238,13 +253,11 @@ class CertificateRequest:
             self.public_key = None
         elif private_key is None:
             self.private_key = None
-        self.csr_origin = csr_origin
         self.key_password = key_password
         self.csr = csr
         self.friendly_name = friendly_name or common_name
         self.chain_option = chain_option
         self.id = id
-        self.status = status
         self.common_name = common_name
         self.thumbprint = thumbprint
 
@@ -273,8 +286,8 @@ class CertificateRequest:
 
         if self.ip_addresses:
             builder.subject_alt_ips = self.ip_addresses
-        if self.dns_names:
-            builder.subject_alt_domains = self.dns_names
+        if self.san_dns:
+            builder.subject_alt_domains = self.san_dns
 
         builder.hash_algo = "sha256"
         builder.subject_alt_domains = [self.common_name]
@@ -301,10 +314,17 @@ class CommonConnection:
         raise NotImplementedError
 
     def auth(self):
+        """
+        Authorize connection on platform. Return user object.
+        Not required for making calls. Connection contols auth status by him self.
+        todo: make User class
+        """
         raise NotImplementedError
 
     def request_cert(self, request, zone):
         """
+        Making request to certificate. It will generate CSR from data if CSR not specified,
+        generate key if required and send to server for signing. Set request.id for retrieving certificate.
         :param CertificateRequest request: Certitficate in PEM format
         :param str zone: Venafi zone tag name
         :rtype bool : Success
@@ -313,6 +333,7 @@ class CommonConnection:
 
     def retrieve_cert(self, request):
         """
+        Get signed certificate from server by request.id
         :param CertificateRequest request:
         """
         raise NotImplementedError

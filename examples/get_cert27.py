@@ -28,7 +28,7 @@ def main():
     request = CertificateRequest(common_name=randomword(10) + u".venafi.example.com")
     if not isinstance(conn, CloudConnection):
         # cloud connection doesn`t support dns, email and ip in CSR
-        request.dns_names = [u"www.client.venafi.example.com", u"ww1.client.venafi.example.com"]
+        request.san_dns = [u"www.client.venafi.example.com", u"ww1.client.venafi.example.com"]
         request.email_addresses = u"e1@venafi.example.com, e2@venafi.example.com"
         request.ip_addresses = [u"127.0.0.1", u"192.168.1.1"]
         request.chain_option = "last"

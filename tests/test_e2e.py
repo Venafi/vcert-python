@@ -69,7 +69,7 @@ def enroll(conn, ZONE, cn):
     if isinstance(conn, (FakeConnection or TPPConnection)):
         request = CertificateRequest(
             common_name=cn,
-            dns_names=["www.client.venafi.example.com", "ww1.client.venafi.example.com"],
+            san_dns=["www.client.venafi.example.com", "ww1.client.venafi.example.com"],
             email_addresses="e1@venafi.example.com, e2@venafi.example.com",
             ip_addresses=["127.0.0.1", "192.168.1.1"],
             chain_option="last"
