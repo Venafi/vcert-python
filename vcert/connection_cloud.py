@@ -1,6 +1,7 @@
 from __future__ import (absolute_import, division, generators, unicode_literals, print_function, nested_scopes,
                         with_statement)
 
+import re
 import logging as log
 
 import requests
@@ -55,11 +56,9 @@ class CertificateStatusResponse:
 
 class CloudConnection(CommonConnection):
     def __init__(self, token, url=None):
-        """
-        todo: docs
-        """
         self._base_url = url or URLS.API_BASE_URL
         self._token = token
+        self._normalize_and_verify_base_url()
 
     def _get(self, url, params=None):
         # todo: catch requests.exceptions
@@ -75,6 +74,20 @@ class CloudConnection(CommonConnection):
             log.error("Unexpected client data type: %s for %s" % (type(data), url))
             raise ClientBadData
         return self.process_server_response(r)
+
+    def _normalize_and_verify_base_url(self):
+        u = self._base_url
+        if u.startswith("http://"):
+            u = "https://" + u[7:]
+        elif not u.startswith("https://"):
+            u = "https://" + u
+        if not u.endswith("/"):
+            u += "/"
+        if not u.endswith("v1/"):
+            u += "v1/"
+        if not re.match(r"^https://[a-z\d]+[-a-z\d.]+[a-z\d][:\d]*/v1/$", u):
+            raise ClientBadData
+        self._base_url = u
 
     @staticmethod
     def _process_server_response(r):
