@@ -20,7 +20,7 @@ def main():
     zone = environ.get("ZONE")
     conn = Connection(url=url, token=token, user=user, password=password)
 
-    print("Tring to ping url %s" % conn._base_url)
+    print("Trying to ping url %s" % conn._base_url)
     status = conn.ping()
     print("Server online:", status)
     if not status:

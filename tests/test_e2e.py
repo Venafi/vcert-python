@@ -19,7 +19,8 @@ TOKEN = environ.get('TOKEN')
 
 USER = environ.get('TPPUSER')
 PASSWORD = environ.get('TPPPASSWORD')
-URL = environ.get('TPPURL')
+TPPURL = environ.get('TPPURL')
+CLOUDURL = environ.get('CLOUDURL')
 
 
 def randomword(length):
@@ -42,7 +43,7 @@ class TestStringMethods(unittest.TestCase):
     def test_cloud(self):
         print("Using cloud connection")
         ZONE = environ['CLOUDZONE']
-        conn = CloudConnection(token=TOKEN,url=environ.get('CLOUDURL'))
+        conn = CloudConnection(token=TOKEN,url=CLOUDURL)
         cn = randomword(10) + ".venafi.example.com"
         cert_id, pkey, sn = enroll(conn, ZONE, cn)
         renew(conn, cert_id, pkey, sn, cn)
@@ -50,14 +51,14 @@ class TestStringMethods(unittest.TestCase):
     def test_tpp(self):
         ZONE = environ['TPPZONE']
         print("Using TPP conection")
-        conn = TPPConnection(USER, PASSWORD, URL)
+        conn = TPPConnection(USER, PASSWORD, TPPURL)
         cn = randomword(10) + ".venafi.example.com"
         cert_id, pkey, sn = enroll(conn, ZONE, cn)
         renew(conn, cert_id, pkey, sn, cn)
 
 
 def enroll(conn, ZONE, cn):
-    print("Tring to ping url", URL)
+    print("Trying to ping url", TPPURL)
     status = conn.ping()
     print("Server online:", status)
     if not status:
