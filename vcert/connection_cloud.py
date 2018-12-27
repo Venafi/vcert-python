@@ -135,8 +135,7 @@ class CloudConnection(CommonConnection):
 
     def ping(self):
         status, data = self._get(URLS.PING)
-        return status == HTTPStatus.OK
-        # return status == HTTPStatus.OK and data == "OK"
+        return status == HTTPStatus.OK and data == "OK"
 
     def auth(self):
         status, data = self._get(URLS.USER_ACCOUNTS)
