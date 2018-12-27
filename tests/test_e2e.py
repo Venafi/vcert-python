@@ -58,7 +58,7 @@ class TestStringMethods(unittest.TestCase):
 
 
 def enroll(conn, ZONE, cn):
-    print("Trying to ping url", TPPURL)
+    print("Trying to ping service")
     status = conn.ping()
     print("Server online:", status)
     if not status:
