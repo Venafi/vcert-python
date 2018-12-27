@@ -342,10 +342,10 @@ class CommonConnection:
             raise VenafiConnectionError("Server status: %s, %s\n Response: %s",
                                         (r.status_code, r.request.url, r.content))
         content_type = r.headers.get("content-type")
-        if content_type == MINE_TEXT:
+        if content_type.startswith(MINE_TEXT):
             log.debug(r.text)
             return r.status_code, r.text
-        elif content_type == MINE_HTML:
+        elif content_type.startswith(MINE_HTML):
             log.debug(r.text)
             return r.status_code, r.text
         # content-type in respons is  application/json; charset=utf-8
