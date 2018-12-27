@@ -1,3 +1,5 @@
+from __future__ import absolute_import, division, generators, unicode_literals, print_function, nested_scopes, with_statement
+
 import logging as log
 import time
 from oscrypto import asymmetric
@@ -106,7 +108,7 @@ class FakeConnection(CommonConnection):
         self._base_url = "fake"
 
     def ping(self):
-        return self.status
+        return True
 
     def auth(self):
         return fake_user()
