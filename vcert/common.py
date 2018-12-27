@@ -183,7 +183,14 @@ class Policy:
                      d.get('subjectSTRegexes', []), d.get('subjectLRegexes', []), d.get('subjectCRegexes', []),
                      d.get('sanRegexes', []), [], d.get('keyReuse'))
         for kt in d.get('keyTypes', []):
-            policy.key_types.append(KeyType(key_type=kt['keyType'], key_sizes=kt['keyLengths']))  # todo: curves
+            key_type = kt['keyType'].lower()
+            if key_type == KeyTypes.RSA:
+                policy.key_types.append(KeyType(key_type=key_type, key_sizes=kt['keyLengths']))
+            elif key_type == KeyTypes.ECDSA:
+                policy.key_types.append(KeyType(key_type=key_type, key_curves=kt['keyCurve']))
+            else:
+                log.error("Unknow key type: %s" % kt['keyType'])
+                raise ServerUnexptedBehavior
         return policy
 
     def __repr__(self):

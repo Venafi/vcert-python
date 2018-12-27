@@ -117,7 +117,7 @@ class CloudConnection(CommonConnection):
         for policy_id in policy_ids:
             status, data = self._get(URLS.POLICIES_BY_ID % policy_id)
             if status != HTTPStatus.OK:
-                log.error("")  # todo: log
+                log.error("Invalid status during geting policy: %s for policy %s" % (status, policy_id))
                 continue
             p = Policy.from_server_response(data)
             if p.policy_type == p.Type.CERTIFICATE_IDENTITY:  # todo: replace with somethin more pythonic
@@ -174,12 +174,11 @@ class CloudConnection(CommonConnection):
             url += "?chainOrder=%s&format=PEM" % CondorChainOptions.ROOT_FIRST
         elif request.chain_option == "last":
             url += "?chainOrder=%s&format=PEM" % CondorChainOptions.ROOT_LAST
-        else:  # todo: maybe over values
+        else:
             log.error("chain option %s is not valid" % request.chain_option)
             raise ClientBadData
         # todo: make search by thumbprint
         status, data = self._get(URLS.CERTIFICATE_STATUS % request.id)
-        # TODO: run it in loop
         if status == HTTPStatus.OK or HTTPStatus.CONFLICT:
             if data['status'] == CertStatuses.PENDING or data['status'] == CertStatuses.REQUESTED:
                 log.info("Certificate status is %s." % data['status'])

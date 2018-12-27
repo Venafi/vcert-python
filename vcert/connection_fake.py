@@ -101,9 +101,6 @@ def fake_zone(zone=None):
 
 class FakeConnection(CommonConnection):
     def __init__(self, *args, **kwargs):
-        """
-        todo: docs
-        """
         self.status = "200"
         self._base_url = "fake"
 
