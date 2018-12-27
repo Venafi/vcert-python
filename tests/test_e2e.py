@@ -10,8 +10,8 @@ from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.x509.oid import NameOID
 
-logging.basicConfig(level=logging.INFO)
-logging.getLogger("urllib3").setLevel(logging.ERROR)
+logging.basicConfig(level=logging.DEBUG)
+logging.getLogger("urllib3").setLevel(logging.DEBUG)
 
 FAKE = environ.get('FAKE')
 
