@@ -15,3 +15,8 @@ test:
 	--env CLOUDZONE=$$CLOUDZONE \
 	--env CLOUDURL=$$CLOUDURL \
 	 vcert-tests
+
+
+publish:
+	python3 setup.py sdist bdist_wheel
+	twine upload dist/*
