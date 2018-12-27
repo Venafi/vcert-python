@@ -13,11 +13,15 @@ logging.getLogger("urllib3").setLevel(logging.ERROR)
 
 
 def main():
+    # Get credentials from environement variables
     token = environ.get('TOKEN')
     user = environ.get('TPPUSER')
     password = environ.get('TPPPASSWORD')
     url = environ.get('TPPURL')
     zone = environ.get("ZONE")
+    # connection will be chosen automatically dependent on what arguments are passed
+    # if token is passed Venafi Cloud connection will be used. if user, password, and URL Venafi Platform (TPP) will
+    # be used. If none test connection will be used.
     conn = Connection(url=url, token=token, user=user, password=password)
 
     print("Trying to ping url %s" % conn._base_url)

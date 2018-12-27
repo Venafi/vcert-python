@@ -12,11 +12,10 @@ VCert is supporting Python 3, and Python 2.7 with "from \__future\__ import".
 
 ## Installation
 Get the library using pip:  
-`pip3 install vcert`  
+`pip install vcert`  
 
 You also can install latest version from github:  
-`pip3 install https://github
-.com/arykalin/vcert-python/archive/master.zip`
+`pip install https://github.com/Venafi/vcert-python/archive/master.zip`
 
 
 ## Usage example
