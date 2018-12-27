@@ -52,7 +52,7 @@ class TPPConnection(CommonConnection):
             log.debug("Token is %s, timeout is %s" % (self._token[0], self._token[1]))
 
         r = requests.get(self._base_url + url, headers={TOKEN_HEADER_NAME: self._token[0], 'content-type':
-                         MIME_JSON, 'cache-control': 'no-cache'}, params=params)
+                         MIME_JSON, 'cache-control': 'no-cache'}, params=params, verify=False)
         return self.process_server_response(r)
 
     def _post(self, url, data=None):
@@ -62,7 +62,7 @@ class TPPConnection(CommonConnection):
 
         if isinstance(data, dict):
             r = requests.post(self._base_url + url, headers={TOKEN_HEADER_NAME: self._token[0], 'content-type':
-                              MIME_JSON, "cache-control": "no-cache"}, json=data)
+                              MIME_JSON, "cache-control": "no-cache"}, json=data, verify=False)
         else:
             log.error("Unexpected client data type: %s for %s" % (type(data), url))
             raise ClientBadData
@@ -95,7 +95,7 @@ class TPPConnection(CommonConnection):
         data = {"Username": self._user, "Password": self._password}
 
         r = requests.post(self._base_url + URLS.AUTHORIZE, json=data,
-                          headers={'content-type': MIME_JSON, "cache-control": "no-cache"})
+                          headers={'content-type': MIME_JSON, "cache-control": "no-cache"}, verify=False)
 
         status, user = self.process_server_response(r)
         if status == HTTPStatus.OK:

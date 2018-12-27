@@ -161,5 +161,6 @@ secrets.json
 #Virtual env
 venv
 venv3
+venv27
 vcert/example_cert.py
 credentials

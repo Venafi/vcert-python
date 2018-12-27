@@ -3,6 +3,5 @@ python-dateutil==2.6.1
 oscrypto
 certbuilder
 csrbuilder
-certvalidator
-asn1crypto
 cryptography
+pytest
