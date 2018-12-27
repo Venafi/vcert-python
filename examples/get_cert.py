@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python2
 from __future__ import absolute_import, division, generators, unicode_literals, print_function, nested_scopes, with_statement
 
 from vcert import CertificateRequest, Connection, CloudConnection, FakeConnection
