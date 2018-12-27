@@ -58,12 +58,12 @@ class TestStringMethods(unittest.TestCase):
 
 
 def enroll(conn, ZONE, cn):
-    # print("Trying to ping service")
-    # status = conn.ping()
-    # print("Server online:", status)
-    # if not status:
-    #     print('Server offline')
-    #     exit(1)
+    print("Trying to ping service")
+    status = conn.ping()
+    print("Server online:", status)
+    if not status:
+        print('Server offline')
+        exit(1)
 
     if isinstance(conn, (FakeConnection or TPPConnection)):
         request = CertificateRequest(
