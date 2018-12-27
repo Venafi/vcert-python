@@ -1,6 +1,4 @@
 #!/usr/bin/env python2
-from __future__ import absolute_import, division, generators, unicode_literals, print_function, nested_scopes, with_statement
-
 from vcert import CertificateRequest, Connection, CloudConnection, FakeConnection
 import string
 import random
@@ -22,17 +20,17 @@ def main():
 
     print("Trying to ping url %s" % conn._base_url)
     status = conn.ping()
-    print("Server online:", status)
+    print("Server online: %s" % status)
     if not status:
         print('Server offline - exit')
         exit(1)
 
-    request = CertificateRequest(common_name=randomword(10) + ".venafi.example.com")
+    request = CertificateRequest(common_name=randomword(10) + u".venafi.example.com")
     if not isinstance(conn, CloudConnection):
         # cloud connection doesn`t support dns, email and ip in CSR
-        request.dns_names = ["www.client.venafi.example.com", "ww1.client.venafi.example.com"]
-        request.email_addresses = "e1@venafi.example.com, e2@venafi.example.com"
-        request.ip_addresses = ["127.0.0.1", "192.168.1.1"]
+        request.dns_names = [u"www.client.venafi.example.com", u"ww1.client.venafi.example.com"]
+        request.email_addresses = u"e1@venafi.example.com, e2@venafi.example.com"
+        request.ip_addresses = [u"127.0.0.1", u"192.168.1.1"]
         request.chain_option = "last"
 
     # make certificate request
@@ -47,7 +45,8 @@ def main():
             time.sleep(5)
 
     # after that print cert and key
-    print(cert, request.private_key_pem, sep="\n")
+    print(cert)
+    print(request.private_key_pem)
     # and save into file
     f = open("/tmp/cert.pem", "w")
     f.write(cert)
@@ -75,7 +74,7 @@ def main():
 
 def randomword(length):
     letters = string.ascii_lowercase
-    return ''.join(random.choice(letters) for i in range(length))
+    return u''.join(random.choice(letters) for i in range(length))
 
 
 if __name__ == '__main__':
