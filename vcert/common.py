@@ -202,16 +202,13 @@ class Policy:
 class CertificateRequest:
     def __init__(self, id=None,
                  status=None,
-                 subject=None,
                  dns_names=None,
                  email_addresses="",
                  ip_addresses=None,
                  attributes=None,
-                 signature_algorithm=None,  # todo: think: maybe remove
-                 public_key_algorithm=None,  # todo: think: maybe remove
                  key_type=KeyTypes.RSA,
                  key_length=2048,
-                 key_curve=None,  # todo: default curve
+                 key_curve="P521",
                  private_key=None,
                  csr_origin=None,
                  key_password=None,
@@ -223,13 +220,11 @@ class CertificateRequest:
 
         self.csr = csr
         self.chain_option = chain_option
-        self.subject = subject
         self.dns_names = dns_names or []
         self.email_addresses = email_addresses
         self.ip_addresses = ip_addresses or []
         self.attributes = attributes
-        self.signature_algorithm = signature_algorithm
-        self.public_key_algorithm = public_key_algorithm
+
         self.key_type = key_type
         self.key_length = key_length
         self.key_curve = key_curve
