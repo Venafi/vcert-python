@@ -43,10 +43,8 @@ class TPPConnection(CommonConnection):
         self._password = password  # type: str
         self._token = None  # type: tuple
         self._normalize_and_verify_base_url()
-        # todo: add timeout check, like self.token = ("token-string-dsfsfdsfdsfdsf", valid_to)
 
     def _get(self, url="", params=None):
-        # todo: catch requests.exceptions
         if not self._token or self._token[1] < time.time() + 1:
             self.auth()
             log.debug("Token is %s, timeout is %s" % (self._token[0], self._token[1]))
@@ -94,6 +92,7 @@ class TPPConnection(CommonConnection):
     def auth(self):
         data = {"Username": self._user, "Password": self._password}
 
+        #TODO: add trust bundle support and remove verify=False
         r = requests.post(self._base_url + URLS.AUTHORIZE, json=data,
                           headers={'content-type': MIME_JSON, "cache-control": "no-cache"}, verify=False)
 
@@ -141,7 +140,6 @@ class TPPConnection(CommonConnection):
         if status == HTTPStatus.OK:
             pem64 = data['CertificateData']
             pem = base64.b64decode(pem64)
-            # TODO: return private key too
             return pem.decode()
         elif status == HTTPStatus.ACCEPTED:
             log.debug(data['Status'])

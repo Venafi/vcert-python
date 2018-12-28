@@ -61,7 +61,6 @@ class CloudConnection(CommonConnection):
         self._normalize_and_verify_base_url()
 
     def _get(self, url, params=None):
-        # todo: catch requests.exceptions
         r = requests.get(self._base_url + url, params=params,
                          headers={TOKEN_HEADER_NAME: self._token, "Accept": MINE_ANY, "cache-control": "no-cache"})
         return self.process_server_response(r)
@@ -177,7 +176,6 @@ class CloudConnection(CommonConnection):
         else:
             log.error("chain option %s is not valid" % request.chain_option)
             raise ClientBadData
-        # todo: make search by thumbprint
         status, data = self._get(URLS.CERTIFICATE_STATUS % request.id)
         if status == HTTPStatus.OK or HTTPStatus.CONFLICT:
             if data['status'] == CertStatuses.PENDING or data['status'] == CertStatuses.REQUESTED:

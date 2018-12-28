@@ -10,6 +10,7 @@ import unittest
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.x509.oid import NameOID
+from cryptography.hazmat.primitives import serialization
 
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("urllib3").setLevel(logging.DEBUG)
@@ -38,7 +39,13 @@ class TestStringMethods(unittest.TestCase):
         conn = FakeConnection()
         ZONE = "Default"
         cn = randomword(10) + ".venafi.example.com"
-        cert_id, pkey, sn = enroll(conn, ZONE, cn)
+        cert_id, pkey, cert = enroll(conn, ZONE, cn)
+        assert isinstance(cert, x509.Certificate)
+        assert cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME) == [
+            x509.NameAttribute(
+                NameOID.COMMON_NAME, cn
+            )
+        ]
         # renew(conn, cert_id, pkey)
 
     def test_cloud(self):
@@ -66,6 +73,7 @@ def enroll(conn, ZONE, cn):
         print('Server offline')
         exit(1)
 
+    # TODO: check SANs too
     if isinstance(conn, (FakeConnection or TPPConnection)):
         request = CertificateRequest(
             common_name=cn,
@@ -97,13 +105,7 @@ def enroll(conn, ZONE, cn):
     f.close()
 
     cert = x509.load_pem_x509_certificate(cert_pem.encode(), default_backend())
-    assert isinstance(cert, x509.Certificate)
-    assert cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME) == [
-        x509.NameAttribute(
-            NameOID.COMMON_NAME, cn
-        )
-    ]
-    return request.id, request.private_key_pem, cert.serial_number
+    return request.id, request.private_key_pem, cert
 
 def renew(conn, cert_id, pkey, sn, cn):
     print("Trying to renew certificate")
@@ -131,6 +133,17 @@ def renew(conn, cert_id, pkey, sn, cn):
         )
     ]
     assert cert.serial_number != sn
+    private_key = serialization.load_pem_private_key(pkey.encode(), password=None, backend=default_backend())
+    private_key_public_key_pem = private_key.public_key().public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    public_key_pem = cert.public_key().public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    assert private_key_public_key_pem == public_key_pem
+
 
 if __name__ == '__main__':
     main()

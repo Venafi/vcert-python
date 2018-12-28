@@ -279,6 +279,18 @@ class CertificateRequest:
         else:
             raise NotImplementedError
             # public_key = gen_public_from_private(self.private_key, self.key_type)  # todo: write function
+        """
+        private_key = serialization.load_pem_private_key(pkey.encode(), password=None, backend=default_backend())
+        private_key_public_key_pem = private_key.public_key().public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        )
+        public_key_pem = cert.public_key().public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        )
+        """
+
 
         data = {
             'common_name': self.common_name,
@@ -324,7 +336,6 @@ class CommonConnection:
         """
         Authorize connection on platform. Return user object.
         Not required for making calls. Connection contols auth status by him self.
-        todo: make User class
         """
         raise NotImplementedError
 
