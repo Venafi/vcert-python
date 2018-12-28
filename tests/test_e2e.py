@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-from __future__ import absolute_import, division, generators, unicode_literals, print_function, nested_scopes, with_statement
 from vcert import CloudConnection, CertificateRequest, TPPConnection, FakeConnection
 import string
 import random
@@ -39,13 +38,7 @@ class TestStringMethods(unittest.TestCase):
         conn = FakeConnection()
         ZONE = "Default"
         cn = randomword(10) + ".venafi.example.com"
-        cert_id, pkey, cert = enroll(conn, ZONE, cn)
-        assert isinstance(cert, x509.Certificate)
-        assert cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME) == [
-            x509.NameAttribute(
-                NameOID.COMMON_NAME, cn
-            )
-        ]
+        cert_id, pkey, sn = enroll(conn, ZONE, cn)
         # renew(conn, cert_id, pkey)
 
     def test_cloud(self):
@@ -73,7 +66,6 @@ def enroll(conn, ZONE, cn):
         print('Server offline')
         exit(1)
 
-    # TODO: check SANs too
     if isinstance(conn, (FakeConnection or TPPConnection)):
         request = CertificateRequest(
             common_name=cn,
@@ -105,7 +97,28 @@ def enroll(conn, ZONE, cn):
     f.close()
 
     cert = x509.load_pem_x509_certificate(cert_pem.encode(), default_backend())
-    return request.id, request.private_key_pem, cert
+    assert isinstance(cert, x509.Certificate)
+    assert cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME) == [
+        x509.NameAttribute(
+            NameOID.COMMON_NAME, cn
+        )
+    ]
+
+    private_key = serialization.load_pem_private_key(request.private_key_pem.encode(), password=None,
+                                                     backend=default_backend())
+    private_key_public_key_pem = private_key.public_key().public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    public_key_pem = cert.public_key().public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    print(private_key_public_key_pem.decode())
+    print(public_key_pem.decode())
+    assert private_key_public_key_pem == public_key_pem
+
+    return request.id, request.private_key_pem, cert.serial_number
 
 def renew(conn, cert_id, pkey, sn, cn):
     print("Trying to renew certificate")
@@ -114,6 +127,7 @@ def renew(conn, cert_id, pkey, sn, cn):
         chain_option="last"
     )
     conn.renew_cert(new_request)
+    time.sleep(5)
     while True:
         new_cert_pem = conn.retrieve_cert(new_request)
         if new_cert_pem:
@@ -143,7 +157,6 @@ def renew(conn, cert_id, pkey, sn, cn):
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     )
     assert private_key_public_key_pem == public_key_pem
-
 
 if __name__ == '__main__':
     main()
