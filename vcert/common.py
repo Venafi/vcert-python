@@ -10,6 +10,8 @@ from oscrypto import asymmetric
 
 from .errors import VenafiConnectionError, ServerUnexptedBehavior, BadData, ClientBadData
 from .http import HTTPStatus
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
 
 MIME_JSON = "application/json"
 MINE_HTML = "text/html"
@@ -279,17 +281,6 @@ class CertificateRequest:
         else:
             raise NotImplementedError
             # public_key = gen_public_from_private(self.private_key, self.key_type)  # todo: write function
-        """
-        private_key = serialization.load_pem_private_key(pkey.encode(), password=None, backend=default_backend())
-        private_key_public_key_pem = private_key.public_key().public_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo
-        )
-        public_key_pem = cert.public_key().public_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo
-        )
-        """
 
 
         data = {
@@ -316,6 +307,14 @@ class CertificateRequest:
     @property
     def private_key_pem(self):
         return asymmetric.dump_private_key(self.private_key, None, "pem").decode()
+
+    def public_key_from_private(self):
+        private_key = serialization.load_pem_private_key(self.private_key_pem.encode(), password=None,
+                                                         backend=default_backend())
+        self.private_key_public_key_pem = private_key.public_key().public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        ).decode()
 
 
 class CommonConnection:
