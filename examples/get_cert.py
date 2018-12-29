@@ -22,7 +22,7 @@ def main():
     # connection will be chosen automatically dependent on what arguments are passed
     # if token is passed Venafi Cloud connection will be used. if user, password, and URL Venafi Platform (TPP) will
     # be used. If none test connection will be used.
-    conn = Connection(url=url, token=token, user=user, password=password)
+    conn = Connection(url=url, token=token, user=user, password=password, ignore_ssl_errors=True)
 
     print("Trying to ping url %s" % conn._base_url)
     status = conn.ping()
