@@ -311,6 +311,7 @@ class CertificateRequest:
     def public_key_from_private(self):
         private_key = serialization.load_pem_private_key(self.private_key_pem.encode(), password=None,
                                                          backend=default_backend())
+        self.private_key_public_key = private_key.public_key()
         self.private_key_public_key_pem = private_key.public_key().public_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PublicFormat.SubjectPublicKeyInfo

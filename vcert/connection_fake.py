@@ -133,7 +133,8 @@ class FakeConnection(CommonConnection):
         log.debug("Getting certificate status for id %s" % certificate_request.id)
 
         time.sleep(0.1)
-        end_entity_public_key, end_entity_private_key = asymmetric.generate_pair('rsa', bit_size=2048)
+        certificate_request.public_key_from_private()
+        end_entity_public_key = asymmetric.load_public_key(certificate_request.private_key_public_key_pem.encode())
         builder = CertificateBuilder(
             {
                 'common_name': certificate_request.common_name,
@@ -146,6 +147,7 @@ class FakeConnection(CommonConnection):
 
         builder.issuer = root_ca_certificate
         end_entity_certificate = builder.build(root_ca_private_key)
+        certificate_request.public_key_from_private()
         return(pem_armor_certificate(end_entity_certificate).decode())
 
     def revoke_cert(self, request):
