@@ -31,18 +31,20 @@ TOKEN_HEADER_NAME = "x-venafi-api-key"
 
 
 class TPPConnection(CommonConnection):
-    def __init__(self, user, password, url):
+    def __init__(self, user, password, url, ignore_ssl_errors=False):
         """
         todo: docs
         :param str user:
         :param str password:
         :param str url:
+        :param bool ignore_ssl_errors:
         """
         self._base_url = url  # type: str
         self._user = user  # type: str
         self._password = password  # type: str
         self._token = None  # type: tuple
         self._normalize_and_verify_base_url()
+        self._ignore_ssl_errors = ignore_ssl_errors
 
     def _get(self, url="", params=None):
         if not self._token or self._token[1] < time.time() + 1:
@@ -50,7 +52,7 @@ class TPPConnection(CommonConnection):
             log.debug("Token is %s, timeout is %s" % (self._token[0], self._token[1]))
 
         r = requests.get(self._base_url + url, headers={TOKEN_HEADER_NAME: self._token[0], 'content-type':
-                         MIME_JSON, 'cache-control': 'no-cache'}, params=params, verify=False)
+                         MIME_JSON, 'cache-control': 'no-cache'}, params=params, verify=not self._ignore_ssl_errors)
         return self.process_server_response(r)
 
     def _post(self, url, data=None):
@@ -60,7 +62,7 @@ class TPPConnection(CommonConnection):
 
         if isinstance(data, dict):
             r = requests.post(self._base_url + url, headers={TOKEN_HEADER_NAME: self._token[0], 'content-type':
-                              MIME_JSON, "cache-control": "no-cache"}, json=data, verify=False)
+                              MIME_JSON, "cache-control": "no-cache"}, json=data, verify=not self._ignore_ssl_errors)
         else:
             log.error("Unexpected client data type: %s for %s" % (type(data), url))
             raise ClientBadData
@@ -92,9 +94,9 @@ class TPPConnection(CommonConnection):
     def auth(self):
         data = {"Username": self._user, "Password": self._password}
 
-        #TODO: add trust bundle support and remove verify=False
-        r = requests.post(self._base_url + URLS.AUTHORIZE, json=data,
-                          headers={'content-type': MIME_JSON, "cache-control": "no-cache"}, verify=False)
+        #TODO: add trust bundle support
+        r = requests.post(self._base_url + URLS.AUTHORIZE, json=data, verify=not self._ignore_ssl_errors,
+                          headers={'content-type': MIME_JSON, "cache-control": "no-cache"})
 
         status, user = self.process_server_response(r)
         if status == HTTPStatus.OK:

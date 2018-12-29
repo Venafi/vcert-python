@@ -26,11 +26,11 @@ class CertField(str):
 
 
 def log_errors(data):
-    if "errors" not in data:
+    if not isinstance(data, dict) or "errors" not in data:
         log.error("Unknown error format: %s", data)
         return
     for e in data["errors"]:
-        log.error(str(e))  # todo: beta formatter
+        log.error("%s: %s" % (e['code'], e['message']))
 
 
 class Zone:
@@ -377,8 +377,12 @@ class CommonConnection:
     @staticmethod
     def process_server_response(r):
         if r.status_code not in (HTTPStatus.OK, HTTPStatus.ACCEPTED, HTTPStatus.CREATED, HTTPStatus.CONFLICT):
+            try:
+                log_errors(r.json())
+            except:
+                pass
             raise VenafiConnectionError("Server status: %s, %s\n Response: %s",
-                                        (r.status_code, r.request.url, r.content))
+                                        (r.status_code, r.request.url))
         content_type = r.headers.get("content-type")
         if content_type.startswith(MINE_TEXT):
             log.debug(r.text)

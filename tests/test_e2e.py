@@ -26,39 +26,37 @@ CLOUDURL = environ.get('CLOUDURL')
 
 def randomword(length):
     letters = string.ascii_lowercase
-    return ''.join(random.choice(letters) for i in range(length))
-
+    return ''.join(random.choice(letters) for _ in range(length))
 
 
 class TestStringMethods(unittest.TestCase):
 
-
     def test_fake(self):
         print("Using fake connection")
         conn = FakeConnection()
-        ZONE = "Default"
+        zone = "Default"
         cn = randomword(10) + ".venafi.example.com"
-        cert_id, pkey, sn = enroll(conn, ZONE, cn)
+        cert_id, pkey, sn = enroll(conn, zone, cn)
         # renew(conn, cert_id, pkey)
 
     def test_cloud(self):
         print("Using cloud connection")
-        ZONE = environ['CLOUDZONE']
-        conn = CloudConnection(token=TOKEN,url=CLOUDURL)
+        zone = environ['CLOUDZONE']
+        conn = CloudConnection(token=TOKEN, url=CLOUDURL)
         cn = randomword(10) + ".venafi.example.com"
-        cert_id, pkey, sn = enroll(conn, ZONE, cn)
+        cert_id, pkey, sn = enroll(conn, zone, cn)
         renew(conn, cert_id, pkey, sn, cn)
 
     def test_tpp(self):
-        ZONE = environ['TPPZONE']
+        zone = environ['TPPZONE']
         print("Using TPP conection")
         conn = TPPConnection(USER, PASSWORD, TPPURL)
         cn = randomword(10) + ".venafi.example.com"
-        cert_id, pkey, sn = enroll(conn, ZONE, cn)
+        cert_id, pkey, sn = enroll(conn, zone, cn)
         renew(conn, cert_id, pkey, sn, cn)
 
 
-def enroll(conn, ZONE, cn):
+def enroll(conn, zone, cn):
     print("Trying to ping service")
     status = conn.ping()
     print("Server online:", status)
@@ -80,7 +78,7 @@ def enroll(conn, ZONE, cn):
             chain_option="last"
         )
 
-    conn.request_cert(request, ZONE)
+    conn.request_cert(request, zone)
     while True:
         cert_pem = conn.retrieve_cert(request)
         if cert_pem:
@@ -120,6 +118,7 @@ def enroll(conn, ZONE, cn):
 
     return request.id, request.private_key_pem, cert.serial_number
 
+
 def renew(conn, cert_id, pkey, sn, cn):
     print("Trying to renew certificate")
     new_request = CertificateRequest(
@@ -157,7 +156,3 @@ def renew(conn, cert_id, pkey, sn, cn):
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     )
     assert private_key_public_key_pem == public_key_pem
-
-if __name__ == '__main__':
-    main()
-
