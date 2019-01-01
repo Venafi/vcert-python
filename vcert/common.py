@@ -81,6 +81,15 @@ class KeyTypes:
     ECDSA = "ec"
 
 
+class RevocationReasons:
+    NoReason = 0
+    key_compromise = 1
+    ca_compromise = 2
+    affiliation_changed = 3
+    superseded = 4
+    cessation_of_operation = 5  # OriginalUseNoLongerValid
+
+
 class KeyType:
     def __init__(self, key_type, key_sizes=None, key_curves=None):
         self.key_type = key_type.lower()
@@ -318,6 +327,19 @@ class CertificateRequest:
         ).decode()
 
 
+class RevocationRequest:
+    def __init__(self, id=None, thumbprint=None,  reason=RevocationReasons.NoReason, comments=None, disable=True):
+        """
+        :param id:
+        :param thumbprint:
+        """
+        self.id = id
+        self.thumbprint = thumbprint
+        self.reason = reason
+        self.comments = comments
+        self.disable = disable
+
+
 class CommonConnection:
     def _get_cert_status(self, request):
         """
@@ -357,6 +379,9 @@ class CommonConnection:
         raise NotImplementedError
 
     def revoke_cert(self, request):
+        """
+        :param RevocationRequest request:
+        """
         raise NotImplementedError
 
     def renew_cert(self, request):

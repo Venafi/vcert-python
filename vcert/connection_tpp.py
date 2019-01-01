@@ -151,7 +151,23 @@ class TPPConnection(CommonConnection):
             raise ServerUnexptedBehavior
 
     def revoke_cert(self, request):
-        raise NotImplementedError
+        if not (request.id or request.thumbprint):
+            raise ClientBadData
+        d = {
+            "Reason": request.reason,
+            "Disable": request.disable
+        }
+        if request.id:
+            d["CertificateDN"] = request.id
+        elif request.thumbprint:
+            d["Thumbprint"] = request.thumbprint
+        if request.comments:
+            d["Comments"] = request.comments
+        status, data = self._post(URLS.CERTIFICATE_RETRIEVE, data=d)
+        if status in (HTTPStatus.OK, HTTPStatus.ACCEPTED):
+            return data
+        else:
+            raise ServerUnexptedBehavior
 
     def renew_cert(self, request):
         if not request.id:
