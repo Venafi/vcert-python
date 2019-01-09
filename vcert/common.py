@@ -357,7 +357,7 @@ class CertificateRequest:
         # builder.subject_alt_domains = [self.common_name]
         csr_builder = csr_builder.sign(self.private_key, hashes.SHA256(), default_backend())
         # self.csr = pem_armor_csr(builder.build(self.private_key)).decode()
-        self.csr = csr_builder.public_bytes(serialization.Encoding.PEM)
+        self.csr = csr_builder.public_bytes(serialization.Encoding.PEM).decode()
         return
 
     @property
