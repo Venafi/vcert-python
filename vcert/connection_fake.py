@@ -164,10 +164,10 @@ class FakeConnection(CommonConnection):
         end_entity_public_key = serialization.load_pem_public_key(
             certificate_request.private_key_public_key_pem.encode(), default_backend())
 
-        cn = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, certificate_request.common_name)])
+        # cn = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, certificate_request.common_name)])
         issuer = root_ca_certificate.issuer
         cert = x509.CertificateBuilder().subject_name(
-            cn
+            csr.subject
         ).issuer_name(
             issuer
         ).public_key(
