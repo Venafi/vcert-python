@@ -307,6 +307,7 @@ class CertificateRequest:
         # )
 
         csr_builder = x509.CertificateSigningRequestBuilder()
+        # TODO: if common name is not defined get first alt name. If alt name not defined too throw error.
         subject = [x509.NameAttribute(NameOID.COMMON_NAME, self.common_name,)]
         if self.email_addresses:
             subject.append(x509.NameAttribute(NameOID.EMAIL_ADDRESS, self.email_addresses))
@@ -327,38 +328,33 @@ class CertificateRequest:
             critical=False,
         )
 
-        builder.hash_algo = "sha256"
-        builder.subject_alt_domains = [self.common_name]
-        build_csr = x509.CertificateSigningRequestBuilder().subject_name(x509.Name([
-            # Provide various details about who we are.
-            x509.NameAttribute(NameOID.COUNTRY_NAME, u"US"),
-            x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, u"CA"),
-            x509.NameAttribute(NameOID.LOCALITY_NAME, u"San Francisco"),
-            x509.NameAttribute(NameOID.ORGANIZATION_NAME, u"My Company"),
-            x509.NameAttribute(NameOID.COMMON_NAME, u"mysite.com"),
-        ])).add_extension(
-            x509.SubjectAlternativeName([
-                # Describe what sites we want this certificate for.
-                x509.DNSName(u"mysite.com"),
-                x509.DNSName(u"www.mysite.com"),
-                x509.DNSName(u"subdomain.mysite.com"),
-            ]),
-            critical=False,
-            # Sign the CSR with our private key.
-        ).sign(self.public_key, hashes.SHA256(), default_backend())
-        self.csr = pem_armor_csr(builder.build(self.private_key)).decode()
+        # builder.hash_algo = "sha256"
+        # builder.subject_alt_domains = [self.common_name]
+        csr_builder = csr_builder.sign(self.private_key, hashes.SHA256(), default_backend())
+        # self.csr = pem_armor_csr(builder.build(self.private_key)).decode()
+        self.csr = csr_builder.public_bytes(serialization.Encoding.PEM)
         return
 
     @property
     def private_key_pem(self):
+        if self.key_password:
+            encryption = serialization.BestAvailableEncryption(self.key_password)
+        else:
+            encryption = serialization.NoEncryption()
+
         return self.private_key.private_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PrivateFormat.TraditionalOpenSSL,
-        encryption_algorithm=serialization.BestAvailableEncryption(b"passphrase"),
+        encryption_algorithm=encryption,
         ).decode()
 
     def public_key_from_private(self):
-        private_key = serialization.load_pem_private_key(self.private_key_pem.encode(), password=None,
+        if self.key_password:
+            password = self.key_password
+        else:
+            password = None
+
+        private_key = serialization.load_pem_private_key(self.private_key_pem.encode(), password=password,
                                                          backend=default_backend())
         self.private_key_public_key = private_key.public_key()
         self.private_key_public_key_pem = private_key.public_key().public_bytes(
