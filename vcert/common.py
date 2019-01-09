@@ -32,6 +32,7 @@ from cryptography.hazmat.primitives import serialization
 MIME_JSON = "application/json"
 MIME_HTML = "text/html"
 MIME_TEXT = "text/plain"
+MIME_CSV = "text/csv"
 MIME_ANY = "*/*"
 
 
@@ -436,6 +437,9 @@ class CommonConnection:
         elif content_type.startswith(MIME_JSON):
             log.debug(r.content.decode())
             return r.status_code, r.json()
+        elif content_type.startswith(MIME_CSV):
+            log.debug(r.content.decode())
+            return r.status_code, r.content.decode()
         else:
             log.error("Unexpected content type: %s for request %s" % (content_type, r.request.url))
             raise ServerUnexptedBehavior
