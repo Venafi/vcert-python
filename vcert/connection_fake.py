@@ -25,8 +25,6 @@ from .common import CommonConnection, Zone
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography import x509
 from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import hashes
@@ -168,7 +166,7 @@ class FakeConnection(CommonConnection):
 
         cn = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, certificate_request.common_name)])
         issuer = root_ca_certificate.issuer
-        builder = x509.CertificateBuilder().subject_name(
+        cert = x509.CertificateBuilder().subject_name(
             cn
         ).issuer_name(
             issuer
@@ -189,9 +187,7 @@ class FakeConnection(CommonConnection):
         ).sign(root_ca_private_key, hashes.SHA256(), default_backend())
 
 
-        # end_entity_certificate = builder.build(root_ca_private_key)
-        # certificate_request.public_key_from_private()
-        return (builder.public_bytes(serialization.Encoding.PEM).decode)
+        return (cert.public_bytes(serialization.Encoding.PEM).decode())
 
     def revoke_cert(self, request):
         raise NotImplementedError
