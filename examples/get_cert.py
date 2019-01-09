@@ -51,8 +51,10 @@ def main():
     if not isinstance(conn, CloudConnection):
         # Cloud connection doesn`t support dns, email and ip in CSR
         request.san_dns = ["www.client.venafi.example.com", "ww1.client.venafi.example.com"]
-        request.email_addresses = "e1@venafi.example.com, e2@venafi.example.com"
+        request.email_addresses = "e1@venafi.example.com"
         request.ip_addresses = ["127.0.0.1", "192.168.1.1"]
+        # Specify ordering certificates in chain. Root can be "first" or "last". If not specified chain will not be
+        # included.
         request.chain_option = "last"
 
     # make certificate request

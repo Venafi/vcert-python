@@ -38,5 +38,8 @@ def Connection(url=None, token=None, user=None, password=None, ignore_ssl_errors
     if url and user and password:
         return TPPConnection(user=user, password=password, url=url, ignore_ssl_errors=ignore_ssl_errors)
     if token:
-        return CloudConnection(token=token, url=None)
+        if url:
+            return CloudConnection(token=token, url=url)
+        else:
+            return CloudConnection(token=token, url=None)
     raise Exception("Bad credentials list")

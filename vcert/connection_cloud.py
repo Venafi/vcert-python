@@ -158,6 +158,8 @@ class CloudConnection(CommonConnection):
             return data
 
     def _get_zone_by_tag(self, tag):
+        # TODO: throw exception if zone or tag is None
+        # or if it is none set it to Default
         """
         :param str tag:
         :rtype Zone
