@@ -17,7 +17,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography import x509
 from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import hashes
-
+import ipaddress
 
 MIME_JSON = "application/json"
 MINE_HTML = "text/html"
@@ -234,7 +234,7 @@ class CertificateRequest:
         :param str id: Certificate request id. Generating by server.
         :param list[str] san_dns: Alternative names for SNI.
         :param str email_addresses: String with separated by comma emails.
-        :param list[str] ip_addresses: IP addresses
+        :param list[str] ip_addresses: String with separated by comma IP addresses
         :param attributes:
         :param str key_type: Type of asymetric cryptography algorithm. Available values in vcert.KeyTypes.
         :param int key_length: Key length for rsa algorithm
@@ -285,6 +285,7 @@ class CertificateRequest:
                                                             key_size=2048,
                                                             backend=default_backend()
                                                         )
+                self.public_key = self.private_key.public_key()
             elif self.key_type == KeyTypes.ECDSA:
                 self.public_key, self.private_key = asymmetric.generate_pair("ec", curve=self.key_curve)
             else:
@@ -294,21 +295,37 @@ class CertificateRequest:
             # public_key = gen_public_from_private(self.private_key, self.key_type)  # todo: write function
 
 
-        data = {
-            'common_name': self.common_name,
-        }
+        # data = {
+        #     'common_name': self.common_name,
+        # }
+        # if self.email_addresses:
+        #     data['email_address'] = self.email_addresses
+
+        # builder = CSRBuilder(
+        #     data,
+        #     self.public_key
+        # )
+
+        csr_builder = x509.CertificateSigningRequestBuilder()
+        subject = [x509.NameAttribute(NameOID.COMMON_NAME, self.common_name,)]
         if self.email_addresses:
-            data['email_address'] = self.email_addresses
+            subject.append(x509.NameAttribute(NameOID.EMAIL_ADDRESS, self.email_addresses))
+        csr_builder = csr_builder.subject_name(x509.Name(subject))
 
-        builder = CSRBuilder(
-            data,
-            self.public_key
-        )
 
+        alt_names = []
         if self.ip_addresses:
-            builder.subject_alt_ips = self.ip_addresses
+            for ip in self.ip_addresses:
+                alt_names.append(x509.IPAddress(ipaddress.IPv4Address(ip)))
+
         if self.san_dns:
-            builder.subject_alt_domains = self.san_dns
+            for ns in self.san_dns:
+                alt_names.append(x509.DNSName(ns))
+
+        csr_builder = csr_builder.add_extension(
+            x509.SubjectAlternativeName(alt_names),
+            critical=False,
+        )
 
         builder.hash_algo = "sha256"
         builder.subject_alt_domains = [self.common_name]
