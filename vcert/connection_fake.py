@@ -14,15 +14,23 @@
 # limitations under the License.
 #
 
-from __future__ import absolute_import, division, generators, unicode_literals, print_function, nested_scopes, with_statement
+from __future__ import absolute_import, division, generators, unicode_literals, print_function, nested_scopes, \
+    with_statement
 
 import logging as log
 import time
-from oscrypto import asymmetric
-from certbuilder import CertificateBuilder, pem_armor_certificate
 
 import uuid
 from .common import CommonConnection, Zone
+
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography import x509
+from cryptography.x509.oid import NameOID
+from cryptography.hazmat.primitives import hashes
+import datetime
 
 ROOT_CA = b"""-----BEGIN CERTIFICATE-----
 MIID1TCCAr2gAwIBAgIJAIOVTvMIMD7OMA0GCSqGSIb3DQEBCwUAMIGAMQswCQYD
@@ -144,27 +152,46 @@ class FakeConnection(CommonConnection):
         log.debug("Certificate sucessfully requested with request id %s." % request.id)
         return request
 
-
     def retrieve_cert(self, certificate_request):
         log.debug("Getting certificate status for id %s" % certificate_request.id)
 
         time.sleep(0.1)
         certificate_request.public_key_from_private()
-        end_entity_public_key = asymmetric.load_public_key(certificate_request.private_key_public_key_pem.encode())
-        builder = CertificateBuilder(
-            {
-                'common_name': certificate_request.common_name,
-            },
+        csr = x509.load_pem_x509_csr(certificate_request.csr.encode(), default_backend())
+
+        root_ca_certificate = x509.load_pem_x509_certificate(ROOT_CA, default_backend())
+        root_ca_private_key = serialization.load_pem_private_key(ROOT_CA_KEY, password=None,
+                                                                 backend=default_backend())
+
+        end_entity_public_key = serialization.load_pem_public_key(
+            certificate_request.private_key_public_key_pem.encode(), default_backend())
+
+        cn = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, certificate_request.common_name)])
+        issuer = root_ca_certificate.issuer
+        builder = x509.CertificateBuilder().subject_name(
+            cn
+        ).issuer_name(
+            issuer
+        ).public_key(
             end_entity_public_key
-        )
+        ).serial_number(
+            x509.random_serial_number()
+        ).not_valid_before(
+            datetime.datetime.utcnow()
+        ).not_valid_after(
+            # Our certificate will be valid for 10 days
+            datetime.datetime.utcnow() + datetime.timedelta(days=10)
+        ).add_extension(
+            # csr_builder.extensions,
+            x509.SubjectAlternativeName([x509.DNSName(u"localhost")]),
+            critical=False,
+            # Sign our certificate with our private key
+        ).sign(root_ca_private_key, hashes.SHA256(), default_backend())
 
-        root_ca_certificate = asymmetric.load_certificate(ROOT_CA)
-        root_ca_private_key = asymmetric.load_private_key(ROOT_CA_KEY)
 
-        builder.issuer = root_ca_certificate
-        end_entity_certificate = builder.build(root_ca_private_key)
-        certificate_request.public_key_from_private()
-        return(pem_armor_certificate(end_entity_certificate).decode())
+        # end_entity_certificate = builder.build(root_ca_private_key)
+        # certificate_request.public_key_from_private()
+        return (builder.public_bytes(serialization.Encoding.PEM).decode)
 
     def revoke_cert(self, request):
         raise NotImplementedError
