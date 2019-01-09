@@ -1,3 +1,19 @@
+#
+# Copyright 2019 Venafi, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 from __future__ import (absolute_import, division, generators, unicode_literals, print_function, nested_scopes,
                         with_statement)
 
@@ -151,7 +167,23 @@ class TPPConnection(CommonConnection):
             raise ServerUnexptedBehavior
 
     def revoke_cert(self, request):
-        raise NotImplementedError
+        if not (request.id or request.thumbprint):
+            raise ClientBadData
+        d = {
+            "Reason": request.reason,
+            "Disable": request.disable
+        }
+        if request.id:
+            d["CertificateDN"] = request.id
+        elif request.thumbprint:
+            d["Thumbprint"] = request.thumbprint
+        if request.comments:
+            d["Comments"] = request.comments
+        status, data = self._post(URLS.CERTIFICATE_RETRIEVE, data=d)
+        if status in (HTTPStatus.OK, HTTPStatus.ACCEPTED):
+            return data
+        else:
+            raise ServerUnexptedBehavior
 
     def renew_cert(self, request):
         if not request.id:

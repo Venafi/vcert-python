@@ -43,7 +43,7 @@ class TestStringMethods(unittest.TestCase):
         # renew(conn, cert_id, pkey)
 
     def test_cloud(self):
-        print("Using cloud connection")
+        print("Using Cloud connection")
         zone = environ['CLOUDZONE']
         conn = CloudConnection(token=TOKEN, url=CLOUDURL)
         cn = randomword(10) + ".venafi.example.com"

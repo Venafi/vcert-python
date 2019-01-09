@@ -1,4 +1,20 @@
 #!/usr/bin/env python3
+#
+# Copyright 2019 Venafi, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 from __future__ import absolute_import, division, generators, unicode_literals, print_function, nested_scopes, with_statement
 
 from vcert import CertificateRequest, Connection, CloudConnection, FakeConnection
@@ -13,15 +29,15 @@ logging.getLogger("urllib3").setLevel(logging.ERROR)
 
 
 def main():
-    # Get credentials from environement variables
+    # Get credentials from environment variables
     token = environ.get('TOKEN')
     user = environ.get('TPPUSER')
     password = environ.get('TPPPASSWORD')
     url = environ.get('TPPURL')
     zone = environ.get("ZONE")
-    # connection will be chosen automatically dependent on what arguments are passed
-    # if token is passed Venafi Cloud connection will be used. if user, password, and URL Venafi Platform (TPP) will
-    # be used. If none test connection will be used.
+    # connection will be chosen automatically based on what arguments are passed,
+    # If token is passed Venafi Cloud connection will be used. if user, password, and URL Venafi Platform (TPP) will
+    # be used. If none, test connection will be used.
     conn = Connection(url=url, token=token, user=user, password=password, ignore_ssl_errors=True)
 
     print("Trying to ping url %s" % conn._base_url)
@@ -33,7 +49,7 @@ def main():
 
     request = CertificateRequest(common_name=randomword(10) + ".venafi.example.com")
     if not isinstance(conn, CloudConnection):
-        # cloud connection doesn`t support dns, email and ip in CSR
+        # Cloud connection doesn`t support dns, email and ip in CSR
         request.san_dns = ["www.client.venafi.example.com", "ww1.client.venafi.example.com"]
         request.email_addresses = "e1@venafi.example.com, e2@venafi.example.com"
         request.ip_addresses = ["127.0.0.1", "192.168.1.1"]

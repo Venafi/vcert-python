@@ -6,7 +6,7 @@ VCert Python is a Python library and SDK  designed to simplify key generation an
 (also known as SSL/TLS certificates and keys) that comply with enterprise security policy by using the
 [Venafi Platform](https://www.venafi.com/platform/trust-protection-platform) or [Venafi Cloud](https://pki.venafi.com/venafi-cloud/).
 
-It is a Python copy of original Go library  https://github.com/Venafi/vcert  
+This implementation is based on the original Go library, https://github.com/Venafi/vcert.
 
 VCert is supporting Python 3, and Python 2.7 with "from \__future\__ import".  
 
