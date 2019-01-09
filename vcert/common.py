@@ -258,7 +258,7 @@ class CertificateRequest:
         :param str id: Certificate request id. Generating by server.
         :param list[str] san_dns: Alternative names for SNI.
         :param str email_addresses: String with separated by comma emails.
-        :param list[str] ip_addresses: String with separated by comma IP addresses
+        :param list[str] ip_addresses: List of IP addresses
         :param attributes:
         :param str key_type: Type of asymmetric cryptography algorithm. Available values in vcert.KeyTypes.
         :param int key_length: Key length for rsa algorithm
