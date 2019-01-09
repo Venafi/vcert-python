@@ -262,7 +262,8 @@ class CertificateRequest:
         :param attributes:
         :param str key_type: Type of asymmetric cryptography algorithm. Available values in vcert.KeyTypes.
         :param int key_length: Key length for rsa algorithm
-        :param str key_curve: Curves name for ecdsa algorithm
+        :param str key_curve: Curves name for ecdsa algorithm. Choices are "P521", "P384", "P256", "P224". P521 is
+        set by default.
         :param asymmetric.PrivateKey private_key: String with pem encoded private key or  asymmetric.PrivateKey
         :param str key_password: Password for encrypted private key. Not supported at this moment.
         :param str csr: Certificate Signing Request in pem format
@@ -311,8 +312,18 @@ class CertificateRequest:
                                                         )
                 self.public_key = self.private_key.public_key()
             elif self.key_type == KeyTypes.ECDSA:
+                if self.key_curve == "P521":
+                    curve = ec.SECP521R1()
+                if self.key_curve == "P384":
+                    curve = ec.SECP384R1()
+                elif self.key_curve == "P256":
+                    curve = ec.SECP256R1()
+                if self.key_curve == "P224":
+                    curve = ec.SECP224R1()
+                else:
+                    curve = ec.SECP521R1()
                 self.private_key = ec.generate_private_key(
-                    ec.SECP521R1(), default_backend()
+                    curve , default_backend()
                 )
             else:
                 raise ClientBadData
