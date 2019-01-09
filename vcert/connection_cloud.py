@@ -22,8 +22,8 @@ import logging as log
 
 import requests
 
-from .common import (Zone, CertificateRequest, CommonConnection, Policy, ZoneConfig, log_errors, MIME_JSON, MINE_TEXT,
-                     MINE_ANY)
+from .common import (Zone, CertificateRequest, CommonConnection, Policy, ZoneConfig, log_errors, MIME_JSON, MIME_TEXT,
+                     MIME_ANY)
 from .errors import (VenafiConnectionError, ServerUnexptedBehavior, ClientBadData, CertificateRequestError,
                      CertificateRenewError)
 from .http import HTTPStatus
@@ -78,7 +78,7 @@ class CloudConnection(CommonConnection):
 
     def _get(self, url, params=None):
         r = requests.get(self._base_url + url, params=params,
-                         headers={TOKEN_HEADER_NAME: self._token, "Accept": MINE_ANY, "cache-control": "no-cache"})
+                         headers={TOKEN_HEADER_NAME: self._token, "Accept": MIME_ANY, "cache-control": "no-cache"})
         return self.process_server_response(r)
 
     def _post(self, url, data=None):
@@ -109,7 +109,7 @@ class CloudConnection(CommonConnection):
         if r.status_code not in (HTTPStatus.OK, HTTPStatus.CREATED, HTTPStatus.ACCEPTED):
             raise VenafiConnectionError("Server status: %s, %s", (r.status_code, r.request.url))
         content_type = r.headers.get("content-type")
-        if content_type == MINE_TEXT:
+        if content_type == MIME_TEXT:
             log.debug(r.text)
             return r.status_code, r.text
         elif content_type == MIME_JSON:
