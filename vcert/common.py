@@ -21,8 +21,6 @@ import datetime
 import logging as log
 
 import dateutil.parser
-from csrbuilder import CSRBuilder, pem_armor_csr
-from oscrypto import asymmetric
 
 from .errors import VenafiConnectionError, ServerUnexptedBehavior, BadData, ClientBadData
 from .http import HTTPStatus
@@ -30,6 +28,7 @@ from .http import HTTPStatus
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography import x509
 from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import hashes
@@ -284,13 +283,13 @@ class CertificateRequest:
         self.key_length = key_length
         self.key_curve = key_curve
         if isinstance(private_key, str):
-            self.private_key =  serialization.load_pem_private_key(self.private_key_pem.encode(),
+            self.private_key = serialization.load_pem_private_key(self.private_key_pem.encode(),
                                                         password=None,backend=default_backend())
             self.key_type = self.private_key.algorithm
             self.public_key = None
-        elif isinstance(private_key, asymmetric.PrivateKey):
+        elif isinstance(private_key, rsa.RSAPrivateKey):    #todo: migrate to cryptography here
             self.private_key = private_key
-            self.key_type = self.private_key.algorithm
+            self.key_type = self.private_key
             self.public_key = None
         elif private_key is None:
             self.private_key = None
@@ -312,24 +311,14 @@ class CertificateRequest:
                                                         )
                 self.public_key = self.private_key.public_key()
             elif self.key_type == KeyTypes.ECDSA:
-                self.public_key, self.private_key = asymmetric.generate_pair("ec", curve=self.key_curve)
+                self.private_key = ec.generate_private_key(
+                    ec.SECP521R1(), default_backend()
+                )
             else:
                 raise ClientBadData
         else:
             raise NotImplementedError
             # public_key = gen_public_from_private(self.private_key, self.key_type)  # todo: write function
-
-
-        # data = {
-        #     'common_name': self.common_name,
-        # }
-        # if self.email_addresses:
-        #     data['email_address'] = self.email_addresses
-
-        # builder = CSRBuilder(
-        #     data,
-        #     self.public_key
-        # )
 
         csr_builder = x509.CertificateSigningRequestBuilder()
         # TODO: if common name is not defined get first alt name. If alt name not defined too throw error.
@@ -353,10 +342,7 @@ class CertificateRequest:
             critical=False,
         )
 
-        # builder.hash_algo = "sha256"
-        # builder.subject_alt_domains = [self.common_name]
         csr_builder = csr_builder.sign(self.private_key, hashes.SHA256(), default_backend())
-        # self.csr = pem_armor_csr(builder.build(self.private_key)).decode()
         self.csr = csr_builder.public_bytes(serialization.Encoding.PEM).decode()
         return
 
