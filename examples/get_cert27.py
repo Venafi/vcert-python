@@ -1,4 +1,19 @@
 #!/usr/bin/env python2
+#
+# Copyright 2019 Venafi, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 from vcert import CertificateRequest, Connection, CloudConnection, FakeConnection
 import string
 import random
@@ -27,7 +42,7 @@ def main():
 
     request = CertificateRequest(common_name=randomword(10) + u".venafi.example.com")
     if not isinstance(conn, CloudConnection):
-        # cloud connection doesn`t support dns, email and ip in CSR
+        # Cloud connection doesn`t support dns, email and ip in CSR
         request.san_dns = [u"www.client.venafi.example.com", u"ww1.client.venafi.example.com"]
         request.email_addresses = u"e1@venafi.example.com, e2@venafi.example.com"
         request.ip_addresses = [u"127.0.0.1", u"192.168.1.1"]

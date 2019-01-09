@@ -1,3 +1,19 @@
+#
+# Copyright 2019 Venafi, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 from __future__ import absolute_import, division, generators, unicode_literals, print_function, nested_scopes, \
     with_statement
 
@@ -239,7 +255,7 @@ class CertificateRequest:
         :param str email_addresses: String with separated by comma emails.
         :param list[str] ip_addresses: IP addresses
         :param attributes:
-        :param str key_type: Type of asymetric cryptography algorithm. Available values in vcert.KeyTypes.
+        :param str key_type: Type of asymmetric cryptography algorithm. Available values in vcert.KeyTypes.
         :param int key_length: Key length for rsa algorithm
         :param str key_curve: Curves name for ecdsa algorithm
         :param asymmetric.PrivateKey private_key: String with pem encoded private key or  asymmetric.PrivateKey
@@ -357,7 +373,7 @@ class CommonConnection:
     def auth(self):
         """
         Authorize connection on platform. Return user object.
-        Not required for making calls. Connection contols auth status by him self.
+        Optional for making calls. Connection controls auth status by itself.
         """
         raise NotImplementedError
 
@@ -365,7 +381,7 @@ class CommonConnection:
         """
         Making request to certificate. It will generate CSR from data if CSR not specified,
         generate key if required and send to server for signing. Set request.id for retrieving certificate.
-        :param CertificateRequest request: Certitficate in PEM format
+        :param CertificateRequest request: Certificate in PEM format
         :param str zone: Venafi zone tag name
         :rtype bool : Success
         """
@@ -421,5 +437,5 @@ class CommonConnection:
             log.debug(r.content.decode())
             return r.status_code, r.json()
         else:
-            log.error("unexpected content type: %s for request %s" % (content_type, r.request.url))
+            log.error("Unexpected content type: %s for request %s" % (content_type, r.request.url))
             raise ServerUnexptedBehavior
