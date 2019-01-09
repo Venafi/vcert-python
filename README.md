@@ -8,7 +8,7 @@ VCert Python is a Python library and SDK  designed to simplify key generation an
 
 This implementation is based on the original Go library, https://github.com/Venafi/vcert.
 
-VCert is supporting Python 3, and Python 2.7 with "from \__future\__ import".  
+VCert is supporting Python 3, and Python 2.7.  
 
 ## Installation
 Get the library using pip:  
