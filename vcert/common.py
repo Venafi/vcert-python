@@ -21,13 +21,18 @@ import datetime
 import logging as log
 
 import dateutil.parser
-from csrbuilder import CSRBuilder, pem_armor_csr
-from oscrypto import asymmetric
 
 from .errors import VenafiConnectionError, ServerUnexptedBehavior, BadData, ClientBadData
 from .http import HTTPStatus
+
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography import x509
+from cryptography.x509.oid import NameOID
+from cryptography.hazmat.primitives import hashes
+import ipaddress
 
 MIME_JSON = "application/json"
 MINE_HTML = "text/html"
@@ -246,18 +251,19 @@ class CertificateRequest:
                  key_password=None,
                  csr=None,
                  friendly_name=None,
-                 chain_option="first",
+                 chain_option=None,
                  common_name=None,
                  thumbprint=None):
         """
         :param str id: Certificate request id. Generating by server.
         :param list[str] san_dns: Alternative names for SNI.
         :param str email_addresses: String with separated by comma emails.
-        :param list[str] ip_addresses: IP addresses
+        :param list[str] ip_addresses: List of IP addresses
         :param attributes:
         :param str key_type: Type of asymmetric cryptography algorithm. Available values in vcert.KeyTypes.
         :param int key_length: Key length for rsa algorithm
-        :param str key_curve: Curves name for ecdsa algorithm
+        :param str key_curve: Curves name for ecdsa algorithm. Choices are "P521", "P384", "P256", "P224". P521 is
+        set by default.
         :param asymmetric.PrivateKey private_key: String with pem encoded private key or  asymmetric.PrivateKey
         :param str key_password: Password for encrypted private key. Not supported at this moment.
         :param str csr: Certificate Signing Request in pem format
@@ -278,12 +284,13 @@ class CertificateRequest:
         self.key_length = key_length
         self.key_curve = key_curve
         if isinstance(private_key, str):
-            self.private_key = asymmetric.load_private_key(private_key)
+            self.private_key = serialization.load_pem_private_key(self.private_key_pem.encode(),
+                                                        password=None,backend=default_backend())
             self.key_type = self.private_key.algorithm
             self.public_key = None
-        elif isinstance(private_key, asymmetric.PrivateKey):
+        elif isinstance(private_key, rsa.RSAPrivateKey):    #todo: migrate to cryptography here
             self.private_key = private_key
-            self.key_type = self.private_key.algorithm
+            self.key_type = self.private_key
             self.public_key = None
         elif private_key is None:
             self.private_key = None
@@ -298,43 +305,78 @@ class CertificateRequest:
     def build_csr(self):
         if not self.private_key:
             if self.key_type == KeyTypes.RSA:
-                self.public_key, self.private_key = asymmetric.generate_pair("rsa", bit_size=self.key_length)
+                self.private_key = rsa.generate_private_key(
+                                                            public_exponent=65537,
+                                                            key_size=2048,
+                                                            backend=default_backend()
+                                                        )
+                self.public_key = self.private_key.public_key()
             elif self.key_type == KeyTypes.ECDSA:
-                self.public_key, self.private_key = asymmetric.generate_pair("ec", curve=self.key_curve)
+                if self.key_curve == "P521":
+                    curve = ec.SECP521R1()
+                if self.key_curve == "P384":
+                    curve = ec.SECP384R1()
+                elif self.key_curve == "P256":
+                    curve = ec.SECP256R1()
+                if self.key_curve == "P224":
+                    curve = ec.SECP224R1()
+                else:
+                    curve = ec.SECP521R1()
+                self.private_key = ec.generate_private_key(
+                    curve , default_backend()
+                )
             else:
                 raise ClientBadData
         else:
             raise NotImplementedError
             # public_key = gen_public_from_private(self.private_key, self.key_type)  # todo: write function
 
-
-        data = {
-            'common_name': self.common_name,
-        }
+        csr_builder = x509.CertificateSigningRequestBuilder()
+        # TODO: if common name is not defined get first alt name. If alt name not defined too throw error.
+        subject = [x509.NameAttribute(NameOID.COMMON_NAME, self.common_name,)]
         if self.email_addresses:
-            data['email_address'] = self.email_addresses
+            subject.append(x509.NameAttribute(NameOID.EMAIL_ADDRESS, self.email_addresses))
+        csr_builder = csr_builder.subject_name(x509.Name(subject))
 
-        builder = CSRBuilder(
-            data,
-            self.public_key
+
+        alt_names = []
+        if self.ip_addresses:
+            for ip in self.ip_addresses:
+                alt_names.append(x509.IPAddress(ipaddress.IPv4Address(ip)))
+
+        if self.san_dns:
+            for ns in self.san_dns:
+                alt_names.append(x509.DNSName(ns))
+
+        csr_builder = csr_builder.add_extension(
+            x509.SubjectAlternativeName(alt_names),
+            critical=False,
         )
 
-        if self.ip_addresses:
-            builder.subject_alt_ips = self.ip_addresses
-        if self.san_dns:
-            builder.subject_alt_domains = self.san_dns
-
-        builder.hash_algo = "sha256"
-        builder.subject_alt_domains = [self.common_name]
-        self.csr = pem_armor_csr(builder.build(self.private_key)).decode()
+        csr_builder = csr_builder.sign(self.private_key, hashes.SHA256(), default_backend())
+        self.csr = csr_builder.public_bytes(serialization.Encoding.PEM).decode()
         return
 
     @property
     def private_key_pem(self):
-        return asymmetric.dump_private_key(self.private_key, None, "pem").decode()
+        if self.key_password:
+            encryption = serialization.BestAvailableEncryption(self.key_password)
+        else:
+            encryption = serialization.NoEncryption()
+
+        return self.private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.TraditionalOpenSSL,
+        encryption_algorithm=encryption,
+        ).decode()
 
     def public_key_from_private(self):
-        private_key = serialization.load_pem_private_key(self.private_key_pem.encode(), password=None,
+        if self.key_password:
+            password = self.key_password
+        else:
+            password = None
+
+        private_key = serialization.load_pem_private_key(self.private_key_pem.encode(), password=password,
                                                          backend=default_backend())
         self.private_key_public_key = private_key.public_key()
         self.private_key_public_key_pem = private_key.public_key().public_bytes(

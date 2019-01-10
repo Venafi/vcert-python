@@ -145,6 +145,7 @@ class TPPConnection(CommonConnection):
 
         retrive_request = dict(CertificateDN=certificate_request.id, Format="base64", IncludeChain='true')
 
+        # TODO: how to handle None and wrong options? Maybe set except
         if certificate_request.chain_option == "last":
             retrive_request['RootFirstOrder'] = 'false'
             retrive_request['IncludeChain'] = 'true'
