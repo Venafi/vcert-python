@@ -12,7 +12,7 @@ import unittest
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.x509.oid import NameOID
-from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives import serialization, hashes
 
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("urllib3").setLevel(logging.DEBUG)
@@ -48,7 +48,8 @@ class TestStringMethods(unittest.TestCase):
         conn = CloudConnection(token=TOKEN, url=CLOUDURL)
         cn = randomword(10) + ".venafi.example.com"
         cert_id, pkey, sn = enroll(conn, zone, cn)
-        renew(conn, cert_id, pkey, sn, cn)
+        cert = renew(conn, cert_id, pkey, sn, cn)
+        renew_by_thumbprint(conn, cert)
 
     def test_tpp(self):
         zone = environ['TPPZONE']
@@ -56,7 +57,8 @@ class TestStringMethods(unittest.TestCase):
         conn = TPPConnection(USER, PASSWORD, TPPURL, ignore_ssl_errors=True)
         cn = randomword(10) + ".venafi.example.com"
         cert_id, pkey, sn = enroll(conn, zone, cn)
-        renew(conn, cert_id, pkey, sn, cn)
+        cert = renew(conn, cert_id, pkey, sn, cn)
+        renew_by_thumbprint(conn, cert)
 
 
 def enroll(conn, zone, cn):
@@ -159,3 +161,22 @@ def renew(conn, cert_id, pkey, sn, cn):
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     )
     assert private_key_public_key_pem == public_key_pem
+    return cert
+
+
+def renew_by_thumbprint(conn, prev_cert):
+    print("Trying to renew by thumbprint")
+    thumbprint = prev_cert.fingerprint(hashes.SHA1()).hex()
+    new_request = CertificateRequest(thumbprint=thumbprint, chain_option="last")
+    conn.renew_cert(new_request)
+    while True:
+        new_cert_pem = conn.retrieve_cert(new_request)
+        if new_cert_pem:
+            break
+        else:
+            time.sleep(5)
+    cert = x509.load_pem_x509_certificate(new_cert_pem.encode(), default_backend())
+    assert isinstance(cert, x509.Certificate)
+    print(cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME))
+    print(prev_cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME))
+    assert cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME) == prev_cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)

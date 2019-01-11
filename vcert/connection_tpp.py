@@ -186,7 +186,7 @@ class TPPConnection(CommonConnection):
             raise ServerUnexptedBehavior
 
     def renew_cert(self, request):
-        if not request.id or not request.thumbprint:
+        if not request.id and not request.thumbprint:
             log.debug("Request id or thumbprint must be specified for TPP")
             raise CertificateRenewError
         if not request.id and request.thumbprint:
