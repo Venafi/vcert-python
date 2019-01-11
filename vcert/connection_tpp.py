@@ -105,7 +105,7 @@ class TPPConnection(CommonConnection):
 
     def ping(self):
         status, data = self._get()
-        return status == HTTPStatus.OK in data
+        return status == HTTPStatus.OK and "" in data
 
     def auth(self):
         data = {"Username": self._user, "Password": self._password}
