@@ -105,7 +105,7 @@ class TPPConnection(CommonConnection):
 
     def ping(self):
         status, data = self._get()
-        return status == HTTPStatus.OK and "Ready" in data
+        return status == HTTPStatus.OK and "" in data
 
     def auth(self):
         data = {"Username": self._user, "Password": self._password}
@@ -145,15 +145,17 @@ class TPPConnection(CommonConnection):
 
         retrive_request = dict(CertificateDN=certificate_request.id, Format="base64", IncludeChain='true')
 
-        # TODO: how to handle None and wrong options? Maybe set except
         if certificate_request.chain_option == "last":
             retrive_request['RootFirstOrder'] = 'false'
             retrive_request['IncludeChain'] = 'true'
         elif certificate_request.chain_option == "first":
             retrive_request['RootFirstOrder'] = 'true'
             retrive_request['IncludeChain'] = 'true'
-        else:
+        elif certificate_request.chain_option == "ignore":
             retrive_request['IncludeChain'] = 'false'
+        else:
+            log.error("chain option %s is not valid" % certificate_request.chain_option)
+            raise ClientBadData
 
         status, data = self._post(URLS.CERTIFICATE_RETRIEVE, data=retrive_request)
         if status == HTTPStatus.OK:

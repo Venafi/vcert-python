@@ -251,13 +251,13 @@ class CertificateRequest:
                  key_password=None,
                  csr=None,
                  friendly_name=None,
-                 chain_option=None,
+                 chain_option="last",
                  common_name=None,
                  thumbprint=None):
         """
         :param str id: Certificate request id. Generating by server.
         :param list[str] san_dns: Alternative names for SNI.
-        :param str email_addresses: String with separated by comma emails.
+        :param str email_addresses: List of email addresses
         :param list[str] ip_addresses: List of IP addresses
         :param attributes:
         :param str key_type: Type of asymmetric cryptography algorithm. Available values in vcert.KeyTypes.
@@ -334,8 +334,6 @@ class CertificateRequest:
         csr_builder = x509.CertificateSigningRequestBuilder()
         # TODO: if common name is not defined get first alt name. If alt name not defined too throw error.
         subject = [x509.NameAttribute(NameOID.COMMON_NAME, self.common_name,)]
-        if self.email_addresses:
-            subject.append(x509.NameAttribute(NameOID.EMAIL_ADDRESS, self.email_addresses))
         csr_builder = csr_builder.subject_name(x509.Name(subject))
 
 
@@ -347,6 +345,10 @@ class CertificateRequest:
         if self.san_dns:
             for ns in self.san_dns:
                 alt_names.append(x509.DNSName(ns))
+
+        if self.email_addresses:
+            for mail in self.email_addresses:
+                alt_names.append(x509.RFC822Name(mail))
 
         csr_builder = csr_builder.add_extension(
             x509.SubjectAlternativeName(alt_names),
