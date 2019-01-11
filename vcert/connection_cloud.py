@@ -76,6 +76,9 @@ class CloudConnection(CommonConnection):
         self._token = token
         self._normalize_and_verify_base_url()
 
+    def __str__(self):
+        return "[Cloud] %s" % self._base_url
+
     def _get(self, url, params=None):
         r = requests.get(self._base_url + url, params=params,
                          headers={TOKEN_HEADER_NAME: self._token, "Accept": MINE_ANY, "cache-control": "no-cache"})

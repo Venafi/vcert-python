@@ -62,6 +62,9 @@ class TPPConnection(CommonConnection):
         self._normalize_and_verify_base_url()
         self._ignore_ssl_errors = ignore_ssl_errors
 
+    def __str__(self):
+        return "[TPP] %s" % self._base_url
+
     def _get(self, url="", params=None):
         if not self._token or self._token[1] < time.time() + 1:
             self.auth()

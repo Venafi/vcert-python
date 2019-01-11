@@ -401,6 +401,9 @@ class RevocationRequest:
 
 
 class CommonConnection:
+    def __repr__(self):
+        return str(self)
+
     def _get_cert_status(self, request):
         """
         :param CertificateRequest request:
