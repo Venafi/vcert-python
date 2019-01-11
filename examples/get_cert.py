@@ -38,7 +38,7 @@ def main():
     # be used. If none, test connection will be used.
     conn = Connection(url=url, token=token, user=user, password=password, ignore_ssl_errors=True)
 
-    print("Trying to ping url %s" % conn)
+    print("Trying to ping url %s" % conn._base_url)
     status = conn.ping()
     print("Server online:", status)
     if not status:
