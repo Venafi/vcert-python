@@ -255,15 +255,15 @@ class CloudConnection(CommonConnection):
             log.error("server unexpected status %s" % status)
             raise CertificateRenewError
 
-    def search_by_thumbprint(self, thumbrint):
+    def search_by_thumbprint(self, thumbprint):
         """
-        :param str thumbrint:
+        :param str thumbprint:
         :rtype CertificateStatusResponse
         """
-        thumbrint = re.sub(r'[^\dabcdefABCDEF]', "", thumbrint)
-        thumbrint = thumbrint.upper()
+        thumbprint = re.sub(r'[^\dabcdefABCDEF]', "", thumbprint)
+        thumbprint = thumbprint.upper()
         status, data = self._post(URLS.CERTIFICATE_SEARCH, data={"expression": {"operands": [
-            {"field": "fingerprint", "operator": "MATCH", "value": thumbrint}]}})
+            {"field": "fingerprint", "operator": "MATCH", "value": thumbprint}]}})
         if status != HTTPStatus.OK:
             raise ServerUnexptedBehavior
         if not data.get('count'):
