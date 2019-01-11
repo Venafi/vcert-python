@@ -105,7 +105,7 @@ class TPPConnection(CommonConnection):
 
     def ping(self):
         status, data = self._get()
-        return status == HTTPStatus.OK and "Ready" in data
+        return status == HTTPStatus.OK in data
 
     def auth(self):
         data = {"Username": self._user, "Password": self._password}
@@ -152,8 +152,11 @@ class TPPConnection(CommonConnection):
         elif certificate_request.chain_option == "first":
             retrive_request['RootFirstOrder'] = 'true'
             retrive_request['IncludeChain'] = 'true'
-        else:
+        elif certificate_request.chain_option == "ignore":
             retrive_request['IncludeChain'] = 'false'
+        else:
+            log.error("chain option %s is not valid" % certificate_request.chain_option)
+            raise ClientBadData
 
         status, data = self._post(URLS.CERTIFICATE_RETRIEVE, data=retrive_request)
         if status == HTTPStatus.OK:

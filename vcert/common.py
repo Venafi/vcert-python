@@ -251,7 +251,7 @@ class CertificateRequest:
                  key_password=None,
                  csr=None,
                  friendly_name=None,
-                 chain_option=None,
+                 chain_option="last",
                  common_name=None,
                  thumbprint=None):
         """
