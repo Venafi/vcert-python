@@ -281,21 +281,27 @@ class CertificateRequest:
         self.ip_addresses = ip_addresses or []
         self.attributes = attributes
 
-        self.key_type = key_type  # todo: key types validation and replace to KeyType class
-        self.key_length = key_length
-        self.key_curve = key_curve
-        if isinstance(private_key, str):
-            self.private_key = serialization.load_pem_private_key(self.private_key_pem.encode(),
-                                                        password=None,backend=default_backend())
-            self.key_type = self.private_key.algorithm
-            self.public_key = None
-        elif isinstance(private_key, rsa.RSAPrivateKey):    #todo: migrate to cryptography here
-            self.private_key = private_key
-            self.key_type = self.private_key
-            self.public_key = None
-        elif private_key is None:
-            self.private_key = None
         self.key_password = key_password
+        if isinstance(private_key, str):
+            private_key = serialization.load_pem_private_key(private_key.encode(),
+                                                             password=self.key_password, backend=default_backend())
+        if isinstance(private_key, rsa.RSAPrivateKey):
+            self.private_key = private_key
+            self.key_type = KeyTypes.RSA
+            self.key_length = private_key.key_size
+        elif isinstance(private_key, ec.EllipticCurvePrivateKey):
+            self.private_key = private_key
+            self.key_type = KeyTypes.ECDSA
+            self.key_curve = private_key.curve
+        elif private_key is None:
+            self.key_length = key_length
+            self.key_type = key_type
+            self.key_curve = key_curve
+            self.private_key = None
+            self.public_key = None
+        else:
+            raise ClientBadData("invalid private key type")
+        self.public_key_from_private()
         self.csr = csr
         self.friendly_name = friendly_name or common_name
         self.chain_option = chain_option
@@ -308,35 +314,31 @@ class CertificateRequest:
             if self.key_type == KeyTypes.RSA:
                 self.private_key = rsa.generate_private_key(
                                                             public_exponent=65537,
-                                                            key_size=2048,
+                                                            key_size=self.key_length,
                                                             backend=default_backend()
                                                         )
-                self.public_key = self.private_key.public_key()
             elif self.key_type == KeyTypes.ECDSA:
                 if self.key_curve == "P521":
                     curve = ec.SECP521R1()
-                if self.key_curve == "P384":
+                elif self.key_curve == "P384":
                     curve = ec.SECP384R1()
                 elif self.key_curve == "P256":
                     curve = ec.SECP256R1()
-                if self.key_curve == "P224":
+                elif self.key_curve == "P224":
                     curve = ec.SECP224R1()
                 else:
                     curve = ec.SECP521R1()
                 self.private_key = ec.generate_private_key(
-                    curve , default_backend()
+                    curve, default_backend()
                 )
             else:
                 raise ClientBadData
-        else:
-            raise NotImplementedError
-            # public_key = gen_public_from_private(self.private_key, self.key_type)  # todo: write function
+            self.public_key_from_private()
 
         csr_builder = x509.CertificateSigningRequestBuilder()
         # TODO: if common name is not defined get first alt name. If alt name not defined too throw error.
         subject = [x509.NameAttribute(NameOID.COMMON_NAME, self.common_name,)]
         csr_builder = csr_builder.subject_name(x509.Name(subject))
-
 
         alt_names = []
         if self.ip_addresses:
@@ -374,15 +376,13 @@ class CertificateRequest:
         ).decode()
 
     def public_key_from_private(self):
-        if self.key_password:
-            password = self.key_password
-        else:
-            password = None
+        if self.private_key is None:
+            return
+        self.public_key = self.private_key.public_key()
 
-        private_key = serialization.load_pem_private_key(self.private_key_pem.encode(), password=password,
-                                                         backend=default_backend())
-        self.private_key_public_key = private_key.public_key()
-        self.private_key_public_key_pem = private_key.public_key().public_bytes(
+    @property
+    def public_key_pem(self):
+        return self.public_key.public_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         ).decode()
