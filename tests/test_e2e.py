@@ -9,11 +9,12 @@ import logging
 import time
 from os import environ
 import unittest
+import binascii
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import serialization, hashes
-
+from tests.assets import TEST_KEY_RSA_2048_ENCRYPTED, TEST_KEY_RSA_4096, TEST_KEY_ECDSA
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("urllib3").setLevel(logging.DEBUG)
 
@@ -56,12 +57,19 @@ class TestStringMethods(unittest.TestCase):
         print("Using TPP conection")
         conn = TPPConnection(USER, PASSWORD, TPPURL, ignore_ssl_errors=True)
         cn = randomword(10) + ".venafi.example.com"
-        cert_id, pkey, sn = enroll(conn, zone, cn)
-        cert = renew(conn, cert_id, pkey, sn, cn)
-        renew_by_thumbprint(conn, cert)
+        # cert_id, pkey, sn = enroll(conn, zone, cn)
+        # cert = renew(conn, cert_id, pkey, sn, cn)
+        # renew_by_thumbprint(conn, cert)
+
+        cn = randomword(10) + ".venafi.example.com"
+        enroll(conn, zone, cn, TEST_KEY_ECDSA[0], TEST_KEY_ECDSA[1])
+        cn = randomword(10) + ".venafi.example.com"
+        enroll(conn, zone, cn, TEST_KEY_RSA_4096[0], TEST_KEY_RSA_4096[1])
+        cn = randomword(10) + ".venafi.example.com"
+        enroll(conn, zone, cn, TEST_KEY_RSA_2048_ENCRYPTED[0], TEST_KEY_RSA_2048_ENCRYPTED[1], 'venafi')
 
 
-def enroll(conn, zone, cn):
+def enroll(conn, zone, cn, private_key=None, public_key=None, password=None):
     print("Trying to ping service")
     status = conn.ping()
     print("Server online:", status)
@@ -69,19 +77,16 @@ def enroll(conn, zone, cn):
         print('Server offline')
         exit(1)
 
+    request = CertificateRequest(
+        common_name=cn,
+        chain_option="last",
+        private_key=private_key,
+        key_password=password
+    )
     if isinstance(conn, (FakeConnection or TPPConnection)):
-        request = CertificateRequest(
-            common_name=cn,
-            san_dns=["www.client.venafi.example.com", "ww1.client.venafi.example.com"],
-            email_addresses=["e1@venafi.example.com", "e2@venafi.example.com"],
-            ip_addresses=["127.0.0.1", "192.168.1.1"],
-            chain_option="last"
-        )
-    else:
-        request = CertificateRequest(
-            common_name=cn,
-            chain_option="last"
-        )
+        request.san_dns = ["www.client.venafi.example.com", "ww1.client.venafi.example.com"]
+        request.email_addresses = ["e1@venafi.example.com", "e2@venafi.example.com"]
+        request.ip_addresses = ["127.0.0.1", "192.168.1.1"]
 
     conn.request_cert(request, zone)
     while True:
@@ -107,20 +112,24 @@ def enroll(conn, zone, cn):
         )
     ]
 
-    private_key = serialization.load_pem_private_key(request.private_key_pem.encode(), password=None,
-                                                     backend=default_backend())
-    private_key_public_key_pem = private_key.public_key().public_bytes(
+    cert_public_key_pem = cert.public_key().public_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PublicFormat.SubjectPublicKeyInfo
-    )
-    public_key_pem = cert.public_key().public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo
-    )
-    print(private_key_public_key_pem.decode())
-    print(public_key_pem.decode())
-    assert private_key_public_key_pem == public_key_pem
-
+    ).decode()
+    if isinstance(public_key, str):
+        public_key = public_key.encode()
+    if public_key:
+        source_public_key_pem = serialization.load_pem_public_key(
+            public_key, default_backend()
+        ).public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        ).decode()
+    else:
+        source_public_key_pem = request.public_key_pem
+    print(source_public_key_pem)
+    print(cert_public_key_pem)
+    assert source_public_key_pem == cert_public_key_pem
     return request.id, request.private_key_pem, cert.serial_number
 
 
@@ -166,7 +175,7 @@ def renew(conn, cert_id, pkey, sn, cn):
 
 def renew_by_thumbprint(conn, prev_cert):
     print("Trying to renew by thumbprint")
-    thumbprint = prev_cert.fingerprint(hashes.SHA1()).hex()
+    thumbprint = binascii.hexlify(prev_cert.fingerprint(hashes.SHA1())).decode()
     new_request = CertificateRequest(thumbprint=thumbprint, chain_option="last")
     conn.renew_cert(new_request)
     while True:

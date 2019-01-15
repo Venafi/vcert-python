@@ -258,7 +258,7 @@ class CertificateRequest:
         """
         :param str id: Certificate request id. Generating by server.
         :param list[str] san_dns: Alternative names for SNI.
-        :param str email_addresses: List of email addresses
+        :param list[str] email_addresses: List of email addresses
         :param list[str] ip_addresses: List of IP addresses
         :param attributes:
         :param str key_type: Type of asymmetric cryptography algorithm. Available values in vcert.KeyTypes.
@@ -281,7 +281,11 @@ class CertificateRequest:
         self.ip_addresses = ip_addresses or []
         self.attributes = attributes
 
-        self.key_password = key_password
+        if isinstance(key_password, str):
+            self.key_password = key_password.encode()
+        else:
+            self.key_password = key_password
+
         if isinstance(private_key, str):
             private_key = serialization.load_pem_private_key(private_key.encode(),
                                                              password=self.key_password, backend=default_backend())
