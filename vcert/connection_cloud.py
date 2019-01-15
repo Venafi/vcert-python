@@ -22,8 +22,8 @@ import logging as log
 
 import requests
 
-from .common import (Zone, CertificateRequest, CommonConnection, Policy, ZoneConfig, log_errors, MIME_JSON, MINE_TEXT,
-                     MINE_ANY)
+from .common import (Zone, CertificateRequest, CommonConnection, Policy, ZoneConfig, log_errors, MIME_JSON, MIME_TEXT,
+                     MIME_ANY)
 from .errors import (VenafiConnectionError, ServerUnexptedBehavior, ClientBadData, CertificateRequestError,
                      CertificateRenewError)
 from .http import HTTPStatus
@@ -64,9 +64,9 @@ TOKEN_HEADER_NAME = "tppl-api-key"
 
 class CertificateStatusResponse:
     def __init__(self, d):
-        self.status = d['status']
-        self.subject = d['subjectDN']
-        self.zoneId = d['zoneId']
+        self.status = d.get('status')
+        self.subject = d.get('subjectDN') or d.get('subjectCN')[0]
+        self.zoneId = d.get('zoneId')
         self.manage_id = d.get('managedCertificateId')
 
 
@@ -78,13 +78,13 @@ class CloudConnection(CommonConnection):
 
     def _get(self, url, params=None):
         r = requests.get(self._base_url + url, params=params,
-                         headers={TOKEN_HEADER_NAME: self._token, "Accept": MINE_ANY, "cache-control": "no-cache"})
+                         headers={TOKEN_HEADER_NAME: self._token, "Accept": MIME_ANY, "cache-control": "no-cache"})
         return self.process_server_response(r)
 
     def _post(self, url, data=None):
         if isinstance(data, dict):
             r = requests.post(self._base_url + url, json=data,
-                              headers={TOKEN_HEADER_NAME: self._token,  "cache-control": "no-cache"}, )
+                              headers={TOKEN_HEADER_NAME: self._token, "cache-control": "no-cache", "Accept": MIME_JSON})
         else:
             log.error("Unexpected client data type: %s for %s" % (type(data), url))
             raise ClientBadData
@@ -109,7 +109,7 @@ class CloudConnection(CommonConnection):
         if r.status_code not in (HTTPStatus.OK, HTTPStatus.CREATED, HTTPStatus.ACCEPTED):
             raise VenafiConnectionError("Server status: %s, %s", (r.status_code, r.request.url))
         content_type = r.headers.get("content-type")
-        if content_type == MINE_TEXT:
+        if content_type == MIME_TEXT:
             log.debug(r.text)
             return r.status_code, r.text
         elif content_type == MIME_JSON:
@@ -225,7 +225,7 @@ class CloudConnection(CommonConnection):
             raise ClientBadData
         if request.thumbprint:
             r = self.search_by_thumbprint(request.thumbprint)
-            request.id = r.id
+            manage_id = r.manage_id
         if request.id:
             prev_request = self._get_cert_status(CertificateRequest(id=request.id))
             manage_id = prev_request.manage_id
@@ -257,8 +257,20 @@ class CloudConnection(CommonConnection):
             log.error("server unexpected status %s" % status)
             raise CertificateRenewError
 
-    def search_by_thumbprint(self, request):
-        raise NotImplementedError
+    def search_by_thumbprint(self, thumbprint):
+        """
+        :param str thumbprint:
+        :rtype CertificateStatusResponse
+        """
+        thumbprint = re.sub(r'[^\dabcdefABCDEF]', "", thumbprint)
+        thumbprint = thumbprint.upper()
+        status, data = self._post(URLS.CERTIFICATE_SEARCH, data={"expression": {"operands": [
+            {"field": "fingerprint", "operator": "MATCH", "value": thumbprint}]}})
+        if status != HTTPStatus.OK:
+            raise ServerUnexptedBehavior
+        if not data.get('count'):
+            return None
+        return CertificateStatusResponse(data['certificates'][0])
 
     def read_zone_conf(self, tag):
         z = self._get_zone_by_tag(tag)

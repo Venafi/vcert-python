@@ -189,9 +189,11 @@ class TPPConnection(CommonConnection):
             raise ServerUnexptedBehavior
 
     def renew_cert(self, request):
-        if not request.id:
-            log.debug("Request id must be specified for TPP")
+        if not request.id and not request.thumbprint:
+            log.debug("Request id or thumbprint must be specified for TPP")
             raise CertificateRenewError
+        if not request.id and request.thumbprint:
+            request.id = self.search_by_thumbprint(request.thumbprint)
         log.debug("Trying to renew certificate %s" % request.id)
         status, data = self._post(URLS.CERTIFICATE_RENEW, data={"CertificateDN": request.id})
         if not data['Success']:
@@ -205,6 +207,9 @@ class TPPConnection(CommonConnection):
 
     @staticmethod
     def _get_policy_dn(zone):
+        if zone is None:
+            log.error("Bad zone: %s" % zone)
+            raise ClientBadData
         if re.match(r"^\\\\VED\\\\Policy", zone):
             return zone
         else:
@@ -212,3 +217,17 @@ class TPPConnection(CommonConnection):
                 return r"\\VED\\Policy" + zone
             else:
                 return r"\\VED\\Policy\\" + zone
+
+    def search_by_thumbprint(self, thumbprint):
+        """
+        :param str thumbprint:
+        """
+        thumbprint = re.sub(r'[^\dabcdefABCDEF]', "", thumbprint)
+        thumbprint = thumbprint.upper()
+        status, data = self._get(URLS.CERTIFICATE_SEARCH, params={"Thumbprint": thumbprint})
+        if status != HTTPStatus.OK:
+            raise ServerUnexptedBehavior
+
+        if not data['Certificates']:
+            raise ClientBadData("Certificate not found by thumbprint")
+        return data['Certificates'][0]['DN']
