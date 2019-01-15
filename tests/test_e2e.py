@@ -57,9 +57,9 @@ class TestStringMethods(unittest.TestCase):
         print("Using TPP conection")
         conn = TPPConnection(USER, PASSWORD, TPPURL, ignore_ssl_errors=True)
         cn = randomword(10) + ".venafi.example.com"
-        # cert_id, pkey, sn = enroll(conn, zone, cn)
-        # cert = renew(conn, cert_id, pkey, sn, cn)
-        # renew_by_thumbprint(conn, cert)
+        cert_id, pkey, sn = enroll(conn, zone, cn)
+        cert = renew(conn, cert_id, pkey, sn, cn)
+        renew_by_thumbprint(conn, cert)
 
         cn = randomword(10) + ".venafi.example.com"
         enroll(conn, zone, cn, TEST_KEY_ECDSA[0], TEST_KEY_ECDSA[1])
