@@ -189,7 +189,7 @@ class FakeConnection(CommonConnection):
             # Sign our certificate with our private key
         ).sign(root_ca_private_key, hashes.SHA256(), default_backend())
 
-
+        log.info("This certificate is for test purposes only. Don't use it in production!")
         return (cert.public_bytes(serialization.Encoding.PEM).decode())
 
     def revoke_cert(self, request):
