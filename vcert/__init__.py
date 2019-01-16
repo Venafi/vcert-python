@@ -20,7 +20,7 @@ from .connection_fake import FakeConnection
 from .common import CertificateRequest, CommonConnection, KeyTypes
 
 
-def Connection(url=None, token=None, user=None, password=None, ignore_ssl_errors=False):
+def Connection(url=None, token=None, user=None, password=None, http_request_kwargs=None):
     """
     Return connection based on credentials list.
     Venafi Platform (TPP) required URL, user, password
@@ -36,8 +36,8 @@ def Connection(url=None, token=None, user=None, password=None, ignore_ssl_errors
     if not (token or url or user or password):
         return FakeConnection()
     if url and user and password:
-        return TPPConnection(user=user, password=password, url=url, ignore_ssl_errors=ignore_ssl_errors)
+        return TPPConnection(user=user, password=password, url=url, http_request_kwargs=http_request_kwargs)
     if token:
-        return CloudConnection(token=token, url=url)
+        return CloudConnection(token=token, url=url, http_request_kwargs=http_request_kwargs)
     else:
         raise Exception("Bad credentials list")
