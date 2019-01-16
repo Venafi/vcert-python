@@ -126,6 +126,9 @@ class FakeConnection(CommonConnection):
         self.status = "200"
         self._base_url = "fake"
 
+    def __str__(self):
+        return "[Fake]"
+
     def ping(self):
         return True
 
@@ -162,7 +165,7 @@ class FakeConnection(CommonConnection):
                                                                  backend=default_backend())
 
         end_entity_public_key = serialization.load_pem_public_key(
-            certificate_request.private_key_public_key_pem.encode(), default_backend())
+            certificate_request.public_key_pem.encode(), default_backend())
 
         # cn = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, certificate_request.common_name)])
         issuer = root_ca_certificate.issuer
@@ -186,7 +189,7 @@ class FakeConnection(CommonConnection):
             # Sign our certificate with our private key
         ).sign(root_ca_private_key, hashes.SHA256(), default_backend())
 
-
+        log.info("This certificate is for test purposes only. Don't use it in production!")
         return (cert.public_bytes(serialization.Encoding.PEM).decode())
 
     def revoke_cert(self, request):

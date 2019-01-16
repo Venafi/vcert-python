@@ -4,11 +4,11 @@ from setuptools import setup
 
 
 setup(name='vcert',
-      version='0.3.2',
+      version='0.3.3',
       url="https://github.com/Venafi/vcert-python",
       packages=['vcert'],
       install_requires=['requests>=2.20.0', 'python-dateutil', 'certvalidator',
-                        'enum34;python_version<"3.4"', 'cryptography'],
+                        'enum34;python_version<"3.4"', 'ipaddress;python_version<"3.3"', 'cryptography'],
       description='Python bindings for Venafi TPP/Venfi Cloud API.',
       author='Denis Subbotin',
       author_email='denis.subbotin@venafi.com',
