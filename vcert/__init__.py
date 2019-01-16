@@ -30,7 +30,7 @@ def Connection(url=None, token=None, user=None, password=None, http_request_kwar
     :param str token: Venafi Cloud token
     :param str user: TPP user
     :param str password: TPP password
-    :param bool ignore_ssl_errors: Option for work with untrusted  https certificate (only for TPP).
+    :param dict[str, Any] http_request_kwargs: Option for work with untrusted  https certificate (only for TPP).
     :rtype CommonConnection:
     """
     if not (token or url or user or password):
