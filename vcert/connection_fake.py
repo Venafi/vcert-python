@@ -126,6 +126,9 @@ class FakeConnection(CommonConnection):
         self.status = "200"
         self._base_url = "fake"
 
+    def __str__(self):
+        return "[Fake]"
+
     def ping(self):
         return True
 
