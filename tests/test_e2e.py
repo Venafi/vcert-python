@@ -93,7 +93,6 @@ def enroll(conn, zone, cn, private_key=None, public_key=None, password=None):
 
     request = CertificateRequest(
         common_name=cn,
-        chain_option="last",
         private_key=private_key,
         key_password=password
     )
