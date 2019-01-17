@@ -37,6 +37,9 @@ def main():
     # If token is passed Venafi Cloud connection will be used. if user, password, and URL Venafi Platform (TPP) will
     # be used. If none, test connection will be used.
     conn = Connection(url=url, token=token, user=user, password=password)
+    # If you TPP server certificate signed with your own CA or available only via proxy you can specify requests vars
+    # conn = Connection(url=url, token=token, user=user, password=password,
+    #                   http_request_kwargs={"verify": "/path/to/trust/bundle.pem"})
 
     print("Trying to ping url %s" % conn)
     status = conn.ping()
