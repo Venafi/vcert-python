@@ -67,10 +67,10 @@ def main():
             time.sleep(5)
 
     # after that print cert and key
-    print(cert, request.private_key_pem, sep="\n")
+    print(cert.full_chain, request.private_key_pem, sep="\n")
     # and save into file
     f = open("/tmp/cert.pem", "w")
-    f.write(cert)
+    f.write(cert.full_chain)
     f = open("/tmp/cert.key", "w")
     f.write(request.private_key_pem)
     f.close()
@@ -88,9 +88,9 @@ def main():
                 break
             else:
                 time.sleep(5)
-        print(new_cert)
+        print(new_cert.cert)
         fn = open("/tmp/new_cert.pem", "w")
-        fn.write(new_cert)
+        fn.write(new_cert.cert)
 
 
 def randomword(length):

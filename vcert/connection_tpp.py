@@ -24,7 +24,7 @@ import time
 
 import requests
 
-from .common import CommonConnection, MIME_JSON
+from .common import CommonConnection, MIME_JSON, parse_pem
 from .errors import (ServerUnexptedBehavior, ClientBadData, CertificateRequestError, AuthenticationError,
                      CertificateRenewError)
 from .http import HTTPStatus
@@ -161,7 +161,7 @@ class TPPConnection(CommonConnection):
         if status == HTTPStatus.OK:
             pem64 = data['CertificateData']
             pem = base64.b64decode(pem64)
-            return pem.decode()
+            return parse_pem(pem.decode())
         elif status == HTTPStatus.ACCEPTED:
             log.debug(data['Status'])
             return None

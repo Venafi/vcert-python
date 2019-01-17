@@ -32,6 +32,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography import x509
 from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import hashes
+from .pem import parse_pem, Certificate
 import ipaddress
 
 MIME_JSON = "application/json"
@@ -436,6 +437,7 @@ class CommonConnection:
         """
         Get signed certificate from server by request.id
         :param CertificateRequest request:
+        :rtype Certificate
         """
         raise NotImplementedError
 

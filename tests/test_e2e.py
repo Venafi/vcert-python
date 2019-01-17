@@ -1,4 +1,20 @@
 #!/usr/bin/env python3
+#
+# Copyright 2019 Venafi, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 from __future__ import absolute_import, division, generators, unicode_literals, print_function, nested_scopes, \
     with_statement
 
@@ -85,8 +101,8 @@ def enroll(conn, zone, cn):
 
     conn.request_cert(request, zone)
     while True:
-        cert_pem = conn.retrieve_cert(request)
-        if cert_pem:
+        cert = conn.retrieve_cert(request)
+        if cert:
             break
         else:
             time.sleep(5)
@@ -94,12 +110,12 @@ def enroll(conn, zone, cn):
     # print("Private key is:\n %s:" % request.private_key_pem)
     # and save into file
     f = open("./cert.pem", "w")
-    f.write(cert_pem)
+    f.write(cert.full_chain)
     f = open("./cert.key", "w")
     f.write(request.private_key_pem)
     f.close()
 
-    cert = x509.load_pem_x509_certificate(cert_pem.encode(), default_backend())
+    cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
     assert isinstance(cert, x509.Certificate)
     assert cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME) == [
         x509.NameAttribute(
@@ -133,17 +149,17 @@ def renew(conn, cert_id, pkey, sn, cn):
     conn.renew_cert(new_request)
     time.sleep(5)
     while True:
-        new_cert_pem = conn.retrieve_cert(new_request)
-        if new_cert_pem:
+        new_cert= conn.retrieve_cert(new_request)
+        if new_cert:
             break
         else:
             time.sleep(5)
 
     f = open("./renewed_cert.pem", "w")
-    f.write(new_cert_pem)
+    f.write(new_cert.full_chain)
     f.close()
 
-    cert = x509.load_pem_x509_certificate(new_cert_pem.encode(), default_backend())
+    cert = x509.load_pem_x509_certificate(new_cert.cert.encode(), default_backend())
     assert isinstance(cert, x509.Certificate)
     assert cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME) == [
         x509.NameAttribute(
@@ -170,12 +186,12 @@ def renew_by_thumbprint(conn, prev_cert):
     new_request = CertificateRequest(thumbprint=thumbprint, chain_option="last")
     conn.renew_cert(new_request)
     while True:
-        new_cert_pem = conn.retrieve_cert(new_request)
-        if new_cert_pem:
+        new_cert = conn.retrieve_cert(new_request)
+        if new_cert:
             break
         else:
             time.sleep(5)
-    cert = x509.load_pem_x509_certificate(new_cert_pem.encode(), default_backend())
+    cert = x509.load_pem_x509_certificate(new_cert.cert.encode(), default_backend())
     assert isinstance(cert, x509.Certificate)
     print(cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME))
     print(prev_cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME))
