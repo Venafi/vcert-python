@@ -186,7 +186,7 @@ class FakeConnection(CommonConnection):
             # Sign our certificate with our private key
         ).sign(root_ca_private_key, hashes.SHA256(), default_backend())
 
-        return parse_pem(cert.public_bytes(serialization.Encoding.PEM).decode())
+        return parse_pem(cert.public_bytes(serialization.Encoding.PEM).decode(), certificate_request.chain_option)
 
     def revoke_cert(self, request):
         raise NotImplementedError

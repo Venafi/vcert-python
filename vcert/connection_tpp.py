@@ -161,7 +161,7 @@ class TPPConnection(CommonConnection):
         if status == HTTPStatus.OK:
             pem64 = data['CertificateData']
             pem = base64.b64decode(pem64)
-            return parse_pem(pem.decode())
+            return parse_pem(pem.decode(), certificate_request.chain_option)
         elif status == HTTPStatus.ACCEPTED:
             log.debug(data['Status'])
             return None

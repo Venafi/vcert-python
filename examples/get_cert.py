@@ -53,7 +53,6 @@ def main():
         request.ip_addresses = ["127.0.0.1", "192.168.1.1"]
         # Specify ordering certificates in chain. Root can be "first" or "last". By default it last. You also can
         # specify "ignore" to ignore chain (supported only for Platform).
-        request.chain_option = "last"
 
     # make certificate request
     conn.request_cert(request, zone)

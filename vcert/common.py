@@ -253,7 +253,6 @@ class CertificateRequest:
                  key_password=None,
                  csr=None,
                  friendly_name=None,
-                 chain_option="last",
                  common_name=None,
                  thumbprint=None):
         """
@@ -276,7 +275,7 @@ class CertificateRequest:
         """
 
         self.csr = csr
-        self.chain_option = chain_option
+        self.chain_option = "last"
         self.san_dns = san_dns or []
         self.email_addresses = email_addresses
         self.ip_addresses = ip_addresses or []
@@ -299,7 +298,6 @@ class CertificateRequest:
         self.key_password = key_password
         self.csr = csr
         self.friendly_name = friendly_name or common_name
-        self.chain_option = chain_option
         self.id = id
         self.common_name = common_name
         self.thumbprint = thumbprint

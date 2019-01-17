@@ -91,12 +91,10 @@ def enroll(conn, zone, cn):
             san_dns=["www.client.venafi.example.com", "ww1.client.venafi.example.com"],
             email_addresses=["e1@venafi.example.com", "e2@venafi.example.com"],
             ip_addresses=["127.0.0.1", "192.168.1.1"],
-            chain_option="last"
         )
     else:
         request = CertificateRequest(
             common_name=cn,
-            chain_option="last"
         )
 
     conn.request_cert(request, zone)
@@ -144,7 +142,6 @@ def renew(conn, cert_id, pkey, sn, cn):
     print("Trying to renew certificate")
     new_request = CertificateRequest(
         id=cert_id,
-        chain_option="last"
     )
     conn.renew_cert(new_request)
     time.sleep(5)
@@ -183,7 +180,7 @@ def renew(conn, cert_id, pkey, sn, cn):
 def renew_by_thumbprint(conn, prev_cert):
     print("Trying to renew by thumbprint")
     thumbprint = prev_cert.fingerprint(hashes.SHA1()).hex()
-    new_request = CertificateRequest(thumbprint=thumbprint, chain_option="last")
+    new_request = CertificateRequest(thumbprint=thumbprint)
     conn.renew_cert(new_request)
     while True:
         new_cert = conn.retrieve_cert(new_request)

@@ -210,7 +210,7 @@ class CloudConnection(CommonConnection):
             elif data['status'] == CertStatuses.ISSUED:
                 status, data = self._get(url)
                 if status == HTTPStatus.OK:
-                    return parse_pem(data)
+                    return parse_pem(data, request.chain_option)
                 else:
                     raise ServerUnexptedBehavior
             else:

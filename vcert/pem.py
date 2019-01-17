@@ -37,7 +37,7 @@ _PEM_RE = re.compile(
 )
 
 
-def parse_pem(pem_str):
+def parse_pem(pem_str, order):
     parsed = [
         (match.group(1), (match.group(0)))
         for match in _PEM_RE.finditer(pem_str)
@@ -49,7 +49,10 @@ def parse_pem(pem_str):
             certs.append(p[1])
         elif [0] == "PRIVATE KEY":
             key = p[1]
-    return Certificate(certs[0], certs[1:], key)
+    if order == "last":
+        return Certificate(certs[0], certs[1:], key)
+    else:
+        return Certificate(certs[-1], certs[:-1], key)
 
 
 class Certificate:
