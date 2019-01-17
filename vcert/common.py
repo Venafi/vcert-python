@@ -32,6 +32,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography import x509
 from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import hashes
+from .pem import parse_pem, Certificate
 import ipaddress
 
 MIME_JSON = "application/json"
@@ -252,7 +253,6 @@ class CertificateRequest:
                  key_password=None,
                  csr=None,
                  friendly_name=None,
-                 chain_option="last",
                  common_name=None,
                  thumbprint=None):
         """
@@ -275,7 +275,7 @@ class CertificateRequest:
         """
 
         self.csr = csr
-        self.chain_option = chain_option
+        self.chain_option = "last"
         self.san_dns = san_dns or []
         self.email_addresses = email_addresses
         self.ip_addresses = ip_addresses or []
@@ -308,7 +308,6 @@ class CertificateRequest:
         self.public_key_from_private()
         self.csr = csr
         self.friendly_name = friendly_name or common_name
-        self.chain_option = chain_option
         self.id = id
         self.common_name = common_name
         self.thumbprint = thumbprint
@@ -443,6 +442,7 @@ class CommonConnection:
         """
         Get signed certificate from server by request.id
         :param CertificateRequest request:
+        :rtype Certificate
         """
         raise NotImplementedError
 

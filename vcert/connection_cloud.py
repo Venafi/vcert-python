@@ -23,7 +23,7 @@ import logging as log
 import requests
 
 from .common import (Zone, CertificateRequest, CommonConnection, Policy, ZoneConfig, log_errors, MIME_JSON, MIME_TEXT,
-                     MIME_ANY)
+                     MIME_ANY, parse_pem)
 from .errors import (VenafiConnectionError, ServerUnexptedBehavior, ClientBadData, CertificateRequestError,
                      CertificateRenewError)
 from .http import HTTPStatus
@@ -213,7 +213,7 @@ class CloudConnection(CommonConnection):
             elif data['status'] == CertStatuses.ISSUED:
                 status, data = self._get(url)
                 if status == HTTPStatus.OK:
-                    return data
+                    return parse_pem(data, request.chain_option)
                 else:
                     raise ServerUnexptedBehavior
             else:

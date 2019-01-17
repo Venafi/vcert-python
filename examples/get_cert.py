@@ -56,7 +56,6 @@ def main():
         request.ip_addresses = ["127.0.0.1", "192.168.1.1"]
         # Specify ordering certificates in chain. Root can be "first" or "last". By default it last. You also can
         # specify "ignore" to ignore chain (supported only for Platform).
-        request.chain_option = "last"
 
     # make certificate request
     conn.request_cert(request, zone)
@@ -70,10 +69,10 @@ def main():
             time.sleep(5)
 
     # after that print cert and key
-    print(cert, request.private_key_pem, sep="\n")
+    print(cert.full_chain, request.private_key_pem, sep="\n")
     # and save into file
     f = open("/tmp/cert.pem", "w")
-    f.write(cert)
+    f.write(cert.full_chain)
     f = open("/tmp/cert.key", "w")
     f.write(request.private_key_pem)
     f.close()
@@ -91,9 +90,9 @@ def main():
                 break
             else:
                 time.sleep(5)
-        print(new_cert)
+        print(new_cert.cert)
         fn = open("/tmp/new_cert.pem", "w")
-        fn.write(new_cert)
+        fn.write(new_cert.cert)
 
 
 def randomword(length):

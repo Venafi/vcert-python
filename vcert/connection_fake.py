@@ -21,7 +21,7 @@ import logging as log
 import time
 
 import uuid
-from .common import CommonConnection, Zone
+from .common import CommonConnection, Zone, parse_pem
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
@@ -190,7 +190,7 @@ class FakeConnection(CommonConnection):
         ).sign(root_ca_private_key, hashes.SHA256(), default_backend())
 
         log.info("This certificate is for test purposes only. Don't use it in production!")
-        return (cert.public_bytes(serialization.Encoding.PEM).decode())
+        return parse_pem(cert.public_bytes(serialization.Encoding.PEM).decode(), certificate_request.chain_option)
 
     def revoke_cert(self, request):
         raise NotImplementedError
