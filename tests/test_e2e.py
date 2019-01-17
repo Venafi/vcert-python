@@ -54,7 +54,7 @@ class TestStringMethods(unittest.TestCase):
     def test_tpp(self):
         zone = environ['TPPZONE']
         print("Using TPP conection")
-        conn = TPPConnection(USER, PASSWORD, TPPURL, ignore_ssl_errors=True)
+        conn = TPPConnection(USER, PASSWORD, TPPURL, http_request_kwargs={"verify": "/tmp/chain.pem"})
         cn = randomword(10) + ".venafi.example.com"
         cert_id, pkey, sn = enroll(conn, zone, cn)
         cert = renew(conn, cert_id, pkey, sn, cn)

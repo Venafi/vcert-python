@@ -71,23 +71,28 @@ class CertificateStatusResponse:
 
 
 class CloudConnection(CommonConnection):
-    def __init__(self, token, url=None):
+    def __init__(self, token, url=None, http_request_kwargs=None):
         self._base_url = url or URLS.API_BASE_URL
         self._token = token
         self._normalize_and_verify_base_url()
+        self._http_request_kwargs = http_request_kwargs or {}
 
     def __str__(self):
         return "[Cloud] %s" % self._base_url
 
     def _get(self, url, params=None):
         r = requests.get(self._base_url + url, params=params,
-                         headers={TOKEN_HEADER_NAME: self._token, "Accept": MIME_ANY, "cache-control": "no-cache"})
+                         headers={TOKEN_HEADER_NAME: self._token, "Accept": MIME_ANY, "cache-control": "no-cache"},
+                         **self._http_request_kwargs
+                         )
         return self.process_server_response(r)
 
     def _post(self, url, data=None):
         if isinstance(data, dict):
             r = requests.post(self._base_url + url, json=data,
-                              headers={TOKEN_HEADER_NAME: self._token, "cache-control": "no-cache", "Accept": MIME_JSON})
+                              headers={TOKEN_HEADER_NAME: self._token, "cache-control": "no-cache", "Accept": MIME_JSON},
+                              **self._http_request_kwargs
+                              )
         else:
             log.error("Unexpected client data type: %s for %s" % (type(data), url))
             raise ClientBadData

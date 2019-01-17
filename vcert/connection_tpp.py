@@ -47,20 +47,20 @@ TOKEN_HEADER_NAME = "x-venafi-api-key"
 
 
 class TPPConnection(CommonConnection):
-    def __init__(self, user, password, url, ignore_ssl_errors=False):
+    def __init__(self, user, password, url, http_request_kwargs=None):
         """
         todo: docs
         :param str user:
         :param str password:
         :param str url:
-        :param bool ignore_ssl_errors:
+        :param dict[str,Any] http_request_kwargs:
         """
         self._base_url = url  # type: str
         self._user = user  # type: str
         self._password = password  # type: str
         self._token = None  # type: tuple
         self._normalize_and_verify_base_url()
-        self._ignore_ssl_errors = ignore_ssl_errors
+        self._http_request_kwargs = http_request_kwargs or {}
 
     def __str__(self):
         return "[TPP] %s" % self._base_url
@@ -71,7 +71,7 @@ class TPPConnection(CommonConnection):
             log.debug("Token is %s, timeout is %s" % (self._token[0], self._token[1]))
 
         r = requests.get(self._base_url + url, headers={TOKEN_HEADER_NAME: self._token[0], 'content-type':
-                         MIME_JSON, 'cache-control': 'no-cache'}, params=params, verify=not self._ignore_ssl_errors)
+                         MIME_JSON, 'cache-control': 'no-cache'}, params=params, **self._http_request_kwargs)
         return self.process_server_response(r)
 
     def _post(self, url, data=None):
@@ -81,7 +81,7 @@ class TPPConnection(CommonConnection):
 
         if isinstance(data, dict):
             r = requests.post(self._base_url + url, headers={TOKEN_HEADER_NAME: self._token[0], 'content-type':
-                              MIME_JSON, "cache-control": "no-cache"}, json=data, verify=not self._ignore_ssl_errors)
+                              MIME_JSON, "cache-control": "no-cache"}, json=data,  **self._http_request_kwargs)
         else:
             log.error("Unexpected client data type: %s for %s" % (type(data), url))
             raise ClientBadData
@@ -114,7 +114,7 @@ class TPPConnection(CommonConnection):
         data = {"Username": self._user, "Password": self._password}
 
         #TODO: add trust bundle support
-        r = requests.post(self._base_url + URLS.AUTHORIZE, json=data, verify=not self._ignore_ssl_errors,
+        r = requests.post(self._base_url + URLS.AUTHORIZE, json=data, **self._http_request_kwargs,
                           headers={'content-type': MIME_JSON, "cache-control": "no-cache"})
 
         status, user = self.process_server_response(r)
