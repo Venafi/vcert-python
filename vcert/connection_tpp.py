@@ -114,8 +114,9 @@ class TPPConnection(CommonConnection):
         data = {"Username": self._user, "Password": self._password}
 
         #TODO: add trust bundle support
-        r = requests.post(self._base_url + URLS.AUTHORIZE, json=data, **self._http_request_kwargs,
-                          headers={'content-type': MIME_JSON, "cache-control": "no-cache"})
+        r = requests.post(self._base_url + URLS.AUTHORIZE, json=data,
+                          headers={'content-type': MIME_JSON, "cache-control": "no-cache"},
+                          **self._http_request_kwargs)
 
         status, user = self.process_server_response(r)
         if status == HTTPStatus.OK:
