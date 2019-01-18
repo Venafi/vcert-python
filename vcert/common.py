@@ -281,12 +281,12 @@ class CertificateRequest:
         self.ip_addresses = ip_addresses or []
         self.attributes = attributes
 
-        if isinstance(key_password, str):
+        if isinstance(key_password, (str, unicode)):
             self.key_password = key_password.encode()
         else:
             self.key_password = key_password
 
-        if isinstance(private_key, str):
+        if isinstance(private_key, (str, unicode)):
             private_key = serialization.load_pem_private_key(private_key.encode(),
                                                              password=self.key_password, backend=default_backend())
         if isinstance(private_key, rsa.RSAPrivateKey):
@@ -304,7 +304,7 @@ class CertificateRequest:
             self.private_key = None
             self.public_key = None
         else:
-            raise ClientBadData("invalid private key type")
+            raise ClientBadData("invalid private key type %s" % type(private_key))
         self.public_key_from_private()
         self.csr = csr
         self.friendly_name = friendly_name or common_name

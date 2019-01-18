@@ -129,7 +129,7 @@ def enroll(conn, zone, cn, private_key=None, public_key=None, password=None):
         encoding=serialization.Encoding.PEM,
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     ).decode()
-    if isinstance(public_key, str):
+    if isinstance(public_key, (str, unicode)):
         public_key = public_key.encode()
     if public_key:
         source_public_key_pem = serialization.load_pem_public_key(
