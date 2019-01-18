@@ -280,37 +280,37 @@ class CertificateRequest:
         self.email_addresses = email_addresses
         self.ip_addresses = ip_addresses or []
         self.attributes = attributes
-
-        if isinstance(key_password, string_types):
-            self.key_password = key_password.encode()
-        else:
-            self.key_password = key_password
-
-        if isinstance(private_key, string_types):
-            private_key = serialization.load_pem_private_key(private_key.encode(),
-                                                             password=self.key_password, backend=default_backend())
-        if isinstance(private_key, rsa.RSAPrivateKey):
-            self.private_key = private_key
-            self.key_type = KeyTypes.RSA
-            self.key_length = private_key.key_size
-        elif isinstance(private_key, ec.EllipticCurvePrivateKey):
-            self.private_key = private_key
-            self.key_type = KeyTypes.ECDSA
-            self.key_curve = private_key.curve
-        elif private_key is None:
-            self.key_length = key_length
-            self.key_type = key_type
-            self.key_curve = key_curve
-            self.private_key = None
-            self.public_key = None
-        else:
-            raise ClientBadData("invalid private key type %s" % type(private_key))
+        self.key_password = key_password
+        self.key_length = key_length
+        self.key_type = key_type
+        self.key_curve = key_curve
+        self.private_key = private_key
         self.public_key_from_private()
         self.csr = csr
         self.friendly_name = friendly_name or common_name
         self.id = id
         self.common_name = common_name
         self.thumbprint = thumbprint
+
+    def __setattr__(self, key, value):
+        if key == "key_password":
+            if isinstance(value, string_types):
+                value = value.encode()
+        if key == "private_key":
+            if isinstance(value, string_types):
+                value = serialization.load_pem_private_key(value.encode(),
+                                                           password=self.key_password, backend=default_backend())
+            if isinstance(value, rsa.RSAPrivateKey):
+                self.key_type = KeyTypes.RSA
+                self.key_length = value.key_size
+            elif isinstance(value, ec.EllipticCurvePrivateKey):
+                self.key_type = KeyTypes.ECDSA
+                self.key_curve = value.curve
+            elif value is None:
+                self.public_key = None
+            else:
+                raise ClientBadData("invalid private key type %s" % type(private_key))
+        self.__dict__[key] = value
 
     def build_csr(self):
         if not self.private_key:
