@@ -19,7 +19,7 @@ from __future__ import absolute_import, division, generators, unicode_literals, 
 
 import datetime
 import logging as log
-
+from six import string_types
 import dateutil.parser
 
 from .errors import VenafiConnectionError, ServerUnexptedBehavior, BadData, ClientBadData
@@ -281,12 +281,12 @@ class CertificateRequest:
         self.ip_addresses = ip_addresses or []
         self.attributes = attributes
 
-        if isinstance(key_password, (str, unicode)):
+        if isinstance(key_password, string_types):
             self.key_password = key_password.encode()
         else:
             self.key_password = key_password
 
-        if isinstance(private_key, (str, unicode)):
+        if isinstance(private_key, string_types):
             private_key = serialization.load_pem_private_key(private_key.encode(),
                                                              password=self.key_password, backend=default_backend())
         if isinstance(private_key, rsa.RSAPrivateKey):
