@@ -59,8 +59,13 @@ class TPPConnection(CommonConnection):
         self._user = user  # type: str
         self._password = password  # type: str
         self._token = None  # type: tuple
-        self._normalize_and_verify_base_url()
+
         self._http_request_kwargs = http_request_kwargs or {}
+
+    def __setattr__(self, key, value):
+        if key == "_base_url":
+            value = self._normalize_and_verify_base_url(value)
+        self.__dict__[key] = value
 
     def __str__(self):
         return "[TPP] %s" % self._base_url
@@ -92,8 +97,8 @@ class TPPConnection(CommonConnection):
         if status == HTTPStatus.OK:
             return data
 
-    def _normalize_and_verify_base_url(self):
-        u = self._base_url
+    @staticmethod
+    def _normalize_and_verify_base_url(u):
         if u.startswith("http://"):
             u = "https://" + u[7:]
         elif not u.startswith("https://"):
@@ -104,7 +109,7 @@ class TPPConnection(CommonConnection):
             u += "vedsdk/"
         if not re.match(r"^https://[a-z\d]+[-a-z\d.]+[a-z\d][:\d]*/vedsdk/$", u):
             raise ClientBadData
-        self._base_url = u
+        return u
 
     def ping(self):
         status, data = self._get()
