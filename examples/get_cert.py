@@ -49,9 +49,9 @@ def main():
         exit(1)
 
     request = CertificateRequest(common_name=randomword(10) + ".venafi.example.com")
+    request.san_dns = ["www.client.venafi.example.com", "ww1.client.venafi.example.com"]
     if not isinstance(conn, CloudConnection):
-        # Cloud connection doesn`t support dns, email and ip in CSR
-        request.san_dns = ["www.client.venafi.example.com", "ww1.client.venafi.example.com"]
+        # Venafi Cloud doesn't support email or IP SANs in CSR
         request.email_addresses = ["e1@venafi.example.com", "e2@venafi.example.com"]
         request.ip_addresses = ["127.0.0.1", "192.168.1.1"]
         # Specify ordering certificates in chain. Root can be "first" or "last". By default it last. You also can
