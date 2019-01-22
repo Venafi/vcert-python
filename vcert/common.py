@@ -30,7 +30,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography import x509
-from cryptography.x509.oid import NameOID
+from cryptography.x509.oid import NameOID, ExtensionOID
 from cryptography.hazmat.primitives import hashes
 from .pem import parse_pem, Certificate
 import ipaddress
@@ -286,11 +286,11 @@ class CertificateRequest:
         self.key_curve = key_curve
         self.private_key = private_key
         self.public_key_from_private()
-        self.csr = csr
         self.friendly_name = friendly_name or common_name
         self.id = id
         self.common_name = common_name
         self.thumbprint = thumbprint
+        self.csr = csr
 
     def __setattr__(self, key, value):
         if key == "key_password":
@@ -312,7 +312,28 @@ class CertificateRequest:
             elif value is None:
                 self.public_key = None
             else:
-                raise ClientBadData("invalid private key type %s" % type(private_key))
+                raise ClientBadData("invalid private key type %s" % type(value))
+        elif key == "csr":  # todo: test
+            if isinstance(value, binary_type):
+                value = value.decode()
+            elif not (isinstance(value, string_types) or value is None):
+                raise ClientBadData("invalid csr type %s" % type(value))
+            if value:
+                csr = x509.load_pem_x509_csr(value.encode(), default_backend())
+                cn = csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
+                if self.common_name and self.common_name != cn:
+                    raise ClientBadData("Common name from CSR doesn`t matches to CertificateRequest.common_name")
+                ips = []
+                dns = []
+                for e in csr.extensions.get_extension_for_oid(ExtensionOID.SUBJECT_ALTERNATIVE_NAME).value:
+                    if isinstance(e, x509.general_name.DNSName):
+                        dns.append(e.value)
+                    elif isinstance(e, x509.general_name.IPAddress):
+                        ips.append(e.value.exploded)
+                if self.ip_addresses and sorted(self.ip_addresses) != sorted(ips):
+                    raise ClientBadData
+                if self.san_dns and sorted(self.san_dns) != sorted(dns):
+                    raise ClientBadData
         self.__dict__[key] = value
 
     def build_csr(self):
