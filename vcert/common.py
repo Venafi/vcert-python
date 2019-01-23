@@ -19,7 +19,7 @@ from __future__ import absolute_import, division, generators, unicode_literals, 
 
 import datetime
 import logging as log
-from six import string_types
+from six import string_types, binary_type
 import dateutil.parser
 
 from .errors import VenafiConnectionError, ServerUnexptedBehavior, BadData, ClientBadData
