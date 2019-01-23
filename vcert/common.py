@@ -296,7 +296,10 @@ class CertificateRequest:
         if key == "key_password":
             if isinstance(value, string_types):
                 value = value.encode()
-        if key == "private_key":
+        elif key == "common_name":
+            if isinstance(value, binary_type):
+                value = value.decode()
+        elif key == "private_key":
             if isinstance(value, string_types):
                 value = serialization.load_pem_private_key(value.encode(),
                                                            password=self.key_password, backend=default_backend())
