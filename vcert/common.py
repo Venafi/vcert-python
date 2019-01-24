@@ -325,15 +325,18 @@ class CertificateRequest:
                     raise ClientBadData("Common name from CSR doesn`t matches to CertificateRequest.common_name")
                 ips = []
                 dns = []
-                for e in csr.extensions.get_extension_for_oid(ExtensionOID.SUBJECT_ALTERNATIVE_NAME).value:
-                    if isinstance(e, x509.general_name.DNSName):
-                        dns.append(e.value)
-                    elif isinstance(e, x509.general_name.IPAddress):
-                        ips.append(e.value.exploded)
-                if self.ip_addresses and sorted(self.ip_addresses) != sorted(ips):
-                    raise ClientBadData
-                if self.san_dns and sorted(self.san_dns) != sorted(dns):
-                    raise ClientBadData
+                try:
+                    for e in csr.extensions.get_extension_for_oid(ExtensionOID.SUBJECT_ALTERNATIVE_NAME).value:
+                        if isinstance(e, x509.general_name.DNSName):
+                            dns.append(e.value)
+                        elif isinstance(e, x509.general_name.IPAddress):
+                            ips.append(e.value.exploded)
+                    if self.ip_addresses and sorted(self.ip_addresses) != sorted(ips):
+                        raise ClientBadData
+                    if self.san_dns and sorted(self.san_dns) != sorted(dns):
+                        raise ClientBadData
+                except x509.extensions.ExtensionNotFound:
+                    pass
         self.__dict__[key] = value
 
     def build_csr(self):
