@@ -79,8 +79,8 @@ class TestStringMethods(unittest.TestCase):
         cert = renew(conn, cert_id, pkey, sn, cn)
         renew_by_thumbprint(conn, cert)
 
-        # cn = randomword(10) + ".venafi.example.com"
-        # enroll(conn, zone, cn, TEST_KEY_ECDSA[0], TEST_KEY_ECDSA[1])
+        cn = randomword(10) + ".venafi.example.com"
+        enroll(conn, zone, cn, TEST_KEY_ECDSA[0], TEST_KEY_ECDSA[1])
         cn = randomword(10) + ".venafi.example.com"
         enroll(conn, zone, cn, TEST_KEY_RSA_4096[0], TEST_KEY_RSA_4096[1])
         cn = randomword(10) + ".venafi.example.com"
