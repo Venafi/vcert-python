@@ -24,7 +24,7 @@ import random
 import logging
 import time
 from os import environ
-from six import string_types
+from six import string_types, text_type
 import unittest
 import binascii
 from cryptography import x509
@@ -42,6 +42,9 @@ USER = environ.get('TPPUSER')
 PASSWORD = environ.get('TPPPASSWORD')
 TPPURL = environ.get('TPPURL')
 CLOUDURL = environ.get('CLOUDURL')
+RANDOM_DOMAIN = environ.get("RANDOM_DOMAIN")
+if not isinstance(RANDOM_DOMAIN, text_type):
+    RANDOM_DOMAIN = RANDOM_DOMAIN.decode()
 
 
 def randomword(length):
@@ -72,6 +75,7 @@ class TestStringMethods(unittest.TestCase):
         zone = environ['TPPZONE']
         print("Using TPP conection")
         conn = TPPConnection(USER, PASSWORD, TPPURL, http_request_kwargs={"verify": "/tmp/chain.pem"})
+
         cn = randomword(10) + ".venafi.example.com"
         cert_id, pkey, sn = enroll(conn, zone, cn)
         cert = renew(conn, cert_id, pkey, sn, cn)
@@ -84,7 +88,12 @@ class TestStringMethods(unittest.TestCase):
         cn = randomword(10) + ".venafi.example.com"
         enroll(conn, zone, cn, TEST_KEY_RSA_2048_ENCRYPTED[0], TEST_KEY_RSA_2048_ENCRYPTED[1], 'venafi')
 
-def enroll(conn, zone, cn, private_key=None, public_key=None, password=None):
+        key = open("/tmp/csr-test.key.pem").read()
+        csr = open("/tmp/csr-test.csr.csr").read()
+        enroll(conn, zone, private_key=key, csr=csr)
+
+
+def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None, csr=None):
     print("Trying to ping service")
     status = conn.ping()
     print("Server online:", status)
@@ -101,6 +110,9 @@ def enroll(conn, zone, cn, private_key=None, public_key=None, password=None):
         request.san_dns = ["www.client.venafi.example.com", "ww1.client.venafi.example.com"]
         request.email_addresses = ["e1@venafi.example.com", "e2@venafi.example.com"]
         request.ip_addresses = ["127.0.0.1", "192.168.1.1"]
+
+    if csr:
+        request.csr = csr
 
     conn.request_cert(request, zone)
     while True:
@@ -122,7 +134,7 @@ def enroll(conn, zone, cn, private_key=None, public_key=None, password=None):
     assert isinstance(cert, x509.Certificate)
     assert cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME) == [
         x509.NameAttribute(
-            NameOID.COMMON_NAME, cn
+            NameOID.COMMON_NAME, cn or RANDOM_DOMAIN
         )
     ]
 
