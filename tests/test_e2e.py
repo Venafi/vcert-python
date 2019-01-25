@@ -24,7 +24,7 @@ import random
 import logging
 import time
 from os import environ
-from six import string_types
+from six import string_types, text_type
 import unittest
 import binascii
 from cryptography import x509
@@ -43,6 +43,8 @@ PASSWORD = environ.get('TPPPASSWORD')
 TPPURL = environ.get('TPPURL')
 CLOUDURL = environ.get('CLOUDURL')
 RANDOM_DOMAIN = environ.get("RANDOM_DOMAIN")
+if not isinstance(RANDOM_DOMAIN, text_type):
+    RANDOM_DOMAIN = RANDOM_DOMAIN.decode()
 
 
 def randomword(length):
