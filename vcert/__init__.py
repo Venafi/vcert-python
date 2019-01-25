@@ -33,6 +33,7 @@ def Connection(url=None, token=None, user=None, password=None, http_request_kwar
     :param dict[str, Any] http_request_kwargs: Option for work with untrusted  https certificate (only for TPP).
     :rtype CommonConnection:
     """
+    # TODO: fake connection should be configure explicitly. If no credentials are given exception should be raised.
     if not (token or url or user or password):
         return FakeConnection()
     if url and user and password:
