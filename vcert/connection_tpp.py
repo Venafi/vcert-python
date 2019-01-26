@@ -49,7 +49,6 @@ TOKEN_HEADER_NAME = "x-venafi-api-key"
 class TPPConnection(CommonConnection):
     def __init__(self, user, password, url, http_request_kwargs=None):
         """
-        todo: docs
         :param str user:
         :param str password:
         :param str url:
@@ -117,8 +116,6 @@ class TPPConnection(CommonConnection):
 
     def auth(self):
         data = {"Username": self._user, "Password": self._password}
-
-        #TODO: add trust bundle support
         r = requests.post(self._base_url + URLS.AUTHORIZE, json=data,
                           headers={'content-type': MIME_JSON, "cache-control": "no-cache"},
                           **self._http_request_kwargs)

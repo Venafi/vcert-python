@@ -166,12 +166,12 @@ class CloudConnection(CommonConnection):
             return data
 
     def _get_zone_by_tag(self, tag):
-        # TODO: throw exception if zone or tag is None
-        # or if it is none set it to Default
         """
         :param str tag:
         :rtype Zone
         """
+        if not tag:
+            raise ClientBadData("You need to specify zone tag")
         status, data = self._get(URLS.ZONE_BY_TAG % tag)
         if status == HTTPStatus.OK:
             return Zone.from_server_response(data)
