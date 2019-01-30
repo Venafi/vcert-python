@@ -313,7 +313,7 @@ class CertificateRequest:
                 self.public_key = None
             else:
                 raise ClientBadData("invalid private key type %s" % type(value))
-        elif key == "csr":  # todo: test
+        elif key == "csr":
             if isinstance(value, binary_type):
                 value = value.decode()
             elif not (isinstance(value, string_types) or value is None):
@@ -366,7 +366,6 @@ class CertificateRequest:
             self.public_key_from_private()
 
         csr_builder = x509.CertificateSigningRequestBuilder()
-        # TODO: if common name is not defined get first alt name. If alt name not defined too throw error.
         subject = [x509.NameAttribute(NameOID.COMMON_NAME, self.common_name,)]
         csr_builder = csr_builder.subject_name(x509.Name(subject))
 

@@ -20,7 +20,7 @@ from .connection_fake import FakeConnection
 from .common import CertificateRequest, CommonConnection, KeyTypes
 
 
-def Connection(url=None, token=None, user=None, password=None, http_request_kwargs=None):
+def Connection(url=None, token=None, user=None, password=None, fake=False, http_request_kwargs=None):
     """
     Return connection based on credentials list.
     Venafi Platform (TPP) required URL, user, password
@@ -30,11 +30,11 @@ def Connection(url=None, token=None, user=None, password=None, http_request_kwar
     :param str token: Venafi Cloud token
     :param str user: TPP user
     :param str password: TPP password
+    :param bool fake: Use fake connection
     :param dict[str, Any] http_request_kwargs: Option for work with untrusted  https certificate (only for TPP).
     :rtype CommonConnection:
     """
-    # TODO: fake connection should be configure explicitly. If no credentials are given exception should be raised.
-    if not (token or url or user or password):
+    if fake:
         return FakeConnection()
     if url and user and password:
         return TPPConnection(user=user, password=password, url=url, http_request_kwargs=http_request_kwargs)
