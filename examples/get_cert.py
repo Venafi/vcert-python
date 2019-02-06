@@ -15,7 +15,8 @@
 # limitations under the License.
 #
 
-from vcert import CertificateRequest, Connection, CloudConnection, FakeConnection
+from vcert import (CertificateRequest, Connection, CloudConnection,
+                   FakeConnection, TPPConnection, RevocationRequest)
 import string
 import random
 import logging
@@ -38,8 +39,8 @@ def main():
     # be used. If none, test connection will be used.
     conn = Connection(url=url, token=token, user=user, password=password)
     # If your TPP server certificate signed with your own CA or available only via proxy you can specify requests vars
-    # conn = Connection(url=url, token=token, user=user, password=password,
-    #                   http_request_kwargs={"verify": "/path/to/trust/bundle.pem"})
+    conn = Connection(url=url, token=token, user=user, password=password,
+                      http_request_kwargs={"verify": False})
 
     print("Trying to ping url %s" % conn)
     status = conn.ping()
@@ -93,6 +94,10 @@ def main():
         print(new_cert.cert)
         fn = open("/tmp/new_cert.pem", "w")
         fn.write(new_cert.cert)
+    if isinstance(conn, TPPConnection):
+        revocation_req = RevocationRequest(id=request.id,
+                                           comments="Just for test")
+        print("Revoke", conn.revoke_cert(revocation_req))
 
 
 def randomword(length):
