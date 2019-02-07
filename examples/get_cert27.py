@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from vcert import CertificateRequest, Connection, CloudConnection, FakeConnection
+from vcert import CertificateRequest, Connection, CloudConnection, FakeConnection, TPPConnection, RevocationRequest
 import string
 import random
 import logging
@@ -92,6 +92,10 @@ def main():
         print(new_cert.cert)
         fn = open("/tmp/new_cert.pem", "w")
         fn.write(new_cert.cert)
+    if isinstance(conn, TPPConnection):
+        revocation_req = RevocationRequest(id=request.id,
+                                           comments="Just for test")
+        print("Revoke", conn.revoke_cert(revocation_req))
 
 
 def randomword(length):

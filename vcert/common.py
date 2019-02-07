@@ -418,7 +418,7 @@ class CertificateRequest:
 
 
 class RevocationRequest:
-    def __init__(self, id=None, thumbprint=None,  reason=RevocationReasons.NoReason, comments=None, disable=True):
+    def __init__(self, id=None, thumbprint=None,  reason=RevocationReasons.NoReason, comments="Revoked via api with python bindings", disable=True):
         """
         :param id:
         :param thumbprint:

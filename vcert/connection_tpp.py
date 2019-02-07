@@ -179,16 +179,17 @@ class TPPConnection(CommonConnection):
         if not (request.id or request.thumbprint):
             raise ClientBadData
         d = {
-            "Reason": request.reason,
             "Disable": request.disable
         }
+        if request.reason:
+            d["Reason"] = request.reason
         if request.id:
             d["CertificateDN"] = request.id
         elif request.thumbprint:
             d["Thumbprint"] = request.thumbprint
         if request.comments:
             d["Comments"] = request.comments
-        status, data = self._post(URLS.CERTIFICATE_RETRIEVE, data=d)
+        status, data = self._post(URLS.CERTIFICATE_REVOKE, data=d)
         if status in (HTTPStatus.OK, HTTPStatus.ACCEPTED):
             return data
         else:
