@@ -102,7 +102,7 @@ class Zone:
 class KeyTypes:
     RSA = "rsa"
     ECDSA = "ec"
-
+    # todo: check ECC value returned from tpp
 
 class RevocationReasons:
     NoReason = 0
