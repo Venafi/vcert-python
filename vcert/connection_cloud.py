@@ -18,11 +18,12 @@ from __future__ import (absolute_import, division, generators, unicode_literals,
                         with_statement)
 
 import re
+import dateutil
 import logging as log
 
 import requests
 
-from .common import (Zone, CertificateRequest, CommonConnection, Policy, ZoneConfig, log_errors, MIME_JSON, MIME_TEXT,
+from .common import (Zone, ZoneConfig, CertificateRequest, CommonConnection, Policy, log_errors, MIME_JSON, MIME_TEXT,
                      MIME_ANY, parse_pem)
 from .errors import (VenafiConnectionError, ServerUnexptedBehavior, ClientBadData, CertificateRequestError,
                      CertificateRenewError)
@@ -52,6 +53,7 @@ class URLS:
     CERTIFICATE_SEARCH = "certificatesearch"
     MANAGED_CERTIFICATES = "managedcertificates"
     MANAGED_CERTIFICATE_BY_ID = MANAGED_CERTIFICATES + "/%s"
+    TEMPLATE_BY_ID = "certificateissuingtemplates/%s"
 
 
 class CondorChainOptions:
@@ -157,8 +159,7 @@ class CloudConnection(CommonConnection):
         return policy
 
     def ping(self):
-        status, data = self._get(URLS.PING)
-        return status == HTTPStatus.OK and data == "OK"
+        return True
 
     def auth(self):
         status, data = self._get(URLS.USER_ACCOUNTS)
@@ -174,7 +175,9 @@ class CloudConnection(CommonConnection):
             raise ClientBadData("You need to specify zone tag")
         status, data = self._get(URLS.ZONE_BY_TAG % tag)
         if status == HTTPStatus.OK:
-            return Zone.from_server_response(data)
+            d = data
+            return Zone(d['id'], d['companyId'], d['tag'], d['zoneType'], d['systemGenerated'],
+                   dateutil.parser.parse(d['creationDate']))
         elif status in (HTTPStatus.BAD_REQUEST, HTTPStatus.NOT_FOUND, HTTPStatus.PRECONDITION_FAILED):
             log_errors(data)
         else:
@@ -281,11 +284,27 @@ class CloudConnection(CommonConnection):
         return CertificateStatusResponse(data['certificates'][0])
 
     def read_zone_conf(self, tag):
-        z = self._get_zone_by_tag(tag)
-        policy = self._get_policy_by_ids((z.default_cert_identity_policy, z.default_cert_use_policy))
-        zc = ZoneConfig.from_policy(policy)
-        return zc
+        status, data = self._get(URLS.ZONE_BY_TAG % tag)
+        import pprint
+        pprint.pprint(data)
+        template_id = data['certificateIssuingTemplateId']
+        status, data = self._get(URLS.TEMPLATE_BY_ID % template_id)
+        pprint.pprint(data)
+        z = ZoneConfig(
+            organization=regexs_to_string(data['subjectORegexes']),
+            organizational_unit=regexs_to_string(data['subjectOURegexes']),
+            country=regexs_to_string(data['subjectCValues']),
+            province=regexs_to_string(data['subjectSTRegexes']),
+            locality=regexs_to_string(data['subjectLRegexes']),
+        )
+        return z
 
     def import_cert(self, request):
         # not supported in Cloud
         raise NotImplementedError
+
+
+def regexs_to_string(l):
+    if not len(l):
+        return ""
+    l[0].strip(".*")

@@ -43,9 +43,11 @@ MIME_ANY = "*/*"
 
 
 class CertField(str):
-    def __init__(self, *args, **kwargs):
-        self.locked = False
-        super(CertField, self).__init__(*args, **kwargs)
+    def __new__(cls,  *args, locked=False, **kwargs):
+        instance = super(CertField, cls).__new__(cls, *args, **kwargs)
+        instance.locked = locked
+        return instance
+
 
 
 def log_errors(data):
@@ -57,16 +59,12 @@ def log_errors(data):
 
 
 class Zone:
-    def __init__(self, zone_id, company_id, tag, zonetype, cert_policy_ids, default_cert_identity_policy,
-                 default_cert_use_policy, system_generated, creation_date):
+    def __init__(self, zone_id, company_id, tag, zonetype, system_generated, creation_date):
         """
         :param str zone_id:
         :param str company_id:
         :param str tag:
         :param str zonetype:
-        :param cert_policy_ids:
-        :param str default_cert_identity_policy:
-        :param str default_cert_use_policy:
         :param bool system_generated:
         :param datetime.datetime creation_date:
         """
@@ -74,9 +72,6 @@ class Zone:
         self.company_id = company_id
         self.tag = tag
         self.zonetype = zonetype
-        self.cert_policy_ids = cert_policy_ids
-        self.default_cert_identity_policy = default_cert_identity_policy
-        self.default_cert_use_policy = default_cert_use_policy
         self.system_generated = system_generated
         self.creation_date = creation_date
 
@@ -92,11 +87,6 @@ class Zone:
     def __str__(self):
         return self.tag
 
-    @classmethod
-    def from_server_response(cls, d):
-        return cls(d['id'], d['companyId'], d['tag'], d['zoneType'], d['certificatePolicyIds'],
-                   d['defaultCertificateIdentityPolicyId'], d['defaultCertificateUsePolicyId'], d['systemGenerated'],
-                   dateutil.parser.parse(d['creationDate']))
 
 
 class KeyTypes:
@@ -129,37 +119,20 @@ class KeyType:
 
 
 class ZoneConfig:
-    def __init__(self, organization=None, organizational_unit=None, country=None, province=None, locality=None,
-                 CustomAttributeValues=None, SubjectCNRegexes=None, SubjectORegexes=None, SubjectOURegexes=None,
-                 SubjectSTRegexes=None, SubjectLRegexes=None, SubjectCRegexes=None, SANRegexes=None,
-                 allowed_key_configurations=None, KeySizeLocked=None, HashAlgorithm=None):
+    def __init__(self, organization=None, organizational_unit=None, country=None, province=None, locality=None):
         """
         :param CertField organization:
-        :param list[str] organizational_unit:
+        :param list[CertField] organizational_unit:
         :param CertField country:
         :param CertField province:
         :param CertField locality:
-        :param dict[str, str] CustomAttributeValues:
-        :param list[str] SubjectCNRegexes:
-        :param list[str] SubjectORegexes:
-        :param list[str] SubjectOURegexes:
-        :param list[str] SubjectSTRegexes:
-        :param list[str] SubjectLRegexes:
-        :param list[str] SubjectCRegexes:
-        :param list[str] SANRegexes:
-        :param list[KeyType] allowed_key_configurations:
-        :param bool KeySizeLocked:
-        :param HashAlgorithm:
         """
+        self.organization = organization
+        self.organizational_unit = organizational_unit
+        self.country = country
+        self.province = province
+        self.locality = locality
 
-        self.allowed_key_configurations = allowed_key_configurations or []
-
-    @classmethod
-    def from_policy(cls, policy):
-        """
-        :param Policy policy:
-        """
-        return cls(allowed_key_configurations=policy.key_types[:])
 
 
 class Policy:
@@ -416,6 +389,10 @@ class CertificateRequest:
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         ).decode()
 
+    def update_from_zone(self, zone):
+        """
+        :param Zone zone:
+        """
 
 class RevocationRequest:
     def __init__(self, id=None, thumbprint=None,  reason=RevocationReasons.NoReason, comments="Revoked via api with python bindings", disable=True):
@@ -501,7 +478,7 @@ class CommonConnection:
                 log_errors(r.json())
             except:
                 pass
-            raise VenafiConnectionError("Server status: %s, %s\n Response: %s",
+            raise VenafiConnectionError("Server status: %s\n Response: %s" %
                                         (r.status_code, r.request.url))
         content_type = r.headers.get("content-type")
         if content_type.startswith(MIME_TEXT):
