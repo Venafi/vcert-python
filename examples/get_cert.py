@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import print_function
 from vcert import (CertificateRequest, Connection, CloudConnection,
                    FakeConnection, TPPConnection, RevocationRequest)
 import string

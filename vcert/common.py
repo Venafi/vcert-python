@@ -43,7 +43,7 @@ MIME_ANY = "*/*"
 
 
 class CertField(str):
-    def __new__(cls,  *args, locked=False, **kwargs):
+    def __new__(cls, locked=False, *args, **kwargs):
         instance = super(CertField, cls).__new__(cls, *args, **kwargs)
         instance.locked = locked
         return instance
