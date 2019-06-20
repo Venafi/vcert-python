@@ -24,7 +24,7 @@ import logging as log
 import requests
 
 from .common import (Zone, ZoneConfig, CertificateRequest, CommonConnection, Policy, log_errors, MIME_JSON, MIME_TEXT,
-                     MIME_ANY, parse_pem)
+                     MIME_ANY, parse_pem, CertField)
 from .errors import (VenafiConnectionError, ServerUnexptedBehavior, ClientBadData, CertificateRequestError,
                      CertificateRenewError)
 from .http import HTTPStatus
@@ -307,4 +307,7 @@ class CloudConnection(CommonConnection):
 def regexs_to_string(l):
     if not len(l):
         return ""
-    l[0].strip(".*")
+    locked = True
+    if len(l) > 1 or ".*" in l[0]:
+        locked = False
+    return CertField(l[0].lstrip(".*"), locked=locked)

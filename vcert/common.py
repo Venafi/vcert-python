@@ -127,7 +127,7 @@ class ZoneConfig:
     def __init__(self, organization=None, organizational_unit=None, country=None, province=None, locality=None):
         """
         :param CertField organization:
-        :param list[CertField] organizational_unit:
+        :param CertField organizational_unit:
         :param CertField country:
         :param CertField province:
         :param CertField locality:
@@ -232,7 +232,13 @@ class CertificateRequest:
                  csr=None,
                  friendly_name=None,
                  common_name=None,
-                 thumbprint=None):
+                 thumbprint=None,
+                 organization=None,
+                 organizational_unit=None,
+                 country=None,
+                 province=None,
+                 locality=None
+                 ):
         """
         :param str id: Certificate request id. Generating by server.
         :param list[str] san_dns: Alternative names for SNI.
@@ -269,6 +275,11 @@ class CertificateRequest:
         self.common_name = common_name
         self.thumbprint = thumbprint
         self.csr = csr
+        self.organization = organization
+        self.organizational_unit = organizational_unit
+        self.country = country
+        self.province = province
+        self.locality = locality
 
     def __setattr__(self, key, value):
         if key == "key_password":
@@ -345,6 +356,17 @@ class CertificateRequest:
 
         csr_builder = x509.CertificateSigningRequestBuilder()
         subject = [x509.NameAttribute(NameOID.COMMON_NAME, self.common_name,)]
+        if self.locality:
+            subject.append(x509.NameAttribute(NameOID.LOCALITY_NAME, self.locality))
+        if self.province:
+            subject.append(x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, self.province))
+        if self.country:
+            subject.append(x509.NameAttribute(NameOID.COUNTRY_NAME, self.country))
+        if self.organization:
+            subject.append(x509.NameAttribute(NameOID.ORGANIZATION_NAME, self.organization))
+        if self.organizational_unit:
+            subject.append(x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, self.organizational_unit))
+
         csr_builder = csr_builder.subject_name(x509.Name(subject))
 
         alt_names = []
@@ -394,10 +416,20 @@ class CertificateRequest:
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         ).decode()
 
-    def update_from_zone(self, zone):
+    def update_from_zone_config(self, zone):
         """
-        :param Zone zone:
+        :param ZoneConfig zone:
         """
+        if zone.organization.locked or (not self.organization and zone.organization):
+            self.organization = zone.organization
+        if zone.organizational_unit.locked or (not self.organizational_unit and zone.organizational_unit):
+            self.organizational_unit = zone.organizational_unit
+        if zone.country.locked or (not self.country and zone.country):
+            self.country = zone.country
+        if zone.province.locked or (not self.province and zone.province):
+            self.province = zone.province
+        if zone.locality.locked or (not self.locality and zone.locality):
+            self.locality = zone.locality
 
 class RevocationRequest:
     def __init__(self, id=None, thumbprint=None,  reason=RevocationReasons.NoReason, comments="Revoked via api with python bindings", disable=True):

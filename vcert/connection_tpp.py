@@ -210,9 +210,10 @@ class TPPConnection(CommonConnection):
     def read_zone_conf(self, tag):
         status, data = self._post(URLS.ZONE_CONFIG, {"PolicyDN":  self._get_policy_dn(tag)})
         s = data["Policy"]["Subject"]
+        ou = s['OrganizationalUnit']['Values'][0] if s['OrganizationalUnit']['Values'] else ""
         z = ZoneConfig(
             organization=CertField(s['Organization']['Value'], locked=s['Organization']['Locked']),
-            organizational_unit=[CertField(x, locked=s['OrganizationalUnit']) for x in s['OrganizationalUnit']['Values']],
+            organizational_unit=CertField(ou, locked=s['OrganizationalUnit']) ,
             country=CertField(s['Country']['Value'], locked=s['Country']['Locked']),
             province=CertField(s['State']['Value'], locked=s['State']['Locked']),
             locality=CertField(s['City']['Value'], locked=s['City']['Locked']),
