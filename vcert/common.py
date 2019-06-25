@@ -19,7 +19,7 @@ from __future__ import absolute_import, division, generators, unicode_literals, 
 
 import datetime
 import logging as log
-from six import string_types, binary_type
+from six import string_types, binary_type, text_type
 import dateutil.parser
 
 from .errors import VenafiConnectionError, ServerUnexptedBehavior, BadData, ClientBadData
@@ -35,6 +35,7 @@ from cryptography.hazmat.primitives import hashes
 from .pem import parse_pem, Certificate
 import ipaddress
 
+
 MIME_JSON = "application/json"
 MIME_HTML = "text/html"
 MIME_TEXT = "text/plain"
@@ -42,7 +43,7 @@ MIME_CSV = "text/csv"
 MIME_ANY = "*/*"
 
 
-class CertField(str):
+class CertField(text_type):
     def __new__(cls, *args, **kwargs):
         if "locked" in kwargs:
             locked = kwargs["locked"]
