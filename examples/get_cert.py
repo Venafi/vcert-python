@@ -59,7 +59,9 @@ def main():
         # Specify ordering certificates in chain. Root can be "first" or "last". By default it last. You also can
         # specify "ignore" to ignore chain (supported only for Platform).
 
-    # make certificate request
+    # Update certificate request from zone
+    zone_config = conn.read_zone_conf(zone)
+    request.update_from_zone_config(zone_config)
     conn.request_cert(request, zone)
 
     # and wait for signing

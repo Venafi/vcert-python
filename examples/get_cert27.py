@@ -35,7 +35,7 @@ def main():
     # connection will be chosen automatically based on what arguments are passed,
     # If token is passed Venafi Cloud connection will be used. if user, password, and URL Venafi Platform (TPP) will
     # be used. If none, test connection will be used.
-    conn = Connection(url=url, token=token, user=user, password=password)
+    conn = Connection(url=url, token=token, user=user, password=password, http_request_kwargs={"verify": False})
     # If your TPP server certificate signed with your own CA or available only via proxy you can specify requests vars
     # conn = Connection(url=url, token=token, user=user, password=password,
     #                   http_request_kwargs={"verify": "/path/to/trust/bundle.pem"})
@@ -56,7 +56,9 @@ def main():
         # Specify ordering certificates in chain. Root can be "first" or "last". By default it last. You also can
         # specify "ignore" to ignore chain (supported only for Platform).
 
-    # make certificate request
+    # Update certificate request from zone
+    zone_config = conn.read_zone_conf(zone)
+    request.update_from_zone_config(zone_config)
     conn.request_cert(request, zone)
 
     # and wait for signing
