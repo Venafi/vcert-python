@@ -8,7 +8,8 @@ VCert Python is a Python library and SDK  designed to simplify key generation an
 
 This implementation is based on the original Go library, https://github.com/Venafi/vcert.
 
-VCert supports Python 3, and Python 2.7.  
+#### Compatibility
+VCert supports Python 3, and Python 2.7.  VCert releases are tested using the latest version of Trust Protection Platform.  The [latest VCert release](../../releases/latest) should be compatible with Trust Protection Platform 17.3 or higher based on the subset of API methods it consumes.
 
 ## Installation
 Get the library using pip:  
@@ -36,3 +37,22 @@ For code samples of programmatic use, please review the files in [/examples](/ex
     7. (Recommended) Key Bit Strength set to 2048 or higher
     8. (Recommended) Domain Whitelisting policy appropriately assigned
 
+## Contributing to VCert
+
+Venafi welcomes contributions from the developer community.
+
+1. Fork it to your account (https://github.com/Venafi/vcert-python/fork)
+2. Clone your fork (`git clone git@github.com:youracct/vcert-python.git`)
+3. Create a feature branch (`git checkout -b your-branch-name`)
+4. Implement and test your changes
+5. Commit your changes (`git commit -am 'Added some cool functionality'`)
+6. Push to the branch (`git push origin your-branch-name`)
+7. Create a new Pull Request (https://github.com/youracct/vcert-python/pull/new/your-branch-name)
+
+## License
+
+Copyright &copy; Venafi, Inc. All rights reserved.
+
+VCert is licensed under the Apache License, Version 2.0. See `LICENSE` for the full license text.
+
+Please direct questions/comments to opensource@venafi.com.
