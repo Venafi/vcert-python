@@ -24,7 +24,8 @@ import time
 
 import requests
 
-from .common import CommonConnection, MIME_JSON, parse_pem, Zone, CertField, ZoneConfig
+from .common import CommonConnection, MIME_JSON, Zone, CertField, ZoneConfig
+from .pem import parse_pem
 from .errors import (ServerUnexptedBehavior, ClientBadData, CertificateRequestError, AuthenticationError,
                      CertificateRenewError)
 from .http import HTTPStatus

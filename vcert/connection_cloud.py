@@ -303,4 +303,3 @@ class CloudConnection(CommonConnection):
     def import_cert(self, request):
         # not supported in Cloud
         raise NotImplementedError
-
