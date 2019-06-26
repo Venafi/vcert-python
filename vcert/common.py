@@ -32,7 +32,6 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography import x509
 from cryptography.x509.oid import NameOID, ExtensionOID
 from cryptography.hazmat.primitives import hashes
-from .pem import parse_pem, Certificate
 import ipaddress
 
 
@@ -53,7 +52,6 @@ class CertField(text_type):
         instance = super(CertField, cls).__new__(cls, *args, **kwargs)
         instance.locked = locked
         return instance
-
 
 
 def log_errors(data):
@@ -94,11 +92,11 @@ class Zone:
         return self.tag
 
 
-
 class KeyTypes:
     RSA = "rsa"
     ECDSA = "ec"
     # todo: check ECC value returned from tpp
+
 
 class RevocationReasons:
     NoReason = 0
@@ -140,19 +138,18 @@ class ZoneConfig:
         self.locality = locality
 
 
-
 class Policy:
     class Type:
         CERTIFICATE_IDENTITY = "CERTIFICATE_IDENTITY"
         CERTIFICATE_USE = "CERTIFICATE_USE"
 
-    def __init__(self, policy_type=None, id=None, company_id=None, name=None, system_generated=None, creation_date=None,
-                 cert_provider_id=None, subject_cn_regexes=None, subject_o_regexes=None, subject_ou_regexes=None,
-                 subject_st_regexes=None, subject_l_regexes=None, subject_c_regexes=None, san_regexes=None,
-                 key_types=None, key_reuse=None):
+    def __init__(self, policy_type=None, policy_id=None, company_id=None, name=None, system_generated=None,
+                 creation_date=None, cert_provider_id=None, subject_cn_regexes=None, subject_o_regexes=None,
+                 subject_ou_regexes=None, subject_st_regexes=None, subject_l_regexes=None, subject_c_regexes=None,
+                 san_regexes=None, key_types=None, key_reuse=None):
         """
         :param str policy_type:
-        :param str id:
+        :param str policy_id:
         :param str company_id:
         :param str name:
         :param bool system_generated:
@@ -169,7 +166,7 @@ class Policy:
         :param bool key_reuse:
         """
         self.policy_type = policy_type
-        self.id = id
+        self.id = policy_id
         self.company_id = company_id
         self.name = name
         self.system_generated = system_generated
@@ -220,7 +217,7 @@ class Policy:
 
 
 class CertificateRequest:
-    def __init__(self, id=None,
+    def __init__(self, cert_id=None,
                  san_dns=None,
                  email_addresses="",
                  ip_addresses=None,
@@ -241,7 +238,7 @@ class CertificateRequest:
                  locality=None
                  ):
         """
-        :param str id: Certificate request id. Generating by server.
+        :param str cert_id: Certificate request id. Generating by server.
         :param list[str] san_dns: Alternative names for SNI.
         :param list[str] email_addresses: List of email addresses
         :param list[str] ip_addresses: List of IP addresses
@@ -254,7 +251,6 @@ class CertificateRequest:
         :param str key_password: Password for encrypted private key. Not supported at this moment.
         :param str csr: Certificate Signing Request in pem format
         :param str friendly_name: Name for certificate in the platform. If not specified common name will be used.
-        :param str chain_option: Specify ordering certificates in chain. Root can be "first" or "last"
         :param str common_name: Common name of certificate. Usually domain name.
         :param str thumbprint: Certificate thumbprint. Can be used for identifying certificate on the platform.
         """
@@ -270,9 +266,10 @@ class CertificateRequest:
         self.key_type = key_type
         self.key_curve = key_curve
         self.private_key = private_key
+        self.public_key = None
         self.public_key_from_private()
         self.friendly_name = friendly_name or common_name
-        self.id = id
+        self.id = cert_id
         self.common_name = common_name
         self.thumbprint = thumbprint
         self.csr = csr
@@ -388,7 +385,8 @@ class CertificateRequest:
             critical=False,
         )
 
-        csr_builder = csr_builder.sign(self.private_key, hashes.SHA256(), default_backend())
+        csr_builder = csr_builder.sign(self.private_key, hashes.SHA256(),
+                                       default_backend())
         self.csr = csr_builder.public_bytes(serialization.Encoding.PEM).decode()
         return
 
@@ -400,9 +398,9 @@ class CertificateRequest:
             encryption = serialization.NoEncryption()
 
         return self.private_key.private_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PrivateFormat.TraditionalOpenSSL,
-        encryption_algorithm=encryption,
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=encryption,
         ).decode()
 
     def public_key_from_private(self):
@@ -432,13 +430,15 @@ class CertificateRequest:
         if zone.locality.locked or (not self.locality and zone.locality):
             self.locality = zone.locality
 
+
 class RevocationRequest:
-    def __init__(self, id=None, thumbprint=None,  reason=RevocationReasons.NoReason, comments="Revoked via api with python bindings", disable=True):
+    def __init__(self, req_id=None, thumbprint=None,  reason=RevocationReasons.NoReason,
+                 comments="Revoked via api with python bindings", disable=True):
         """
-        :param id:
+        :param req_id:
         :param thumbprint:
         """
-        self.id = id
+        self.id = req_id
         self.thumbprint = thumbprint
         self.reason = reason
         self.comments = comments

@@ -162,7 +162,7 @@ def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None
 def renew(conn, cert_id, pkey, sn, cn):
     print("Trying to renew certificate")
     new_request = CertificateRequest(
-        id=cert_id,
+        cert_id=cert_id,
     )
     conn.renew_cert(new_request)
     time.sleep(5)

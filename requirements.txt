@@ -2,5 +2,6 @@ requests>=2.20.0
 python-dateutil>=2.6.1
 cryptography
 pytest
+six
 ipaddress;python_version<'3.3'
 enum34;python_version<'3.4'

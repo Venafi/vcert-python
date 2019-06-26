@@ -24,7 +24,8 @@ import logging as log
 import requests
 
 from .common import (Zone, ZoneConfig, CertificateRequest, CommonConnection, Policy, log_errors, MIME_JSON, MIME_TEXT,
-                     MIME_ANY, parse_pem, CertField)
+                     MIME_ANY, CertField)
+from .pem import parse_pem
 from .errors import (VenafiConnectionError, ServerUnexptedBehavior, ClientBadData, CertificateRequestError,
                      CertificateRenewError)
 from .http import HTTPStatus
@@ -177,7 +178,7 @@ class CloudConnection(CommonConnection):
         if status == HTTPStatus.OK:
             d = data
             return Zone(d['id'], d['companyId'], d['tag'], d['zoneType'], d['systemGenerated'],
-                   dateutil.parser.parse(d['creationDate']))
+                        dateutil.parser.parse(d['creationDate']))
         elif status in (HTTPStatus.BAD_REQUEST, HTTPStatus.NOT_FOUND, HTTPStatus.PRECONDITION_FAILED):
             log_errors(data)
         else:
@@ -238,7 +239,7 @@ class CloudConnection(CommonConnection):
             r = self.search_by_thumbprint(request.thumbprint)
             manage_id = r.manage_id
         if request.id:
-            prev_request = self._get_cert_status(CertificateRequest(id=request.id))
+            prev_request = self._get_cert_status(CertificateRequest(cert_id=request.id))
             manage_id = prev_request.manage_id
             # todo: fill request object fields
             zone = prev_request.zoneId
@@ -251,7 +252,7 @@ class CloudConnection(CommonConnection):
         else:
             raise ServerUnexptedBehavior
         if not zone:
-            prev_request = self._get_cert_status(CertificateRequest(id=request.id))
+            prev_request = self._get_cert_status(CertificateRequest(cert_id=request.id))
             zone = prev_request.zoneId
         d = {"existingManagedCertificateId": manage_id, "zoneId": zone}
         if request.csr:
@@ -291,11 +292,11 @@ class CloudConnection(CommonConnection):
         status, data = self._get(URLS.TEMPLATE_BY_ID % template_id)
         pprint.pprint(data)
         z = ZoneConfig(
-            organization=regexs_to_string(data['subjectORegexes']),
-            organizational_unit=regexs_to_string(data['subjectOURegexes']),
-            country=regexs_to_string(data['subjectCValues']),
-            province=regexs_to_string(data['subjectSTRegexes']),
-            locality=regexs_to_string(data['subjectLRegexes']),
+            organization=CertField(""),
+            organizational_unit=CertField(""),
+            country=CertField(""),
+            province=CertField(""),
+            locality=CertField(""),
         )
         return z
 
@@ -303,11 +304,3 @@ class CloudConnection(CommonConnection):
         # not supported in Cloud
         raise NotImplementedError
 
-
-def regexs_to_string(l):
-    if not len(l):
-        return ""
-    locked = True
-    if len(l) > 1 or ".*" in l[0]:
-        locked = False
-    return CertField(l[0].lstrip(".*"), locked=locked)
