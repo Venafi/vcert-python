@@ -73,6 +73,7 @@ class TestStringMethods(unittest.TestCase):
 
     def test_tpp(self):
         zone = environ['TPPZONE']
+        ecdsa_zone = environ['TPPZONE_ECDSA']
         print("Using TPP conection")
         conn = TPPConnection(USER, PASSWORD, TPPURL, http_request_kwargs={"verify": "/tmp/chain.pem"})
 
@@ -82,7 +83,7 @@ class TestStringMethods(unittest.TestCase):
         renew_by_thumbprint(conn, cert)
 
         cn = randomword(10) + ".venafi.example.com"
-        enroll(conn, zone, cn, TEST_KEY_ECDSA[0], TEST_KEY_ECDSA[1])
+        enroll(conn, ecdsa_zone, cn, TEST_KEY_ECDSA[0], TEST_KEY_ECDSA[1])
         cn = randomword(10) + ".venafi.example.com"
         enroll(conn, zone, cn, TEST_KEY_RSA_4096[0], TEST_KEY_RSA_4096[1])
         cn = randomword(10) + ".venafi.example.com"
