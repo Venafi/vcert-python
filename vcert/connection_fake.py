@@ -21,7 +21,8 @@ import logging as log
 import time
 
 import uuid
-from .common import CommonConnection, Zone, parse_pem
+from .common import CommonConnection, Zone
+from .pem import parse_pem
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization

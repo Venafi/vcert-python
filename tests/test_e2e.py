@@ -73,6 +73,7 @@ class TestStringMethods(unittest.TestCase):
 
     def test_tpp(self):
         zone = environ['TPPZONE']
+        ecdsa_zone = environ['TPPZONE_ECDSA']
         print("Using TPP conection")
         conn = TPPConnection(USER, PASSWORD, TPPURL, http_request_kwargs={"verify": "/tmp/chain.pem"})
 
@@ -82,7 +83,7 @@ class TestStringMethods(unittest.TestCase):
         renew_by_thumbprint(conn, cert)
 
         cn = randomword(10) + ".venafi.example.com"
-        enroll(conn, zone, cn, TEST_KEY_ECDSA[0], TEST_KEY_ECDSA[1])
+        enroll(conn, ecdsa_zone, cn, TEST_KEY_ECDSA[0], TEST_KEY_ECDSA[1])
         cn = randomword(10) + ".venafi.example.com"
         enroll(conn, zone, cn, TEST_KEY_RSA_4096[0], TEST_KEY_RSA_4096[1])
         cn = randomword(10) + ".venafi.example.com"
@@ -162,7 +163,7 @@ def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None
 def renew(conn, cert_id, pkey, sn, cn):
     print("Trying to renew certificate")
     new_request = CertificateRequest(
-        id=cert_id,
+        cert_id=cert_id,
     )
     conn.renew_cert(new_request)
     time.sleep(5)
@@ -330,13 +331,17 @@ b/G8hnsWUukvxRXg8TJJIFsCAwEAAQ==
 
 TEST_KEY_ECDSA = ("""
 -----BEGIN EC PRIVATE KEY-----
-MHcCAQEEIDekjW1i+ve8zVk/4n5oVUgxUAoZ4WpCT02G9YDto2NWoAoGCCqGSM49
-AwEHoUQDQgAEReDae0OJeEruc38ZiG+HlzAulHbbEOB2jODE+aOeLSAUCTxxAyRq
-spCneFmFBhdzLEpPgMDrf88wqcrB3f9U6g==
+MIHcAgEBBEIAhS7UG/d7YwTg/pOnmyGGzmt/YFVCAOIiu18Mo+/3ZFc/Kb50ky2q
+UzHfCWy+tcpWkzIT7FO/eAeUqy7Xzu/lqB+gBwYFK4EEACOhgYkDgYYABADLRK7k
+tpl+AyP2f8MDiVgawDp84WV7qyqHa+aidct/1CMu7KHGKg+LXSCY2VXbxkY6mrV/
+c22Vv6i3GH9pzxFzQwBw6whrrMos5MMDVvQSE1pAjT6fajVzD3sNz6BBlTzUxeLe
+kbm18LiyjLSlxy+taObmfdoraG7/3AdhMcWGP2pp2A==
 -----END EC PRIVATE KEY-----
 """, """
 -----BEGIN PUBLIC KEY-----
-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEReDae0OJeEruc38ZiG+HlzAulHbb
-EOB2jODE+aOeLSAUCTxxAyRqspCneFmFBhdzLEpPgMDrf88wqcrB3f9U6g==
+MIGbMBAGByqGSM49AgEGBSuBBAAjA4GGAAQAy0Su5LaZfgMj9n/DA4lYGsA6fOFl
+e6sqh2vmonXLf9QjLuyhxioPi10gmNlV28ZGOpq1f3Ntlb+otxh/ac8Rc0MAcOsI
+a6zKLOTDA1b0EhNaQI0+n2o1cw97Dc+gQZU81MXi3pG5tfC4soy0pccvrWjm5n3a
+K2hu/9wHYTHFhj9qadg=
 -----END PUBLIC KEY-----
 """)

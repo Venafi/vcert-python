@@ -24,7 +24,8 @@ import time
 
 import requests
 
-from .common import CommonConnection, MIME_JSON, parse_pem
+from .common import CommonConnection, MIME_JSON, Zone, CertField, ZoneConfig
+from .pem import parse_pem
 from .errors import (ServerUnexptedBehavior, ClientBadData, CertificateRequestError, AuthenticationError,
                      CertificateRenewError)
 from .http import HTTPStatus
@@ -41,6 +42,7 @@ class URLS:
     CERTIFICATE_RENEW = "certificates/renew"
     CERTIFICATE_SEARCH = "certificates/"
     CERTIFICATE_IMPORT = "certificates/import"
+    ZONE_CONFIG = "certificates/checkpolicy"
 
 
 TOKEN_HEADER_NAME = "x-venafi-api-key"
@@ -207,7 +209,18 @@ class TPPConnection(CommonConnection):
             raise CertificateRenewError
 
     def read_zone_conf(self, tag):
-        raise NotImplementedError
+        status, data = self._post(URLS.ZONE_CONFIG, {"PolicyDN":  self._get_policy_dn(tag)})
+        s = data["Policy"]["Subject"]
+        ou = s['OrganizationalUnit']['Values'][0] if s['OrganizationalUnit']['Values'] else ""
+        z = ZoneConfig(
+            organization=CertField(s['Organization']['Value'], locked=s['Organization']['Locked']),
+            organizational_unit=CertField(ou, locked=s['OrganizationalUnit']) ,
+            country=CertField(s['Country']['Value'], locked=s['Country']['Locked']),
+            province=CertField(s['State']['Value'], locked=s['State']['Locked']),
+            locality=CertField(s['City']['Value'], locked=s['City']['Locked']),
+        )
+        return z
+
 
     def import_cert(self, request):
         raise NotImplementedError

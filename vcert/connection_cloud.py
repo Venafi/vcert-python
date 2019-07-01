@@ -18,12 +18,14 @@ from __future__ import (absolute_import, division, generators, unicode_literals,
                         with_statement)
 
 import re
+import dateutil
 import logging as log
 
 import requests
 
-from .common import (Zone, CertificateRequest, CommonConnection, Policy, ZoneConfig, log_errors, MIME_JSON, MIME_TEXT,
-                     MIME_ANY, parse_pem)
+from .common import (Zone, ZoneConfig, CertificateRequest, CommonConnection, Policy, log_errors, MIME_JSON, MIME_TEXT,
+                     MIME_ANY, CertField)
+from .pem import parse_pem
 from .errors import (VenafiConnectionError, ServerUnexptedBehavior, ClientBadData, CertificateRequestError,
                      CertificateRenewError)
 from .http import HTTPStatus
@@ -52,6 +54,7 @@ class URLS:
     CERTIFICATE_SEARCH = "certificatesearch"
     MANAGED_CERTIFICATES = "managedcertificates"
     MANAGED_CERTIFICATE_BY_ID = MANAGED_CERTIFICATES + "/%s"
+    TEMPLATE_BY_ID = "certificateissuingtemplates/%s"
 
 
 class CondorChainOptions:
@@ -157,8 +160,7 @@ class CloudConnection(CommonConnection):
         return policy
 
     def ping(self):
-        status, data = self._get(URLS.PING)
-        return status == HTTPStatus.OK and data == "OK"
+        return True
 
     def auth(self):
         status, data = self._get(URLS.USER_ACCOUNTS)
@@ -174,7 +176,9 @@ class CloudConnection(CommonConnection):
             raise ClientBadData("You need to specify zone tag")
         status, data = self._get(URLS.ZONE_BY_TAG % tag)
         if status == HTTPStatus.OK:
-            return Zone.from_server_response(data)
+            d = data
+            return Zone(d['id'], d['companyId'], d['tag'], d['zoneType'], d['systemGenerated'],
+                        dateutil.parser.parse(d['creationDate']))
         elif status in (HTTPStatus.BAD_REQUEST, HTTPStatus.NOT_FOUND, HTTPStatus.PRECONDITION_FAILED):
             log_errors(data)
         else:
@@ -235,7 +239,7 @@ class CloudConnection(CommonConnection):
             r = self.search_by_thumbprint(request.thumbprint)
             manage_id = r.manage_id
         if request.id:
-            prev_request = self._get_cert_status(CertificateRequest(id=request.id))
+            prev_request = self._get_cert_status(CertificateRequest(cert_id=request.id))
             manage_id = prev_request.manage_id
             # todo: fill request object fields
             zone = prev_request.zoneId
@@ -248,7 +252,7 @@ class CloudConnection(CommonConnection):
         else:
             raise ServerUnexptedBehavior
         if not zone:
-            prev_request = self._get_cert_status(CertificateRequest(id=request.id))
+            prev_request = self._get_cert_status(CertificateRequest(cert_id=request.id))
             zone = prev_request.zoneId
         d = {"existingManagedCertificateId": manage_id, "zoneId": zone}
         if request.csr:
@@ -281,10 +285,20 @@ class CloudConnection(CommonConnection):
         return CertificateStatusResponse(data['certificates'][0])
 
     def read_zone_conf(self, tag):
-        z = self._get_zone_by_tag(tag)
-        policy = self._get_policy_by_ids((z.default_cert_identity_policy, z.default_cert_use_policy))
-        zc = ZoneConfig.from_policy(policy)
-        return zc
+        status, data = self._get(URLS.ZONE_BY_TAG % tag)
+        import pprint
+        pprint.pprint(data)
+        template_id = data['certificateIssuingTemplateId']
+        status, data = self._get(URLS.TEMPLATE_BY_ID % template_id)
+        pprint.pprint(data)
+        z = ZoneConfig(
+            organization=CertField(""),
+            organizational_unit=CertField(""),
+            country=CertField(""),
+            province=CertField(""),
+            locality=CertField(""),
+        )
+        return z
 
     def import_cert(self, request):
         # not supported in Cloud
