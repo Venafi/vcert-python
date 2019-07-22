@@ -85,7 +85,7 @@ def main():
         # fake connection doesn`t support certificate renewing
         print("Trying to renew certificate")
         new_request = CertificateRequest(
-            id=request.id,
+            cert_id=request.id,
         )
         conn.renew_cert(new_request)
         while True:
@@ -98,7 +98,7 @@ def main():
         fn = open("/tmp/new_cert.pem", "w")
         fn.write(new_cert.cert)
     if isinstance(conn, TPPConnection):
-        revocation_req = RevocationRequest(id=request.id,
+        revocation_req = RevocationRequest(req_id=request.id,
                                            comments="Just for test")
         print("Revoke", conn.revoke_cert(revocation_req))
 
