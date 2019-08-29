@@ -18,6 +18,8 @@ Get the library using pip:
 You also can install latest version from github:  
 `pip install https://github.com/Venafi/vcert-python/archive/master.zip`
 
+If installation fails collecting dependancies, make sure your python setuptools is up to date. Run the following command to upgrade to the latest version of setuptools.
+`pip install setuptools -U`
 
 ## Usage example
 
