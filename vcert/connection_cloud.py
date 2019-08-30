@@ -82,7 +82,6 @@ class CloudConnection(CommonConnection):
         return "[Cloud] %s" % self._base_url
 
     def _get(self, url, params=None):
-        print(url)
         r = requests.get(self._base_url + url, params=params,
                          headers={TOKEN_HEADER_NAME: self._token, "Accept": MIME_ANY, "cache-control": "no-cache"},
                          **self._http_request_kwargs
@@ -90,7 +89,6 @@ class CloudConnection(CommonConnection):
         return self.process_server_response(r)
 
     def _post(self, url, data=None):
-        print(url)
         if isinstance(data, dict):
             r = requests.post(self._base_url + url, json=data,
                               headers={TOKEN_HEADER_NAME: self._token, "cache-control": "no-cache", "Accept": MIME_JSON},

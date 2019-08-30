@@ -60,7 +60,8 @@ class TPPConnection(CommonConnection):
         self._user = user  # type: str
         self._password = password  # type: str
         self._token = None  # type: tuple
-
+        if "timeout" not in http_request_kwargs:
+            http_request_kwargs["timeout"] = 60
         self._http_request_kwargs = http_request_kwargs or {}
 
     def __setattr__(self, key, value):
