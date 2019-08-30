@@ -24,7 +24,7 @@ import time
 
 import requests
 
-from .common import CommonConnection, MIME_JSON, Zone, CertField, ZoneConfig
+from .common import CommonConnection, MIME_JSON, CertField, ZoneConfig, Policy, KeyTypes, KeyType
 from .pem import parse_pem
 from .errors import (ServerUnexptedBehavior, ClientBadData, CertificateRequestError, AuthenticationError,
                      CertificateRenewError)
@@ -212,15 +212,19 @@ class TPPConnection(CommonConnection):
         status, data = self._post(URLS.ZONE_CONFIG, {"PolicyDN":  self._get_policy_dn(tag)})
         s = data["Policy"]["Subject"]
         ou = s['OrganizationalUnit']['Values'][0] if s['OrganizationalUnit']['Values'] else ""
+        policy = Policy(
+            # todo: parsing
+        )
         z = ZoneConfig(
             organization=CertField(s['Organization']['Value'], locked=s['Organization']['Locked']),
             organizational_unit=CertField(ou, locked=s['OrganizationalUnit']) ,
             country=CertField(s['Country']['Value'], locked=s['Country']['Locked']),
             province=CertField(s['State']['Value'], locked=s['State']['Locked']),
             locality=CertField(s['City']['Value'], locked=s['City']['Locked']),
+            policy=policy,
+            key_type=policy.key_types[0] if policy.key_types else None,
         )
         return z
-
 
     def import_cert(self, request):
         raise NotImplementedError
