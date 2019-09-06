@@ -76,7 +76,11 @@ class CloudConnection(CommonConnection):
         self._base_url = url or URLS.API_BASE_URL
         self._token = token
         self._normalize_and_verify_base_url()
-        self._http_request_kwargs = http_request_kwargs or {}
+        if http_request_kwargs is None:
+            http_request_kwargs = {"timeout": 60}
+        elif "timeout" not in http_request_kwargs:
+            http_request_kwargs["timeout"] = 60
+        self._http_request_kwargs = http_request_kwargs
 
     def __str__(self):
         return "[Cloud] %s" % self._base_url
@@ -136,13 +140,9 @@ class CloudConnection(CommonConnection):
         else:
             raise ServerUnexptedBehavior
 
-    def _get_policy_by_id(self, policy_id):
-        status, d = self._get(URLS.TEMPLATE_BY_ID % policy_id)
-        if status != HTTPStatus.OK:
-            log.error("Invalid status during geting policy: %s for policy %s" % (status, policy_id))
-            raise ServerUnexptedBehavior
+    def _parse_policy_responce_to_object(self, d):
         policy = Policy(
-            policy_id,
+            d["id"],
             d["companyId"],
             d["name"],
             d["systemGenerated"],
@@ -167,6 +167,13 @@ class CloudConnection(CommonConnection):
                 log.error("Unknow key type: %s" % kt['keyType'])
                 raise ServerUnexptedBehavior
         return policy
+
+    def _get_policy_by_id(self, policy_id):
+        status, data = self._get(URLS.TEMPLATE_BY_ID % policy_id)
+        if status != HTTPStatus.OK:
+            log.error("Invalid status during geting policy: %s for policy %s" % (status, policy_id))
+            raise ServerUnexptedBehavior
+        return self._parse_policy_responce_to_object(data)
 
     def ping(self):
         return True
