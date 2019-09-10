@@ -256,63 +256,70 @@ class CertificateRequest:
         :param str thumbprint: Certificate thumbprint. Can be used for identifying certificate on the platform.
         """
 
-        self.csr = csr
-        self.chain_option = "last"
-        self.san_dns = san_dns or []
-        self.email_addresses = email_addresses
-        self.ip_addresses = ip_addresses or []
-        self.attributes = attributes
-        self.key_password = key_password
-        self.key_length = key_length
-        self.key_type = key_type
-        self.key_curve = key_curve
-        self.private_key = private_key
-        self.public_key = None
-        self.public_key_from_private()
-        self.friendly_name = friendly_name or common_name
-        self.id = cert_id
-        self.common_name = common_name
-        self.thumbprint = thumbprint
-        self.csr = csr
-        self.organization = organization
-        self.organizational_unit = organizational_unit
-        self.country = country
-        self.province = province
-        self.locality = locality
-        self.__initialized = True
+        try:
+            self.csr = csr
+            self.chain_option = "last"
+            self.san_dns = san_dns or []
+            self.email_addresses = email_addresses
+            self.ip_addresses = ip_addresses or []
+            self.attributes = attributes
+            self.key_password = key_password
+            self.key_length = key_length
+            self.key_type = key_type
+            self.key_curve = key_curve
+            self.private_key = private_key
+            self.public_key = None
+            self.public_key_from_private()
+            self.friendly_name = friendly_name or common_name
+            self.id = cert_id
+            self.common_name = common_name
+            self.thumbprint = thumbprint
+            self.csr = csr
+            self.organization = organization
+            self.organizational_unit = organizational_unit
+            self.country = country
+            self.province = province
+            self.locality = locality
+        finally:
+            self.__initialized = True
 
     def __setattr__(self, key, value):
         if self.__initialized:
-            if key == "key_password":
-                if isinstance(value, string_types):
-                    value = value.encode()
-            elif key == "common_name":
-                if isinstance(value, binary_type):
-                    value = value.decode()
-            elif key == "private_key":
-                if isinstance(value, string_types):
-                    value = serialization.load_pem_private_key(value.encode(),
+            # TODO: figure out why it's not working and we need to use ugly workaround
+            print(self.common_name)
+        if key == '_CertificateRequest__initialized':
+            log.info("Checking attributes")
+            if self.key_password:
+                if isinstance(self.key_password, string_types):
+                    self.key_password = self.key_password.encode()
+            if self.common_name:
+                if isinstance(self.key_password, binary_type):
+                    self.common_name = self.common_name.decode()
+            if self.private_key:
+                if isinstance(self.private_key, string_types):
+                    self.private_key = serialization.load_pem_private_key(self.private_key.encode(),
                                                                password=self.key_password, backend=default_backend())
-                if isinstance(value, rsa.RSAPrivateKey):
+                if isinstance(self.private_key, rsa.RSAPrivateKey):
                     self.key_type = KeyTypes.RSA
-                    self.key_length = value.key_size
-                elif isinstance(value, ec.EllipticCurvePrivateKey):
+                    self.key_length = self.private_key.key_size
+                elif isinstance(self.private_key, ec.EllipticCurvePrivateKey):
                     self.key_type = KeyTypes.ECDSA
-                    self.key_curve = value.curve
-                elif value is None:
+                    self.key_curve = self.private_key.curve
+                elif self.private_key is None:
                     self.public_key = None
                 else:
-                    raise ClientBadData("invalid private key type %s" % type(value))
-            elif key == "csr":
-                if isinstance(value, binary_type):
-                    value = value.decode()
-                elif not (isinstance(value, string_types) or value is None):
-                    raise ClientBadData("invalid csr type %s" % type(value))
-                if value:
-                    csr = x509.load_pem_x509_csr(value.encode(), default_backend())
+                    raise ClientBadData("invalid private key type %s" % type(self.private_key))
+            if self.csr:
+                if isinstance(self.csr, binary_type):
+                    self.csr = self.csr.decode()
+                elif not (isinstance(self.csr, string_types) or self.csr is None):
+                    raise ClientBadData("invalid csr type %s" % type(self.csr))
+                if self.csr:
+                    csr = x509.load_pem_x509_csr(self.csr.encode(), default_backend())
                     cn = csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
                     if self.common_name and self.common_name != cn:
-                        raise ClientBadData("Common name from CSR doesn`t matches to CertificateRequest.common_name")
+                        raise ClientBadData("Common name %s from CSR doesn`t matches to "
+                                            "CertificateRequest.common_name %s", cn, self.common_name)
                     ips = []
                     dns = []
                     try:
@@ -328,8 +335,7 @@ class CertificateRequest:
                     except x509.extensions.ExtensionNotFound:
                         pass
             self.__dict__[key] = value
-        else:
-            object.__setattr__(self, key, value)
+        super(CertificateRequest, self).__setattr__(key, value)
 
     def build_csr(self):
         if not self.private_key:

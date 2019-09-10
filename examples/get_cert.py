@@ -104,7 +104,7 @@ def main():
 
     print("Trying to sign CSR")
     csr_pem = open("example-csr.pem", "rb").read()
-    csr_request = CertificateRequest(csr=csr_pem.decode(), common_name='lllll')
+    csr_request = CertificateRequest(csr=csr_pem)
     # zone_config = conn.read_zone_conf(zone)
     # request.update_from_zone_config(zone_config)
     conn.request_cert(csr_request, zone)
