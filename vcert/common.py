@@ -217,6 +217,7 @@ class Policy:
 
 
 class CertificateRequest:
+    __initialized = False
     def __init__(self, cert_id=None,
                  san_dns=None,
                  email_addresses="",
@@ -278,53 +279,57 @@ class CertificateRequest:
         self.country = country
         self.province = province
         self.locality = locality
+        self.__initialized = True
 
     def __setattr__(self, key, value):
-        if key == "key_password":
-            if isinstance(value, string_types):
-                value = value.encode()
-        elif key == "common_name":
-            if isinstance(value, binary_type):
-                value = value.decode()
-        elif key == "private_key":
-            if isinstance(value, string_types):
-                value = serialization.load_pem_private_key(value.encode(),
-                                                           password=self.key_password, backend=default_backend())
-            if isinstance(value, rsa.RSAPrivateKey):
-                self.key_type = KeyTypes.RSA
-                self.key_length = value.key_size
-            elif isinstance(value, ec.EllipticCurvePrivateKey):
-                self.key_type = KeyTypes.ECDSA
-                self.key_curve = value.curve
-            elif value is None:
-                self.public_key = None
-            else:
-                raise ClientBadData("invalid private key type %s" % type(value))
-        elif key == "csr":
-            if isinstance(value, binary_type):
-                value = value.decode()
-            elif not (isinstance(value, string_types) or value is None):
-                raise ClientBadData("invalid csr type %s" % type(value))
-            if value:
-                csr = x509.load_pem_x509_csr(value.encode(), default_backend())
-                cn = csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
-                if self.common_name and self.common_name != cn:
-                    raise ClientBadData("Common name from CSR doesn`t matches to CertificateRequest.common_name")
-                ips = []
-                dns = []
-                try:
-                    for e in csr.extensions.get_extension_for_oid(ExtensionOID.SUBJECT_ALTERNATIVE_NAME).value:
-                        if isinstance(e, x509.general_name.DNSName):
-                            dns.append(e.value)
-                        elif isinstance(e, x509.general_name.IPAddress):
-                            ips.append(e.value.exploded)
-                    if self.ip_addresses and sorted(self.ip_addresses) != sorted(ips):
-                        raise ClientBadData
-                    if self.san_dns and sorted(self.san_dns) != sorted(dns):
-                        raise ClientBadData
-                except x509.extensions.ExtensionNotFound:
-                    pass
-        self.__dict__[key] = value
+        if self.__initialized:
+            if key == "key_password":
+                if isinstance(value, string_types):
+                    value = value.encode()
+            elif key == "common_name":
+                if isinstance(value, binary_type):
+                    value = value.decode()
+            elif key == "private_key":
+                if isinstance(value, string_types):
+                    value = serialization.load_pem_private_key(value.encode(),
+                                                               password=self.key_password, backend=default_backend())
+                if isinstance(value, rsa.RSAPrivateKey):
+                    self.key_type = KeyTypes.RSA
+                    self.key_length = value.key_size
+                elif isinstance(value, ec.EllipticCurvePrivateKey):
+                    self.key_type = KeyTypes.ECDSA
+                    self.key_curve = value.curve
+                elif value is None:
+                    self.public_key = None
+                else:
+                    raise ClientBadData("invalid private key type %s" % type(value))
+            elif key == "csr":
+                if isinstance(value, binary_type):
+                    value = value.decode()
+                elif not (isinstance(value, string_types) or value is None):
+                    raise ClientBadData("invalid csr type %s" % type(value))
+                if value:
+                    csr = x509.load_pem_x509_csr(value.encode(), default_backend())
+                    cn = csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
+                    if self.common_name and self.common_name != cn:
+                        raise ClientBadData("Common name from CSR doesn`t matches to CertificateRequest.common_name")
+                    ips = []
+                    dns = []
+                    try:
+                        for e in csr.extensions.get_extension_for_oid(ExtensionOID.SUBJECT_ALTERNATIVE_NAME).value:
+                            if isinstance(e, x509.general_name.DNSName):
+                                dns.append(e.value)
+                            elif isinstance(e, x509.general_name.IPAddress):
+                                ips.append(e.value.exploded)
+                        if self.ip_addresses and sorted(self.ip_addresses) != sorted(ips):
+                            raise ClientBadData
+                        if self.san_dns and sorted(self.san_dns) != sorted(dns):
+                            raise ClientBadData
+                    except x509.extensions.ExtensionNotFound:
+                        pass
+            self.__dict__[key] = value
+        else:
+            object.__setattr__(self, key, value)
 
     def build_csr(self):
         if not self.private_key:

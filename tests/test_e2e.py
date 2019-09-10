@@ -217,6 +217,8 @@ def renew_by_thumbprint(conn, prev_cert):
     assert cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME) == prev_cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
 
 
+# TODO: add test sign CSR
+
 TEST_KEY_RSA_2048_ENCRYPTED = ("""
 -----BEGIN RSA PRIVATE KEY-----
 Proc-Type: 4,ENCRYPTED
