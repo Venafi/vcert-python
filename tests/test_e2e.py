@@ -274,3 +274,12 @@ class TestLocalMethods(unittest.TestCase):
         )
         r.update_from_zone_config(z)
         self.assertEqual(r.organization, "Venafi")
+
+    def test_request_with_csr(self):
+        req = CertificateRequest(common_name="test.example.com", csr=EXAMPLE_CSR)
+        self.assertEqual(req.common_name, "test.example.com")
+        with self.assertRaises(Exception):
+            CertificateRequest(common_name="test2.example.com", csr=EXAMPLE_CSR)
+        req = CertificateRequest(csr=EXAMPLE_CSR)
+        self.assertEqual(req.common_name, None)
+

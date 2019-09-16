@@ -221,7 +221,6 @@ class CertificateRequest:
         :param str thumbprint: Certificate thumbprint. Can be used for identifying certificate on the platform.
         """
 
-        self.csr = csr
         self.chain_option = "last"
         self.san_dns = san_dns or []
         self.email_addresses = email_addresses
@@ -238,12 +237,13 @@ class CertificateRequest:
         self.id = cert_id
         self.common_name = common_name
         self.thumbprint = thumbprint
-        self.csr = csr
         self.organization = organization
         self.organizational_unit = organizational_unit
         self.country = country
         self.province = province
         self.locality = locality
+        # CSR should be last, because it checks subject to match with over parameters
+        self.csr = csr
 
     def __setattr__(self, key, value):
         if key == "key_password":
