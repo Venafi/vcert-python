@@ -363,7 +363,11 @@ class CertificateRequest:
         if self.organization:
             subject.append(x509.NameAttribute(NameOID.ORGANIZATION_NAME, self.organization))
         if self.organizational_unit:
-            subject.append(x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, self.organizational_unit))
+            if isinstance(self.organizational_unit, string_types):
+                subject.append(x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, self.organizational_unit))
+            elif isinstance(self.organizational_unit, list):
+                for u in self.organizational_unit:
+                    subject.append(x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, u))
 
         csr_builder = csr_builder.subject_name(x509.Name(subject))
 
