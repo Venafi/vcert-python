@@ -24,7 +24,7 @@ import time
 
 import requests
 
-from .common import CommonConnection, MIME_JSON, Zone, CertField, ZoneConfig
+from .common import CommonConnection, MIME_JSON, CertField, ZoneConfig, Policy, KeyTypes, KeyType
 from .pem import parse_pem
 from .errors import (ServerUnexptedBehavior, ClientBadData, CertificateRequestError, AuthenticationError,
                      CertificateRenewError)
@@ -60,7 +60,10 @@ class TPPConnection(CommonConnection):
         self._user = user  # type: str
         self._password = password  # type: str
         self._token = None  # type: tuple
-
+        if http_request_kwargs is None:
+            http_request_kwargs = {"timeout": 60}
+        elif "timeout" not in http_request_kwargs:
+            http_request_kwargs["timeout"] = 60
         self._http_request_kwargs = http_request_kwargs or {}
 
     def __setattr__(self, key, value):
@@ -208,19 +211,29 @@ class TPPConnection(CommonConnection):
         if not data['Success']:
             raise CertificateRenewError
 
-    def read_zone_conf(self, tag):
-        status, data = self._post(URLS.ZONE_CONFIG, {"PolicyDN":  self._get_policy_dn(tag)})
+    @staticmethod
+    def _parse_zone_data_to_object(data):
         s = data["Policy"]["Subject"]
         ou = s['OrganizationalUnit']['Values'][0] if s['OrganizationalUnit']['Values'] else ""
+        policy = Policy(
+            # todo: parsing and cover by tests
+        )
         z = ZoneConfig(
             organization=CertField(s['Organization']['Value'], locked=s['Organization']['Locked']),
-            organizational_unit=CertField(ou, locked=s['OrganizationalUnit']) ,
+            organizational_unit=CertField(ou, locked=s['OrganizationalUnit']),
             country=CertField(s['Country']['Value'], locked=s['Country']['Locked']),
             province=CertField(s['State']['Value'], locked=s['State']['Locked']),
             locality=CertField(s['City']['Value'], locked=s['City']['Locked']),
+            policy=policy,
+            key_type=policy.key_types[0] if policy.key_types else None,
         )
         return z
 
+    def read_zone_conf(self, tag):
+        status, data = self._post(URLS.ZONE_CONFIG, {"PolicyDN":  self._get_policy_dn(tag)})
+        if status != HTTPStatus.OK:
+            raise ServerUnexptedBehavior("Server returns %d status on reading zone configuration." % status)
+        return self._parse_zone_data_to_object(data)
 
     def import_cert(self, request):
         raise NotImplementedError

@@ -62,36 +62,6 @@ def log_errors(data):
         log.error("%s: %s" % (e['code'], e['message']))
 
 
-class Zone:
-    def __init__(self, zone_id, company_id, tag, zonetype, system_generated, creation_date):
-        """
-        :param str zone_id:
-        :param str company_id:
-        :param str tag:
-        :param str zonetype:
-        :param bool system_generated:
-        :param datetime.datetime creation_date:
-        """
-        self.id = zone_id
-        self.company_id = company_id
-        self.tag = tag
-        self.zonetype = zonetype
-        self.system_generated = system_generated
-        self.creation_date = creation_date
-
-    def __repr__(self):
-        return "Zone %s:\n" % self.tag + "\n".join(["  %s: %s" % (k, v) for k, v in (
-            ("Id", self.id),
-            ("CompanyID", self.company_id),
-            ("Type", self.zonetype),
-            ("SystemGenerated", self.system_generated),
-            ("Created", self.creation_date.isoformat())
-        )])
-
-    def __str__(self):
-        return self.tag
-
-
 class KeyTypes:
     RSA = "rsa"
     ECDSA = "ec"
@@ -123,38 +93,36 @@ class KeyType:
 
 
 class ZoneConfig:
-    def __init__(self, organization=None, organizational_unit=None, country=None, province=None, locality=None):
+    def __init__(self, organization, organizational_unit, country, province, locality,
+                 policy, key_type):
         """
         :param CertField organization:
         :param CertField organizational_unit:
         :param CertField country:
         :param CertField province:
         :param CertField locality:
+        :param Policy policy:
+        :param KeyType key_type:
         """
         self.organization = organization
         self.organizational_unit = organizational_unit
         self.country = country
         self.province = province
         self.locality = locality
-
+        self.policy = policy
+        self.key_type = key_type
 
 class Policy:
-    class Type:
-        CERTIFICATE_IDENTITY = "CERTIFICATE_IDENTITY"
-        CERTIFICATE_USE = "CERTIFICATE_USE"
-
-    def __init__(self, policy_type=None, policy_id=None, company_id=None, name=None, system_generated=None,
-                 creation_date=None, cert_provider_id=None, subject_cn_regexes=None, subject_o_regexes=None,
+    def __init__(self, policy_id=None, company_id=None, name=None, system_generated=None,
+                 creation_date=None, subject_cn_regexes=None, subject_o_regexes=None,
                  subject_ou_regexes=None, subject_st_regexes=None, subject_l_regexes=None, subject_c_regexes=None,
                  san_regexes=None, key_types=None, key_reuse=None):
         """
-        :param str policy_type:
         :param str policy_id:
         :param str company_id:
         :param str name:
         :param bool system_generated:
         :param datetime.datetime creation_date:
-        :param str cert_provider_id:
         :param list[str] subject_cn_regexes:
         :param list[str] subject_o_regexes:
         :param list[str] subject_ou_regexes:
@@ -165,13 +133,11 @@ class Policy:
         :param list[KeyType] key_types:
         :param bool key_reuse:
         """
-        self.policy_type = policy_type
         self.id = policy_id
         self.company_id = company_id
         self.name = name
         self.system_generated = system_generated
         self.creation_date = creation_date
-        self.cert_provider_id = cert_provider_id
         self.SubjectCNRegexes = subject_cn_regexes
         self.SubjectORegexes = subject_o_regexes
         self.SubjectOURegexes = subject_ou_regexes
@@ -255,7 +221,6 @@ class CertificateRequest:
         :param str thumbprint: Certificate thumbprint. Can be used for identifying certificate on the platform.
         """
 
-        self.csr = csr
         self.chain_option = "last"
         self.san_dns = san_dns or []
         self.email_addresses = email_addresses
@@ -272,12 +237,13 @@ class CertificateRequest:
         self.id = cert_id
         self.common_name = common_name
         self.thumbprint = thumbprint
-        self.csr = csr
         self.organization = organization
         self.organizational_unit = organizational_unit
         self.country = country
         self.province = province
         self.locality = locality
+        # CSR should be last, because it checks subject to match with over parameters
+        self.csr = csr
 
     def __setattr__(self, key, value):
         if key == "key_password":
@@ -429,7 +395,12 @@ class CertificateRequest:
             self.province = zone.province
         if zone.locality.locked or (not self.locality and zone.locality):
             self.locality = zone.locality
-
+        if zone.key_type:
+            self.key_type = zone.key_type.key_type
+            if self.key_type == KeyTypes.ECDSA:
+                self.key_curve = zone.key_type.key_curves
+            else:
+                self.key_length = zone.key_type.key_size[0]
 
 class RevocationRequest:
     def __init__(self, req_id=None, thumbprint=None,  reason=RevocationReasons.NoReason,

@@ -23,8 +23,8 @@ import logging as log
 
 import requests
 
-from .common import (Zone, ZoneConfig, CertificateRequest, CommonConnection, Policy, log_errors, MIME_JSON, MIME_TEXT,
-                     MIME_ANY, CertField)
+from .common import (ZoneConfig, CertificateRequest, CommonConnection, Policy, log_errors, MIME_JSON, MIME_TEXT,
+                     MIME_ANY, CertField, KeyType, KeyTypes)
 from .pem import parse_pem
 from .errors import (VenafiConnectionError, ServerUnexptedBehavior, ClientBadData, CertificateRequestError,
                      CertificateRenewError)
@@ -45,9 +45,7 @@ class URLS:
     PING = "ping"
     ZONES = "zones"
     ZONE_BY_TAG = ZONES + "/tag/%s"
-    CERTIFICATE_POLICIES = "certificatepolicies"
-    POLICIES_BY_ID = CERTIFICATE_POLICIES + "/%s"
-    POLICIES_FOR_ZONE_BY_ID = CERTIFICATE_POLICIES + "?zoneId=%s"
+    POLICIES_BY_ID = "certificatepolicies/%s"
     CERTIFICATE_REQUESTS = "certificaterequests"
     CERTIFICATE_STATUS = CERTIFICATE_REQUESTS + "/%s"
     CERTIFICATE_RETRIEVE = CERTIFICATE_REQUESTS + "/%s/certificate"
@@ -78,7 +76,11 @@ class CloudConnection(CommonConnection):
         self._base_url = url or URLS.API_BASE_URL
         self._token = token
         self._normalize_and_verify_base_url()
-        self._http_request_kwargs = http_request_kwargs or {}
+        if http_request_kwargs is None:
+            http_request_kwargs = {"timeout": 60}
+        elif "timeout" not in http_request_kwargs:
+            http_request_kwargs["timeout"] = 60
+        self._http_request_kwargs = http_request_kwargs
 
     def __str__(self):
         return "[Cloud] %s" % self._base_url
@@ -138,26 +140,40 @@ class CloudConnection(CommonConnection):
         else:
             raise ServerUnexptedBehavior
 
-    def _get_policy_by_ids(self, policy_ids):
-        policy = Policy()
-        for policy_id in policy_ids:
-            status, data = self._get(URLS.POLICIES_BY_ID % policy_id)
-            if status != HTTPStatus.OK:
-                log.error("Invalid status during geting policy: %s for policy %s" % (status, policy_id))
-                continue
-            p = Policy.from_server_response(data)
-            if p.policy_type == p.Type.CERTIFICATE_IDENTITY:  # todo: replace with somethin more pythonic
-                policy.SubjectCNRegexes = p.SubjectCNRegexes
-                policy.SubjectORegexes = p.SubjectORegexes
-                policy.SubjectOURegexes = p.SubjectOURegexes
-                policy.SubjectSTRegexes = p.SubjectSTRegexes
-                policy.SubjectLRegexes = p.SubjectLRegexes
-                policy.SubjectCRegexes = p.SubjectCRegexes
-                policy.SANRegexes = p.SANRegexes
-            elif p.policy_type == p.Type.CERTIFICATE_USE:
-                policy.key_types = p.key_types[:]
-                policy.key_reuse = p.key_reuse
+    def _parse_policy_responce_to_object(self, d):
+        policy = Policy(
+            d["id"],
+            d["companyId"],
+            d["name"],
+            d["systemGenerated"],
+            d["creationDate"],
+            d["subjectCNRegexes"],
+            d["subjectORegexes"],
+            d["subjectOURegexes"],
+            d["subjectSTRegexes"],
+            d["subjectLRegexes"],
+            d["subjectCValues"],
+            d["sanRegexes"],
+            [],
+            d['keyReuse']
+        )
+        for kt in d.get('keyTypes', []):
+            key_type = kt['keyType'].lower()
+            if key_type == KeyTypes.RSA:
+                policy.key_types.append(KeyType(key_type=key_type, key_sizes=kt['keyLengths']))
+            elif key_type == KeyTypes.ECDSA:
+                policy.key_types.append(KeyType(key_type=key_type, key_curves=kt['keyCurve']))
+            else:
+                log.error("Unknow key type: %s" % kt['keyType'])
+                raise ServerUnexptedBehavior
         return policy
+
+    def _get_policy_by_id(self, policy_id):
+        status, data = self._get(URLS.TEMPLATE_BY_ID % policy_id)
+        if status != HTTPStatus.OK:
+            log.error("Invalid status during geting policy: %s for policy %s" % (status, policy_id))
+            raise ServerUnexptedBehavior
+        return self._parse_policy_responce_to_object(data)
 
     def ping(self):
         return True
@@ -167,7 +183,7 @@ class CloudConnection(CommonConnection):
         if status == HTTPStatus.OK:
             return data
 
-    def _get_zone_by_tag(self, tag):
+    def _get_zone_id_by_tag(self, tag):
         """
         :param str tag:
         :rtype Zone
@@ -176,20 +192,18 @@ class CloudConnection(CommonConnection):
             raise ClientBadData("You need to specify zone tag")
         status, data = self._get(URLS.ZONE_BY_TAG % tag)
         if status == HTTPStatus.OK:
-            d = data
-            return Zone(d['id'], d['companyId'], d['tag'], d['zoneType'], d['systemGenerated'],
-                        dateutil.parser.parse(d['creationDate']))
+            return data['id']
         elif status in (HTTPStatus.BAD_REQUEST, HTTPStatus.NOT_FOUND, HTTPStatus.PRECONDITION_FAILED):
             log_errors(data)
         else:
             pass
 
     def request_cert(self, request, zone):
-        z = self._get_zone_by_tag(zone)
+        zone_id = self._get_zone_id_by_tag(zone)
         if not request.csr:
             request.build_csr()
         status, data = self._post(URLS.CERTIFICATE_REQUESTS,
-                                  data={"certificateSigningRequest": request.csr, "zoneId": z.id})
+                                  data={"certificateSigningRequest": request.csr, "zoneId": zone_id})
         if status == HTTPStatus.CREATED:
             request.id = data['certificateRequests'][0]['id']
             return True
@@ -286,17 +300,16 @@ class CloudConnection(CommonConnection):
 
     def read_zone_conf(self, tag):
         status, data = self._get(URLS.ZONE_BY_TAG % tag)
-        import pprint
-        pprint.pprint(data)
         template_id = data['certificateIssuingTemplateId']
-        status, data = self._get(URLS.TEMPLATE_BY_ID % template_id)
-        pprint.pprint(data)
+        policy = self._get_policy_by_id(template_id)
         z = ZoneConfig(
             organization=CertField(""),
             organizational_unit=CertField(""),
             country=CertField(""),
             province=CertField(""),
             locality=CertField(""),
+            policy=policy,
+            key_type=policy.key_types[0] if policy.key_types else None,
         )
         return z
 

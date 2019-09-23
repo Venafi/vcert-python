@@ -17,7 +17,7 @@
 from .connection_cloud import CloudConnection
 from .connection_tpp import TPPConnection
 from .connection_fake import FakeConnection
-from .common import CertificateRequest, CommonConnection, KeyTypes, RevocationRequest
+from .common import CertificateRequest, CommonConnection, KeyTypes, RevocationRequest, ZoneConfig
 
 
 def Connection(url=None, token=None, user=None, password=None, fake=False, http_request_kwargs=None):
