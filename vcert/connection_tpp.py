@@ -214,13 +214,13 @@ class TPPConnection(CommonConnection):
     @staticmethod
     def _parse_zone_data_to_object(data):
         s = data["Policy"]["Subject"]
-        ou = s['OrganizationalUnit']['Values'][0] if s['OrganizationalUnit']['Values'] else ""
+        ou = s['OrganizationalUnit'].get('Values')
         policy = Policy(
             # todo: parsing and cover by tests
         )
         z = ZoneConfig(
             organization=CertField(s['Organization']['Value'], locked=s['Organization']['Locked']),
-            organizational_unit=CertField(ou, locked=s['OrganizationalUnit']),
+            organizational_unit=CertField(ou, locked=s['OrganizationalUnit']['Locked']),
             country=CertField(s['Country']['Value'], locked=s['Country']['Locked']),
             province=CertField(s['State']['Value'], locked=s['State']['Locked']),
             locality=CertField(s['City']['Value'], locked=s['City']['Locked']),
