@@ -21,7 +21,7 @@ import logging as log
 import time
 
 import uuid
-from .common import CommonConnection, Zone
+from .common import CommonConnection
 from .pem import parse_pem
 
 from cryptography.hazmat.backends import default_backend
@@ -105,23 +105,6 @@ def fake_user(email=None):
     return f
 
 
-def fake_zone(zone=None):
-    fake_company_uuid = str(uuid.uuid4())
-    fake_zone_uuid = str(uuid.uuid4())
-    fake_zone = zone or 'default'
-    z = {'certificatePolicyIds': {'CERTIFICATE_IDENTITY': ['eaca6114-1569-4903-911e-436404a7cf4d'],
-                                  'CERTIFICATE_USE': ['5353c8a7-7b60-486e-9c35-9d2b3ae37038']},
-         'companyId': fake_company_uuid,
-         'creationDate': '2018-10-11T13:51:56.360+0000',
-         'defaultCertificateIdentityPolicyId': 'ef2c3761-74e8-4ec9-8cd4-c9ab1e5c9d94',
-         'defaultCertificateUsePolicyId': '17116035-aaae-4c90-a3c6-46e1b0c3c2e7',
-         'id': fake_zone_uuid,
-         'systemGenerated': False,
-         'tag': fake_zone,
-         'zoneType': 'OTHER'}
-    return z
-
-
 class FakeConnection(CommonConnection):
     def __init__(self, *args, **kwargs):
         self.status = "200"
@@ -138,9 +121,6 @@ class FakeConnection(CommonConnection):
 
     def register(self, email):
         return fake_user(email)
-
-    def _get_zone_by_tag(self, tag):
-        return Zone.from_server_response(fake_zone(tag))
 
     def request_cert(self, request, zone):
         if not request.csr:
