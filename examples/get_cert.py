@@ -65,7 +65,8 @@ def main():
     conn.request_cert(request, zone)
 
     # and wait for signing
-    while True:
+    t = time.time() + 300
+    while time.time() < t:
         cert = conn.retrieve_cert(request)
         if cert:
             break
