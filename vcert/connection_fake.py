@@ -159,8 +159,6 @@ class FakeConnection(CommonConnection):
         root_ca_private_key = serialization.load_pem_private_key(ROOT_CA_KEY, password=None,
                                                                  backend=default_backend())
 
-        end_entity_public_key = serialization.load_pem_public_key(
-            certificate_request.public_key_pem.encode(), default_backend())
 
         # cn = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, certificate_request.common_name)])
         issuer = root_ca_certificate.issuer
@@ -169,7 +167,7 @@ class FakeConnection(CommonConnection):
         ).issuer_name(
             issuer
         ).public_key(
-            end_entity_public_key
+            csr.public_key()
         ).serial_number(
             x509.random_serial_number()
         ).not_valid_before(

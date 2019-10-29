@@ -35,18 +35,23 @@ def main():
     password = environ.get('TPPPASSWORD')
     url = environ.get('TPPURL')
     zone = environ.get("ZONE")
+    fake = environ.get('FAKE')
 
-    # connection will be chosen automatically based on what arguments are passed,
-    # If token is passed Venafi Cloud connection will be used. if user, password, and URL Venafi Platform (TPP) will
-    # be used.
-    # conn = Connection(url=url, token=token, user=user, password=password)
+    if fake:
+        # If fake set to true, test connection will be used.
+        conn = Connection(fake=True)
+    else:
+        # If your TPP server certificate signed with your own CA or available only via proxy you can specify requests vars
+        conn = Connection(url=url, token=token, user=user, password=password,
+                          http_request_kwargs={"verify": False})
+        # connection will be chosen automatically based on what arguments are passed,
+        # If token is passed Venafi Cloud connection will be used. if user, password, and URL Venafi Platform (TPP) will
+        # be used.
+        conn = Connection(url=url, token=token, user=user, password=password)
 
-    # If your TPP server certificate signed with your own CA or available only via proxy you can specify requests vars
-    # conn = Connection(url=url, token=token, user=user, password=password,
-    #                   http_request_kwargs={"verify": False})
 
-    # If fake set to true, test connection will be used.
-    conn = Connection(fake=True)
+
+
 
     print("Trying to ping url %s" % conn)
     status = conn.ping()
@@ -107,29 +112,27 @@ def main():
                                            comments="Just for test")
         print("Revoke", conn.revoke_cert(revocation_req))
 
-    if not isinstance(conn, FakeConnection):
-    # fake connection doesn`t support CSR signing
-        print("Trying to sign CSR")
-        csr_pem = open("example-csr.pem", "rb").read()
-        csr_request = CertificateRequest(csr=csr_pem.decode())
-        # zone_config = conn.read_zone_conf(zone)
-        # request.update_from_zone_config(zone_config)
-        conn.request_cert(csr_request, zone)
+    print("Trying to sign CSR")
+    csr_pem = open("example-csr.pem", "rb").read()
+    csr_request = CertificateRequest(csr=csr_pem.decode())
+    # zone_config = conn.read_zone_conf(zone)
+    # request.update_from_zone_config(zone_config)
+    conn.request_cert(csr_request, zone)
 
-        # and wait for signing
-        while True:
-            cert = conn.retrieve_cert(csr_request)
-            if cert:
-                break
-            else:
-                time.sleep(5)
+    # and wait for signing
+    while True:
+        cert = conn.retrieve_cert(csr_request)
+        if cert:
+            break
+        else:
+            time.sleep(5)
 
-        # after that print cert and key
-        print(cert.full_chain)
-        # and save into file
-        f = open("/tmp/signed-cert.pem", "w")
-        f.write(cert.full_chain)
-        f.close()
+    # after that print cert and key
+    print(cert.full_chain)
+    # and save into file
+    f = open("/tmp/signed-cert.pem", "w")
+    f.write(cert.full_chain)
+    f.close()
 
 def randomword(length):
     letters = string.ascii_lowercase
