@@ -21,7 +21,8 @@ import logging as log
 import time
 
 import uuid
-from .common import CommonConnection
+from .common import (ZoneConfig, CertificateRequest, CommonConnection, Policy, log_errors, MIME_JSON, MIME_TEXT,
+                     MIME_ANY, CertField, KeyType, KeyTypes)
 from .pem import parse_pem
 
 from cryptography.hazmat.backends import default_backend
@@ -134,6 +135,19 @@ class FakeConnection(CommonConnection):
         log.debug("Certificate sucessfully requested with request id %s." % request.id)
         return request
 
+    def read_zone_conf(self, tag):
+        policy = Policy()
+        policy.key_types = [KeyType(key_type="rsa",key_sizes=[1024, 2048, 4096, 8192])]
+        z = ZoneConfig(
+            organization=CertField(""),
+            organizational_unit=CertField(""),
+            country=CertField(""),
+            province=CertField(""),
+            locality=CertField(""),
+            policy=policy,
+            key_type=policy.key_types[0],
+        )
+        return z
     def retrieve_cert(self, certificate_request):
         log.debug("Getting certificate status for id %s" % certificate_request.id)
 

@@ -35,13 +35,18 @@ def main():
     password = environ.get('TPPPASSWORD')
     url = environ.get('TPPURL')
     zone = environ.get("ZONE")
+
     # connection will be chosen automatically based on what arguments are passed,
     # If token is passed Venafi Cloud connection will be used. if user, password, and URL Venafi Platform (TPP) will
-    # be used. If none, test connection will be used.
-    conn = Connection(url=url, token=token, user=user, password=password)
+    # be used.
+    # conn = Connection(url=url, token=token, user=user, password=password)
+
     # If your TPP server certificate signed with your own CA or available only via proxy you can specify requests vars
-    conn = Connection(url=url, token=token, user=user, password=password,
-                      http_request_kwargs={"verify": False})
+    # conn = Connection(url=url, token=token, user=user, password=password,
+    #                   http_request_kwargs={"verify": False})
+
+    # If fake set to true, test connection will be used.
+    conn = Connection(fake=True)
 
     print("Trying to ping url %s" % conn)
     status = conn.ping()
