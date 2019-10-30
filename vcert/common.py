@@ -78,12 +78,28 @@ class RevocationReasons:
 
 
 class KeyType:
+    ALLOWED_SIZES = (512, 1024, 2048, 3072, 4096, 8192)
+    ALLOWED_CURVES = ("p256", "p384", "p521")
     def __init__(self, key_type, key_sizes=None, key_curves=None):
         self.key_type = key_type.lower()
         if self.key_type == KeyTypes.RSA:
-            self.key_size = key_sizes
+            if isinstance(key_sizes, list):
+                self.key_size = key_sizes
+            else:
+                self.key_size = [key_sizes]
+            for i in self.key_size:
+                if i not in KeyType.ALLOWED_SIZES:
+                    log.error("unknown size: %d" % i)
+                    raise BadData
         elif self.key_type == KeyTypes.ECDSA:
-            self.key_curves = list([x.lower() for x in key_curves])
+            if isinstance(key_curves, list):
+                self.key_curves = list([x.lower() for x in key_curves])
+            else:
+                self.key_curves = [key_curves.lower()]
+            for i in self.key_curves:
+                if i not in KeyType.ALLOWED_CURVES:
+                    log.error("unknown curve: %d" % i)
+                    raise BadData
         else:
             log.error("unknown key type: %s" % key_type)
             raise BadData
@@ -301,16 +317,14 @@ class CertificateRequest:
                                                             backend=default_backend()
                                                         )
             elif self.key_type == KeyTypes.ECDSA:
-                if self.key_curve == "P521":
+                if self.key_curve == "p521":
                     curve = ec.SECP521R1()
-                elif self.key_curve == "P384":
+                elif self.key_curve == "p384":
                     curve = ec.SECP384R1()
-                elif self.key_curve == "P256":
+                elif self.key_curve == "p256":
                     curve = ec.SECP256R1()
-                elif self.key_curve == "P224":
-                    curve = ec.SECP224R1()
                 else:
-                    curve = ec.SECP521R1()
+                    curve = ec.SECP256R1()
                 self.private_key = ec.generate_private_key(
                     curve, default_backend()
                 )
