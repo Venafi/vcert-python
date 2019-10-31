@@ -52,6 +52,10 @@ class CertField(text_type):
         instance = super(CertField, cls).__new__(cls, *args, **kwargs)
         instance.locked = locked
         return instance
+    def __bool__(self):
+        if self == CertField(None):  # magic
+            return False
+        return bool(text_type(self))
 
 
 def log_errors(data):
@@ -416,7 +420,7 @@ class CertificateRequest:
         if zone.key_type:
             self.key_type = zone.key_type.key_type
             if self.key_type == KeyTypes.ECDSA:
-                self.key_curve = zone.key_type.key_curves
+                self.key_curve = zone.key_type.key_curves[0]
             else:
                 self.key_length = zone.key_type.key_size[0]
 

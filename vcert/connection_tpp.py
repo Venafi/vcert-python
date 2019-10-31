@@ -212,12 +212,25 @@ class TPPConnection(CommonConnection):
             raise CertificateRenewError
 
     @staticmethod
+    def _parse_zone_config_to_policy(data):
+        p = data["Policy"]
+        # todo: parsing and cover by tests
+        if p["KeyPair"]["KeyAlgorithm"]["Locked"]:
+            if p["KeyPair"]["KeyAlgorithm"]["Value"] == "RSA":
+                key_types = [KeyType(KeyTypes.RSA, key_sizes=p["KeyPair"]["KeySize"]["Value"])]
+            elif p["KeyPair"]["KeyAlgorithm"]["Value"] == "ECC":
+                key_types = [KeyType(KeyTypes.ECDSA, key_curves=p["KeyPair"]["EllipticCurve"]["Value"])]
+            else:
+                raise ServerUnexptedBehavior
+        else:
+            key_types = [KeyType(KeyTypes.RSA, key_sizes=KeyType.ALLOWED_SIZES), KeyType(KeyTypes.ECDSA, key_curves=KeyType.ALLOWED_CURVES)]
+        return Policy(key_types=key_types)
+
+    @staticmethod
     def _parse_zone_data_to_object(data):
         s = data["Policy"]["Subject"]
         ou = s['OrganizationalUnit'].get('Values')
-        policy = Policy(
-            # todo: parsing and cover by tests
-        )
+        policy = TPPConnection._parse_zone_config_to_policy(data)
         z = ZoneConfig(
             organization=CertField(s['Organization']['Value'], locked=s['Organization']['Locked']),
             organizational_unit=CertField(ou, locked=s['OrganizationalUnit']['Locked']),

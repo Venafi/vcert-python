@@ -94,6 +94,24 @@ class TestEnrollMethods(unittest.TestCase):
         key = open("/tmp/csr-test.key.pem").read()
         csr = open("/tmp/csr-test.csr.csr").read()
         enroll(conn, zone, private_key=key, csr=csr)
+        cert = enroll_with_zone_update(conn, ecdsa_zone, randomword(10) + ".venafi.example.com")
+        cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
+        key = cert.public_key()
+        self.assertEqual(key.curve.name, "secp521r1")
+
+
+def enroll_with_zone_update(conn, zone, cn=None):
+    request = CertificateRequest(common_name=cn)
+    zc = conn.read_zone_conf(zone)
+    request.update_from_zone_config(zc)
+    conn.request_cert(request, zone)
+    while True:
+        cert = conn.retrieve_cert(request)
+        if cert:
+            break
+        else:
+            time.sleep(5)
+    return cert
 
 
 def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None, csr=None):
