@@ -243,7 +243,7 @@ class CloudConnection(CommonConnection):
         # not supported in Venafi Cloud
         raise NotImplementedError
 
-    def renew_cert(self, request):
+    def renew_cert(self, request, reuse_key=False):
         zone = None
         manage_id = None
         if not request.id and not request.thumbprint:

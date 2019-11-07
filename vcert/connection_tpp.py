@@ -23,6 +23,9 @@ import re
 import time
 
 import requests
+from cryptography.hazmat.backends import default_backend
+from cryptography import x509
+from cryptography.x509 import SignatureAlgorithmOID as algos
 
 from .common import CommonConnection, MIME_JSON, CertField, ZoneConfig, Policy, KeyTypes, KeyType
 from .pem import parse_pem
@@ -200,16 +203,52 @@ class TPPConnection(CommonConnection):
         else:
             raise ServerUnexptedBehavior
 
-    def renew_cert(self, request):
+    def renew_cert(self, request, reuse_key=False):
         if not request.id and not request.thumbprint:
             log.debug("Request id or thumbprint must be specified for TPP")
             raise CertificateRenewError
         if not request.id and request.thumbprint:
             request.id = self.search_by_thumbprint(request.thumbprint)
-        log.debug("Trying to renew certificate %s" % request.id)
-        status, data = self._post(URLS.CERTIFICATE_RENEW, data={"CertificateDN": request.id})
-        if not data['Success']:
-            raise CertificateRenewError
+        if reuse_key:
+            log.debug("Trying to renew certificate %s" % request.id)
+            status, data = self._post(URLS.CERTIFICATE_RENEW, data={"CertificateDN": request.id})
+            if not data['Success']:
+                raise CertificateRenewError
+            return
+        cert = self.retrieve_cert(request)
+        cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
+        for a in cert.subject:
+            if a.oid == x509.NameOID.COMMON_NAME:
+                request.common_name = a.value
+            elif a.oid == x509.NameOID.COUNTRY_NAME:
+                request.country = a.value
+            elif a.oid == x509.NameOID.LOCALITY_NAME:
+                request.locality = a.value
+            elif a.oid == x509.NameOID.STATE_OR_PROVINCE_NAME:
+                request.province = a.value
+            elif a.oid == x509.NameOID.ORGANIZATION_NAME:
+                request.organization = a.value
+            elif a.oid == x509.NameOID.ORGANIZATIONAL_UNIT_NAME:
+                request.organizational_unit = a.value
+        for e in cert.extensions:
+            if e.oid == x509.OID_SUBJECT_ALTERNATIVE_NAME:
+                request.san_dns = list([x.value for x in e.value])
+        if cert.signature_algorithm_oid in (algos.ECDSA_WITH_SHA1, algos.ECDSA_WITH_SHA224, algos.ECDSA_WITH_SHA256,
+                                            algos.ECDSA_WITH_SHA384, algos.ECDSA_WITH_SHA512):
+            request.key_type = KeyTypes.ECDSA
+        else:
+            request.key_type = KeyTypes.RSA
+        if not request.csr:
+            request.build_csr()
+        status, data = self._post(URLS.CERTIFICATE_RENEW,
+                                  data={"PolicyDN": request.id, "PKCS10": request.csr})
+        if status == HTTPStatus.OK:
+            request.id = data['CertificateDN']
+            log.debug("Certificate sucessfully requested with request id %s." % request.id)
+            return True
+        else:
+            log.error("Request status is not %s. %s." % HTTPStatus.OK, status)
+            raise CertificateRequestError
 
     @staticmethod
     def _parse_zone_data_to_object(data):

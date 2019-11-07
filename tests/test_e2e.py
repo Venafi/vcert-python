@@ -94,6 +94,8 @@ class TestEnrollMethods(unittest.TestCase):
         key = open("/tmp/csr-test.key.pem").read()
         csr = open("/tmp/csr-test.csr.csr").read()
         enroll(conn, zone, private_key=key, csr=csr)
+        req = CertificateRequest(cert_id=cert_id)
+        conn.renew_cert(req, reuse_key=False)
 
 
 def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None, csr=None):
