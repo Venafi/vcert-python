@@ -96,15 +96,10 @@ class TPPConnection(CommonConnection):
             raise ClientBadData
         return self.process_server_response(r)
 
-    def _get_cert_status(self, request):
-        status, data = self._post(URLS.CERTIFICATE_RETRIEVE % request.id)
-        if status == HTTPStatus.OK:
-            return data
-
     @staticmethod
     def _normalize_and_verify_base_url(u):
         if u.startswith("http://"):
-            u = "https://" + u[7:]
+            u = "https://" + u[7]
         elif not u.startswith("https://"):
             u = "https://" + u
         if not u.endswith("/"):
