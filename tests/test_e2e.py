@@ -81,7 +81,9 @@ class TestEnrollMethods(unittest.TestCase):
 
         cn = randomword(10) + ".venafi.example.com"
         cert_id, pkey, sn = enroll(conn, zone, cn)
+        time.sleep(5)
         cert = renew(conn, cert_id, pkey, sn, cn)
+        time.sleep(5)
         renew_by_thumbprint(conn, cert)
 
         cn = randomword(10) + ".venafi.example.com"
@@ -153,11 +155,13 @@ def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None
 
     cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
     assert isinstance(cert, x509.Certificate)
-    assert cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME) == [
+    t1 = cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
+    t2 = [
         x509.NameAttribute(
             NameOID.COMMON_NAME, cn or RANDOM_DOMAIN
         )
     ]
+    assert t1 == t2
 
     cert_public_key_pem = cert.public_key().public_bytes(
         encoding=serialization.Encoding.PEM,
