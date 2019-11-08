@@ -82,8 +82,8 @@ class RevocationReasons:
 
 
 class KeyType:
-    ALLOWED_SIZES = (512, 1024, 2048, 3072, 4096, 8192)
-    ALLOWED_CURVES = ("p256", "p384", "p521")
+    ALLOWED_SIZES = [512, 1024, 2048, 3072, 4096, 8192]
+    ALLOWED_CURVES = ["p256", "p384", "p521"]
     def __init__(self, key_type, key_sizes=None, key_curves=None):
         self.key_type = key_type.lower()
         if self.key_type == KeyTypes.RSA:
@@ -93,7 +93,7 @@ class KeyType:
                 self.key_size = [key_sizes]
             for i in self.key_size:
                 if i not in KeyType.ALLOWED_SIZES:
-                    log.error("unknown size: %d" % i)
+                    log.error("unknown size: %s" % i)
                     raise BadData
         elif self.key_type == KeyTypes.ECDSA:
             if isinstance(key_curves, list):

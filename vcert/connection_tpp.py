@@ -99,7 +99,7 @@ class TPPConnection(CommonConnection):
     @staticmethod
     def _normalize_and_verify_base_url(u):
         if u.startswith("http://"):
-            u = "https://" + u[7]
+            u = "https://" + u[7:]
         elif not u.startswith("https://"):
             u = "https://" + u
         if not u.endswith("/"):
