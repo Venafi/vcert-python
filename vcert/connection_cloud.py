@@ -269,11 +269,30 @@ class CloudConnection(CommonConnection):
             prev_request = self._get_cert_status(CertificateRequest(cert_id=request.id))
             zone = prev_request.zoneId
         d = {"existingManagedCertificateId": manage_id, "zoneId": zone}
-        if request.csr:
+        if reuse_key:
+            if request.csr:
+                d["certificateSigningRequest"] = request.csr
+                d["reuseCSR"] = False
+            else:
+                d["reuseCSR"] = True
+        else:
+            c = data['certificates'][0]
+            if c.get("subjectCN"):
+                request.common_name = c['subjectCN'][0]
+            if c.get("subjectC"):
+                request.country = c["subjectC"]
+            if c.get("subjectO"):
+                request.organization = c["subjectO"]
+            if c.get("subjectOU"):
+                request.organizational_unit = c["subjectOU"]
+            if c.get("subjectL"):
+                request.locality = c["subjectL"]
+            request.key_type = KeyTypes.RSA
+            request.key_length = c["keyStrength"]
+            request.san_dns = c["subjectAlternativeNameDns"]
+            request.build_csr()
             d["certificateSigningRequest"] = request.csr
             d["reuseCSR"] = False
-        else:
-            d["reuseCSR"] = True
 
         status, data = self._post(URLS.CERTIFICATE_REQUESTS, data=d)
         if status == HTTPStatus.CREATED:

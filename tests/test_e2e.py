@@ -72,6 +72,8 @@ class TestEnrollMethods(unittest.TestCase):
         cert_id, pkey, sn = enroll(conn, zone, cn)
         cert = renew(conn, cert_id, pkey, sn, cn)
         renew_by_thumbprint(conn, cert)
+        req = CertificateRequest(cert_id=cert_id)
+        conn.renew_cert(req, reuse_key=False)
 
     def test_tpp(self):
         zone = environ['TPPZONE']
@@ -90,12 +92,11 @@ class TestEnrollMethods(unittest.TestCase):
         enroll(conn, zone, cn, TEST_KEY_RSA_4096[0], TEST_KEY_RSA_4096[1])
         cn = randomword(10) + ".venafi.example.com"
         enroll(conn, zone, cn, TEST_KEY_RSA_2048_ENCRYPTED[0], TEST_KEY_RSA_2048_ENCRYPTED[1], 'venafi')
-
+        req = CertificateRequest(cert_id=cert_id)
+        conn.renew_cert(req, reuse_key=False)
         key = open("/tmp/csr-test.key.pem").read()
         csr = open("/tmp/csr-test.csr.csr").read()
         enroll(conn, zone, private_key=key, csr=csr)
-        req = CertificateRequest(cert_id=cert_id)
-        conn.renew_cert(req, reuse_key=False)
 
 
 def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None, csr=None):
@@ -169,7 +170,7 @@ def renew(conn, cert_id, pkey, sn, cn):
     new_request = CertificateRequest(
         cert_id=cert_id,
     )
-    conn.renew_cert(new_request)
+    conn.renew_cert(new_request, reuse_key=True)
     time.sleep(5)
     while True:
         new_cert= conn.retrieve_cert(new_request)

@@ -241,10 +241,10 @@ class TPPConnection(CommonConnection):
         if not request.csr:
             request.build_csr()
         status, data = self._post(URLS.CERTIFICATE_RENEW,
-                                  data={"PolicyDN": request.id, "PKCS10": request.csr})
+                                  data={"CertificateDN": request.id, "PKCS10": request.csr})
         if status == HTTPStatus.OK:
             request.id = data['CertificateDN']
-            log.debug("Certificate sucessfully requested with request id %s." % request.id)
+            log.debug("Certificate successfully requested with request id %s." % request.id)
             return True
         else:
             log.error("Request status is not %s. %s." % HTTPStatus.OK, status)
