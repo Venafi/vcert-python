@@ -243,7 +243,8 @@ class TPPConnection(CommonConnection):
         status, data = self._post(URLS.CERTIFICATE_RENEW,
                                   data={"CertificateDN": request.id, "PKCS10": request.csr})
         if status == HTTPStatus.OK:
-            request.id = data['CertificateDN']
+            if "CertificateDN" in data:
+                request.id = data['CertificateDN']
             log.debug("Certificate successfully requested with request id %s." % request.id)
             return True
         else:

@@ -208,7 +208,7 @@ def renew_by_thumbprint(conn, prev_cert):
     print("Trying to renew by thumbprint")
     thumbprint = binascii.hexlify(prev_cert.fingerprint(hashes.SHA1())).decode()
     new_request = CertificateRequest(thumbprint=thumbprint)
-    conn.renew_cert(new_request)
+    conn.renew_cert(new_request, reuse_key=True)
     while True:
         new_cert = conn.retrieve_cert(new_request)
         if new_cert:
