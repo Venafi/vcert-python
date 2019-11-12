@@ -228,7 +228,9 @@ class TPPConnection(CommonConnection):
         policy = TPPConnection._parse_zone_config_to_policy(data)
         z = ZoneConfig(
             organization=CertField(s['Organization']['Value'], locked=s['Organization']['Locked']),
-            organizational_unit=CertField(ou, locked=s['OrganizationalUnit']['Locked']),
+            # TODO: dirty fix for OU list becoming CertField type in the zone object. Need to do refatoring to
+            #  completely fix it.
+            organizational_unit=CertField(ou[0] if ou else ou, locked=s['OrganizationalUnit']['Locked']),
             country=CertField(s['Country']['Value'], locked=s['Country']['Locked']),
             province=CertField(s['State']['Value'], locked=s['State']['Locked']),
             locality=CertField(s['City']['Value'], locked=s['City']['Locked']),
