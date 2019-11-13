@@ -188,6 +188,6 @@ class FakeConnection(CommonConnection):
     def revoke_cert(self, request):
         raise NotImplementedError
 
-    def renew_cert(self, certificate_request_id):
+    def renew_cert(self, request, reuse_key=False):
         log.debug("Renew is not supported in test mode.")
         raise NotImplementedError

@@ -480,9 +480,10 @@ class CommonConnection:
         """
         raise NotImplementedError
 
-    def renew_cert(self, request):
+    def renew_cert(self, request, reuse_key=False):
         """
         :param CertificateRequest request:
+        :param bool reuse_key:
         """
         raise NotImplementedError
 

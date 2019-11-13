@@ -61,7 +61,7 @@ class TestEnrollMethods(unittest.TestCase):
         conn = FakeConnection()
         zone = "Default"
         cn = randomword(10) + ".venafi.example.com"
-        cert_id, pkey, sn = enroll(conn, zone, cn)
+        cert_id, pkey, sn, _ = enroll(conn, zone, cn)
         # renew(conn, cert_id, pkey)
 
     def test_cloud(self):
@@ -69,18 +69,19 @@ class TestEnrollMethods(unittest.TestCase):
         zone = environ['CLOUDZONE']
         conn = CloudConnection(token=TOKEN, url=CLOUDURL)
         cn = randomword(10) + ".venafi.example.com"
-        cert_id, pkey, sn = enroll(conn, zone, cn)
+        cert_id, pkey, sn, _ = enroll(conn, zone, cn)
         cert = renew(conn, cert_id, pkey, sn, cn)
         renew_by_thumbprint(conn, cert)
+        req = CertificateRequest(cert_id=cert_id)
+        self.renew_without_key_reuse(conn, zone)
 
     def test_tpp(self):
         zone = environ['TPPZONE']
         ecdsa_zone = environ['TPPZONE_ECDSA']
         print("Using TPP conection")
         conn = TPPConnection(USER, PASSWORD, TPPURL, http_request_kwargs={"verify": "/tmp/chain.pem"})
-
         cn = randomword(10) + ".venafi.example.com"
-        cert_id, pkey, sn = enroll(conn, zone, cn)
+        cert_id, pkey, sn, _ = enroll(conn, zone, cn)
         time.sleep(5)
         cert = renew(conn, cert_id, pkey, sn, cn)
         time.sleep(5)
@@ -96,12 +97,31 @@ class TestEnrollMethods(unittest.TestCase):
         key = open("/tmp/csr-test.key.pem").read()
         csr = open("/tmp/csr-test.csr.csr").read()
         enroll(conn, zone, private_key=key, csr=csr)
+        self.renew_without_key_reuse(conn, zone)
         #  todo: uncomment this after rewrite to new certfield. python2 doesn`t love magic
         #cert = enroll_with_zone_update(conn, ecdsa_zone, randomword(10) + ".venafi.example.com")
         #cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
         #key = cert.public_key()
         #self.assertEqual(key.curve.name, "secp521r1")
 
+    def renew_without_key_reuse(self, conn, zone):
+        cn = randomword(10) + ".venafi.example.com"
+        cert_id, pkey, sn, public_key = enroll(conn, zone, cn)
+        req = CertificateRequest(cert_id=cert_id)
+        conn.renew_cert(req, reuse_key=False)
+        t = time.time()
+        while time.time() - t < 300:
+            cert = conn.retrieve_cert(req)
+            if cert:
+                break
+            else:
+                time.sleep(5)
+        cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
+        public_key_new = cert.public_key().public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        ).decode()
+        self.assertNotEqual(public_key_new, public_key)
 
 def enroll_with_zone_update(conn, zone, cn=None):
     request = CertificateRequest(common_name=cn)
@@ -139,7 +159,8 @@ def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None
         request.csr = csr
 
     conn.request_cert(request, zone)
-    while True:
+    t = time.time()
+    while time.time() - t < 300:
         cert = conn.retrieve_cert(request)
         if cert:
             break
@@ -182,7 +203,7 @@ def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None
     print(source_public_key_pem)
     print(cert_public_key_pem)
     assert source_public_key_pem == cert_public_key_pem
-    return request.id, request.private_key_pem, cert.serial_number
+    return request.id, request.private_key_pem, cert.serial_number, cert_public_key_pem
 
 
 def renew(conn, cert_id, pkey, sn, cn):
@@ -190,9 +211,10 @@ def renew(conn, cert_id, pkey, sn, cn):
     new_request = CertificateRequest(
         cert_id=cert_id,
     )
-    conn.renew_cert(new_request)
+    conn.renew_cert(new_request, reuse_key=True)
     time.sleep(5)
-    while True:
+    t = time.time()
+    while time.time() - t < 300:
         new_cert= conn.retrieve_cert(new_request)
         if new_cert:
             break
@@ -228,8 +250,9 @@ def renew_by_thumbprint(conn, prev_cert):
     print("Trying to renew by thumbprint")
     thumbprint = binascii.hexlify(prev_cert.fingerprint(hashes.SHA1())).decode()
     new_request = CertificateRequest(thumbprint=thumbprint)
-    conn.renew_cert(new_request)
-    while True:
+    conn.renew_cert(new_request, reuse_key=True)
+    t = time.time()
+    while time.time() - t < 300:
         new_cert = conn.retrieve_cert(new_request)
         if new_cert:
             break
