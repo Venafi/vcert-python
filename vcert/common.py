@@ -85,14 +85,10 @@ class KeyType:
                     log.error("unknown size: %s" % i)
                     raise BadData
         elif self.key_type == KeyType.ECDSA:
-            if isinstance(key_curves, list):
-                self.key_curves = list([x.lower() for x in key_curves])
-            else:
-                self.key_curves = [key_curves.lower()]
-            for i in self.key_curves:
-                if i not in KeyType.ALLOWED_CURVES:
-                    log.error("unknown curve: %d" % i)
-                    raise BadData
+            option = option.lower()
+            if option not in KeyType.ALLOWED_CURVES:
+                log.error("unknown curve: %d" % i)
+                raise BadData
         else:
             log.error("unknown key type: %s" % key_type)
             raise BadData
@@ -157,26 +153,6 @@ class Policy:
         self.key_types = key_types
         self.key_reuse = key_reuse
 
-    @classmethod
-    def from_server_response(cls, d):
-        """
-        :rtype Policy:
-        """
-        policy = cls(d['certificatePolicyType'], d['id'], d['companyId'], d['name'], d['systemGenerated'],
-                     dateutil.parser.parse(d['creationDate']), d.get('certificateProviderId'),
-                     d.get('subjectCNRegexes', []), d.get('subjectORegexes', []), d.get('subjectOURegexes', []),
-                     d.get('subjectSTRegexes', []), d.get('subjectLRegexes', []), d.get('subjectCRegexes', []),
-                     d.get('sanRegexes', []), [], d.get('keyReuse'))
-        for kt in d.get('keyTypes', []):
-            key_type = kt['keyType'].lower()
-            if key_type == KeyType.RSA:
-                policy.key_types.append(KeyType(key_type=key_type, key_sizes=kt['keyLengths']))
-            elif key_type == KeyType.ECDSA:
-                policy.key_types.append(KeyType(key_type=key_type, key_curves=kt['keyCurve']))
-            else:
-                log.error("Unknow key type: %s" % kt['keyType'])
-                raise ServerUnexptedBehavior
-        return policy
 
     def __repr__(self):
         return "Policy:\n" + "\n".join(["  %s: %s" % (k, v) for k, v in (
