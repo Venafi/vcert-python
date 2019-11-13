@@ -42,20 +42,13 @@ MIME_CSV = "text/csv"
 MIME_ANY = "*/*"
 
 
-class CertField(text_type):
-    def __new__(cls, *args, **kwargs):
-        if "locked" in kwargs:
-            locked = kwargs["locked"]
-            del kwargs["locked"]
-        else:
-            locked = False
-        instance = super(CertField, cls).__new__(cls, *args, **kwargs)
-        instance.locked = locked
-        return instance
+class CertField:
+    def __init__(self, value, locked=False):
+        self.value = value
+        self.locked = locked
+
     def __bool__(self):
-        if self == CertField(None):  # magic
-            return False
-        return bool(text_type(self))
+        return bool(self.value)
 
 
 def log_errors(data):
@@ -404,15 +397,15 @@ class CertificateRequest:
         :param ZoneConfig zone:
         """
         if zone.organization.locked or (not self.organization and zone.organization):
-            self.organization = zone.organization
+            self.organization = zone.organization.value
         if zone.organizational_unit.locked or (not self.organizational_unit and zone.organizational_unit):
-            self.organizational_unit = zone.organizational_unit
+            self.organizational_unit = zone.organizational_unit.value
         if zone.country.locked or (not self.country and zone.country):
-            self.country = zone.country
+            self.country = zone.country.value
         if zone.province.locked or (not self.province and zone.province):
-            self.province = zone.province
+            self.province = zone.province.value
         if zone.locality.locked or (not self.locality and zone.locality):
-            self.locality = zone.locality
+            self.locality = zone.locality.value
         if zone.key_type:
             self.key_type = zone.key_type.key_type
             if self.key_type == KeyType.ECDSA:

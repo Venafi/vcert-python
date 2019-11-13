@@ -98,11 +98,10 @@ class TestEnrollMethods(unittest.TestCase):
         csr = open("/tmp/csr-test.csr.csr").read()
         enroll(conn, zone, private_key=key, csr=csr)
         self.renew_without_key_reuse(conn, zone)
-        #  todo: uncomment this after rewrite to new certfield. python2 doesn`t love magic
-        #cert = enroll_with_zone_update(conn, ecdsa_zone, randomword(10) + ".venafi.example.com")
-        #cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
-        #key = cert.public_key()
-        #self.assertEqual(key.curve.name, "secp521r1")
+        cert = enroll_with_zone_update(conn, ecdsa_zone, randomword(10) + ".venafi.example.com")
+        cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
+        key = cert.public_key()
+        self.assertEqual(key.curve.name, "secp521r1")
 
     def renew_without_key_reuse(self, conn, zone):
         cn = randomword(10) + ".venafi.example.com"
@@ -288,10 +287,10 @@ class TestLocalMethods(unittest.TestCase):
     def test_parse_tpp_zone1(self):
         conn = TPPConnection(url="http://example.com/", user="", password="")
         z = conn._parse_zone_data_to_object(json.loads(POLICY_TPP1))
-        self.assertEqual(z.country, "US")
-        self.assertEqual(z.locality, "Salt Lake")
-        self.assertEqual(z.province, "Utah")
-        self.assertEqual(z.organization, "Venafi Inc.")
+        self.assertEqual(z.country.value, "US")
+        self.assertEqual(z.locality.value, "Salt Lake")
+        self.assertEqual(z.province.value, "Utah")
+        self.assertEqual(z.organization.value, "Venafi Inc.")
 
     def test_update_request_with_zone_config(self):
         r = CertificateRequest()
