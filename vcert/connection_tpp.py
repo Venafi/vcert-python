@@ -99,11 +99,6 @@ class TPPConnection(CommonConnection):
             raise ClientBadData
         return self.process_server_response(r)
 
-    def _get_cert_status(self, request):
-        status, data = self._post(URLS.CERTIFICATE_RETRIEVE % request.id)
-        if status == HTTPStatus.OK:
-            return data
-
     @staticmethod
     def _normalize_and_verify_base_url(u):
         if u.startswith("http://"):
@@ -252,15 +247,30 @@ class TPPConnection(CommonConnection):
             raise CertificateRequestError
 
     @staticmethod
+    def _parse_zone_config_to_policy(data):
+        p = data["Policy"]
+        # todo: parsing and cover by tests
+        if p["KeyPair"]["KeyAlgorithm"]["Locked"]:
+            if p["KeyPair"]["KeyAlgorithm"]["Value"] == "RSA":
+                key_types = [KeyType(KeyTypes.RSA, key_sizes=p["KeyPair"]["KeySize"]["Value"])]
+            elif p["KeyPair"]["KeyAlgorithm"]["Value"] == "ECC":
+                key_types = [KeyType(KeyTypes.ECDSA, key_curves=p["KeyPair"]["EllipticCurve"]["Value"])]
+            else:
+                raise ServerUnexptedBehavior
+        else:
+            key_types = [KeyType(KeyTypes.RSA, key_sizes=KeyType.ALLOWED_SIZES), KeyType(KeyTypes.ECDSA, key_curves=KeyType.ALLOWED_CURVES)]
+        return Policy(key_types=key_types)
+
+    @staticmethod
     def _parse_zone_data_to_object(data):
         s = data["Policy"]["Subject"]
         ou = s['OrganizationalUnit'].get('Values')
-        policy = Policy(
-            # todo: parsing and cover by tests
-        )
+        policy = TPPConnection._parse_zone_config_to_policy(data)
         z = ZoneConfig(
             organization=CertField(s['Organization']['Value'], locked=s['Organization']['Locked']),
-            organizational_unit=CertField(ou, locked=s['OrganizationalUnit']['Locked']),
+            # TODO: dirty fix for OU list becoming CertField type in the zone object. Need to do refatoring to
+            #  completely fix it.
+            organizational_unit=CertField(ou[0] if ou else ou, locked=s['OrganizationalUnit']['Locked']),
             country=CertField(s['Country']['Value'], locked=s['Country']['Locked']),
             province=CertField(s['State']['Value'], locked=s['State']['Locked']),
             locality=CertField(s['City']['Value'], locked=s['City']['Locked']),

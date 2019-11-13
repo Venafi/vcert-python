@@ -82,7 +82,9 @@ class TestEnrollMethods(unittest.TestCase):
         conn = TPPConnection(USER, PASSWORD, TPPURL, http_request_kwargs={"verify": "/tmp/chain.pem"})
         cn = randomword(10) + ".venafi.example.com"
         cert_id, pkey, sn, _ = enroll(conn, zone, cn)
+        time.sleep(5)
         cert = renew(conn, cert_id, pkey, sn, cn)
+        time.sleep(5)
         renew_by_thumbprint(conn, cert)
 
         cn = randomword(10) + ".venafi.example.com"
@@ -96,6 +98,11 @@ class TestEnrollMethods(unittest.TestCase):
         csr = open("/tmp/csr-test.csr.csr").read()
         enroll(conn, zone, private_key=key, csr=csr)
         self.renew_without_key_reuse(conn, zone)
+        #  todo: uncomment this after rewrite to new certfield. python2 doesn`t love magic
+        #cert = enroll_with_zone_update(conn, ecdsa_zone, randomword(10) + ".venafi.example.com")
+        #cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
+        #key = cert.public_key()
+        #self.assertEqual(key.curve.name, "secp521r1")
 
     def renew_without_key_reuse(self, conn, zone):
         cn = randomword(10) + ".venafi.example.com"
@@ -115,6 +122,19 @@ class TestEnrollMethods(unittest.TestCase):
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         ).decode()
         self.assertNotEqual(public_key_new, public_key)
+
+def enroll_with_zone_update(conn, zone, cn=None):
+    request = CertificateRequest(common_name=cn)
+    zc = conn.read_zone_conf(zone)
+    request.update_from_zone_config(zc)
+    conn.request_cert(request, zone)
+    while True:
+        cert = conn.retrieve_cert(request)
+        if cert:
+            break
+        else:
+            time.sleep(5)
+    return cert
 
 
 def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None, csr=None):
@@ -157,11 +177,13 @@ def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None
 
     cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
     assert isinstance(cert, x509.Certificate)
-    assert cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME) == [
+    t1 = cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
+    t2 = [
         x509.NameAttribute(
             NameOID.COMMON_NAME, cn or RANDOM_DOMAIN
         )
     ]
+    assert t1 == t2
 
     cert_public_key_pem = cert.public_key().public_bytes(
         encoding=serialization.Encoding.PEM,
