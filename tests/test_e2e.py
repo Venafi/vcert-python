@@ -18,8 +18,8 @@
 from __future__ import absolute_import, division, generators, unicode_literals, print_function, nested_scopes, \
     with_statement
 
-from vcert import CloudConnection, CertificateRequest, TPPConnection, FakeConnection, KeyTypes, ZoneConfig
-from vcert.common import CertField
+from vcert import CloudConnection, CertificateRequest, TPPConnection, FakeConnection, ZoneConfig
+from vcert.common import CertField, KeyType
 import string
 import random
 import logging
@@ -273,7 +273,7 @@ class TestLocalMethods(unittest.TestCase):
         self.assertEqual(p.id, "3da4ba30-c370-11e9-9e69-99559a9ae32a")
         self.assertEqual(p.SubjectCNRegexes[-1], ".*.test")
         self.assertTrue(p.SubjectCRegexes == p.SubjectLRegexes == p.SubjectORegexes == p.SubjectOURegexes == p.SubjectSTRegexes == [".*"])
-        self.assertEqual(p.key_types[0].key_type, KeyTypes.RSA)
+        self.assertEqual(p.key_types[0].key_type, KeyType.RSA)
         self.assertEqual(p.key_types[0].key_size, [2048, 4096])
         self.assertTrue(len(p.key_types) == 1)
 
@@ -281,8 +281,8 @@ class TestLocalMethods(unittest.TestCase):
         conn = CloudConnection(token="")
         p = conn._parse_policy_responce_to_object(json.loads(POLICY_CLOUD2))
         self.assertTrue(len(p.key_types) == 2)
-        self.assertEqual(p.key_types[1].key_type, KeyTypes.RSA)
-        self.assertEqual(p.key_types[0].key_type, KeyTypes.ECDSA)
+        self.assertEqual(p.key_types[1].key_type, KeyType.RSA)
+        self.assertEqual(p.key_types[0].key_type,   KeyType.ECDSA)
         self.assertEqual(p.key_types[0].key_curves,  ["p521"])
 
     def test_parse_tpp_zone1(self):

@@ -22,7 +22,7 @@ import time
 
 import uuid
 from .common import (ZoneConfig, CertificateRequest, CommonConnection, Policy, log_errors, MIME_JSON, MIME_TEXT,
-                     MIME_ANY, CertField, KeyType, KeyTypes)
+                     MIME_ANY, CertField, KeyType)
 from .pem import parse_pem
 
 from cryptography.hazmat.backends import default_backend

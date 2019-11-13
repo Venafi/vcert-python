@@ -24,7 +24,7 @@ import logging as log
 import requests
 
 from .common import (ZoneConfig, CertificateRequest, CommonConnection, Policy, log_errors, MIME_JSON, MIME_TEXT,
-                     MIME_ANY, CertField, KeyType, KeyTypes)
+                     MIME_ANY, CertField, KeyType)
 from .pem import parse_pem
 from .errors import (VenafiConnectionError, ServerUnexptedBehavior, ClientBadData, CertificateRequestError,
                      CertificateRenewError)
@@ -159,9 +159,9 @@ class CloudConnection(CommonConnection):
         )
         for kt in d.get('keyTypes', []):
             key_type = kt['keyType'].lower()
-            if key_type == KeyTypes.RSA:
+            if key_type == KeyType.RSA:
                 policy.key_types.append(KeyType(key_type=key_type, key_sizes=kt['keyLengths']))
-            elif key_type == KeyTypes.ECDSA:
+            elif key_type == KeyType.ECDSA:
                 policy.key_types.append(KeyType(key_type=key_type, key_curves=kt['keyCurve']))
             else:
                 log.error("Unknow key type: %s" % kt['keyType'])
@@ -287,7 +287,7 @@ class CloudConnection(CommonConnection):
                 request.organizational_unit = c["subjectOU"]
             if c.get("subjectL"):
                 request.locality = c["subjectL"]
-            request.key_type = KeyTypes.RSA
+            request.key_type = KeyType.RSA
             request.key_length = c["keyStrength"]
             request.san_dns = c["subjectAlternativeNameDns"]
             request.build_csr()

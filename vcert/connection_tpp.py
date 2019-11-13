@@ -27,7 +27,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography import x509
 from cryptography.x509 import SignatureAlgorithmOID as algos
 
-from .common import CommonConnection, MIME_JSON, CertField, ZoneConfig, Policy, KeyTypes, KeyType
+from .common import CommonConnection, MIME_JSON, CertField, ZoneConfig, Policy, KeyType
 from .pem import parse_pem
 from .errors import (ServerUnexptedBehavior, ClientBadData, CertificateRequestError, AuthenticationError,
                      CertificateRenewError)
@@ -230,9 +230,9 @@ class TPPConnection(CommonConnection):
                 request.san_dns = list([x.value for x in e.value])
         if cert.signature_algorithm_oid in (algos.ECDSA_WITH_SHA1, algos.ECDSA_WITH_SHA224, algos.ECDSA_WITH_SHA256,
                                             algos.ECDSA_WITH_SHA384, algos.ECDSA_WITH_SHA512):
-            request.key_type = KeyTypes.ECDSA
+            request.key_type = KeyType.ECDSA
         else:
-            request.key_type = KeyTypes.RSA
+            request.key_type = KeyType.RSA
         if not request.csr:
             request.build_csr()
         status, data = self._post(URLS.CERTIFICATE_RENEW,
@@ -252,13 +252,13 @@ class TPPConnection(CommonConnection):
         # todo: parsing and cover by tests
         if p["KeyPair"]["KeyAlgorithm"]["Locked"]:
             if p["KeyPair"]["KeyAlgorithm"]["Value"] == "RSA":
-                key_types = [KeyType(KeyTypes.RSA, key_sizes=p["KeyPair"]["KeySize"]["Value"])]
+                key_types = [KeyType(KeyType.RSA, key_sizes=p["KeyPair"]["KeySize"]["Value"])]
             elif p["KeyPair"]["KeyAlgorithm"]["Value"] == "ECC":
-                key_types = [KeyType(KeyTypes.ECDSA, key_curves=p["KeyPair"]["EllipticCurve"]["Value"])]
+                key_types = [KeyType(KeyType.ECDSA, key_curves=p["KeyPair"]["EllipticCurve"]["Value"])]
             else:
                 raise ServerUnexptedBehavior
         else:
-            key_types = [KeyType(KeyTypes.RSA, key_sizes=KeyType.ALLOWED_SIZES), KeyType(KeyTypes.ECDSA, key_curves=KeyType.ALLOWED_CURVES)]
+            key_types = [KeyType(KeyType.RSA, key_sizes=KeyType.ALLOWED_SIZES), KeyType(KeyType.ECDSA, key_curves=KeyType.ALLOWED_CURVES)]
         return Policy(key_types=key_types)
 
     @staticmethod
