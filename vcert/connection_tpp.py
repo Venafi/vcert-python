@@ -252,13 +252,13 @@ class TPPConnection(CommonConnection):
         # todo: parsing and cover by tests
         if p["KeyPair"]["KeyAlgorithm"]["Locked"]:
             if p["KeyPair"]["KeyAlgorithm"]["Value"] == "RSA":
-                key_types = [KeyType(KeyType.RSA, key_sizes=p["KeyPair"]["KeySize"]["Value"])]
+                key_types = [KeyType(KeyType.RSA, p["KeyPair"]["KeySize"]["Value"])]
             elif p["KeyPair"]["KeyAlgorithm"]["Value"] == "ECC":
-                key_types = [KeyType(KeyType.ECDSA, key_curves=p["KeyPair"]["EllipticCurve"]["Value"])]
+                key_types = [KeyType(KeyType.ECDSA, p["KeyPair"]["EllipticCurve"]["Value"])]
             else:
                 raise ServerUnexptedBehavior
         else:
-            key_types = [KeyType(KeyType.RSA, key_sizes=KeyType.ALLOWED_SIZES), KeyType(KeyType.ECDSA, key_curves=KeyType.ALLOWED_CURVES)]
+            key_types = [KeyType(KeyType.RSA, x) for x in KeyType.ALLOWED_SIZES] + [ KeyType(KeyType.ECDSA, x) for x in KeyType.ALLOWED_CURVES]
         return Policy(key_types=key_types)
 
     @staticmethod

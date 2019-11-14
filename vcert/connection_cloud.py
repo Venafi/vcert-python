@@ -160,9 +160,8 @@ class CloudConnection(CommonConnection):
         for kt in d.get('keyTypes', []):
             key_type = kt['keyType'].lower()
             if key_type == KeyType.RSA:
-                policy.key_types.append(KeyType(key_type=key_type, key_sizes=kt['keyLengths']))
-            elif key_type == KeyType.ECDSA:
-                policy.key_types.append(KeyType(key_type=key_type, key_curves=kt['keyCurve']))
+                for s in kt['keyLengths']:
+                    policy.key_types.append(KeyType(key_type, s))
             else:
                 log.error("Unknow key type: %s" % kt['keyType'])
                 raise ServerUnexptedBehavior

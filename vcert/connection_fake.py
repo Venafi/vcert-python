@@ -148,11 +148,12 @@ class FakeConnection(CommonConnection):
             key_type=policy.key_types[0],
         )
         return z
+
     def retrieve_cert(self, certificate_request):
         log.debug("Getting certificate status for id %s" % certificate_request.id)
 
         time.sleep(0.1)
-        certificate_request.public_key_from_private()
+        certificate_request._public_key_from_private()
         csr = x509.load_pem_x509_csr(certificate_request.csr.encode(), default_backend())
 
         root_ca_certificate = x509.load_pem_x509_certificate(ROOT_CA, default_backend())

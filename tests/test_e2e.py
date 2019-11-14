@@ -273,16 +273,19 @@ class TestLocalMethods(unittest.TestCase):
         self.assertEqual(p.SubjectCNRegexes[-1], ".*.test")
         self.assertTrue(p.SubjectCRegexes == p.SubjectLRegexes == p.SubjectORegexes == p.SubjectOURegexes == p.SubjectSTRegexes == [".*"])
         self.assertEqual(p.key_types[0].key_type, KeyType.RSA)
-        self.assertEqual(p.key_types[0].key_size, [2048, 4096])
-        self.assertTrue(len(p.key_types) == 1)
-
-    def test_parse_cloud_zone2(self):
-        conn = CloudConnection(token="")
-        p = conn._parse_policy_responce_to_object(json.loads(POLICY_CLOUD2))
-        self.assertTrue(len(p.key_types) == 2)
+        self.assertEqual(p.key_types[0].option, 2048)
         self.assertEqual(p.key_types[1].key_type, KeyType.RSA)
-        self.assertEqual(p.key_types[0].key_type,   KeyType.ECDSA)
-        self.assertEqual(p.key_types[0].key_curves,  ["p521"])
+        self.assertEqual(p.key_types[1].option,  4096)
+        self.assertTrue(len(p.key_types) == 2)
+
+    #  cloud doesnt support ecdsa yet. may be can be enabled in the future
+    # def test_parse_cloud_zone2(self):
+    #     conn = CloudConnection(token="")
+    #     p = conn._parse_policy_responce_to_object(json.loads(POLICY_CLOUD2))
+    #     self.assertTrue(len(p.key_types) == 2)
+    #     self.assertEqual(p.key_types[1].key_type, KeyType.RSA)
+    #     self.assertEqual(p.key_types[0].key_type,   KeyType.ECDSA)
+    #     self.assertEqual(p.key_types[0].key_curves,  ["p521"])
 
     def test_parse_tpp_zone1(self):
         conn = TPPConnection(url="http://example.com/", user="", password="")
