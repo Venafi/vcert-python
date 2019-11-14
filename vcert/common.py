@@ -237,7 +237,7 @@ class CertificateRequest:
             if isinstance(value, rsa.RSAPrivateKey):
                 self.key_type = KeyType(KeyType.RSA, value.key_size)
             elif isinstance(value, ec.EllipticCurvePrivateKey):
-                self.key_type = KeyType(KeyType.ECDSA, value.curve.name) #todo: check that value curve has normal type
+                self.key_type = KeyType(KeyType.ECDSA, value.curve.name)
             elif value is None:
                 self.public_key = None
             else:
