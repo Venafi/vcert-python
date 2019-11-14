@@ -232,7 +232,7 @@ class TPPConnection(CommonConnection):
                                             algos.ECDSA_WITH_SHA384, algos.ECDSA_WITH_SHA512):
             request.key_type = (KeyType.ECDSA, KeyType.ALLOWED_CURVES[0])
         else:
-            request.key_type = (KeyType.RSA, 2048)  # todo: make parsing key size
+            request.key_type = KeyType(KeyType.RSA, 2048)  # todo: make parsing key size
         if not request.csr:
             request.build_csr()
         status, data = self._post(URLS.CERTIFICATE_RENEW,
