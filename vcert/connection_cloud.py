@@ -286,8 +286,7 @@ class CloudConnection(CommonConnection):
                 request.organizational_unit = c["subjectOU"]
             if c.get("subjectL"):
                 request.locality = c["subjectL"]
-            request.key_type = KeyType.RSA
-            request.key_length = c["keyStrength"]
+            request.key_type = KeyType(KeyType.RSA, c["keyStrength"])
             request.san_dns = c["subjectAlternativeNameDns"]
             request.build_csr()
             d["certificateSigningRequest"] = request.csr

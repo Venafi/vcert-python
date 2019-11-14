@@ -230,9 +230,9 @@ class TPPConnection(CommonConnection):
                 request.san_dns = list([x.value for x in e.value])
         if cert.signature_algorithm_oid in (algos.ECDSA_WITH_SHA1, algos.ECDSA_WITH_SHA224, algos.ECDSA_WITH_SHA256,
                                             algos.ECDSA_WITH_SHA384, algos.ECDSA_WITH_SHA512):
-            request.key_type = KeyType.ECDSA
+            request.key_type = (KeyType.ECDSA, KeyType.ALLOWED_CURVES[0])
         else:
-            request.key_type = KeyType.RSA
+            request.key_type = (KeyType.RSA, 2048)  # todo: make parsing key size
         if not request.csr:
             request.build_csr()
         status, data = self._post(URLS.CERTIFICATE_RENEW,
