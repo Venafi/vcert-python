@@ -113,10 +113,6 @@ class TPPConnection(CommonConnection):
             raise ClientBadData
         return u
 
-    def ping(self):
-        status, data = self._get()
-        return status == HTTPStatus.OK and "" in data
-
     def auth(self):
         data = {"Username": self._user, "Password": self._password}
         r = requests.post(self._base_url + URLS.AUTHORIZE, json=data,
@@ -132,7 +128,7 @@ class TPPConnection(CommonConnection):
             log.error("Authentication status is not %s but %s. Exiting" % (HTTPStatus.OK, status[0]))
             raise AuthenticationError
 
-    # TODO: Need to add service genmerated CSR implementation
+    # TODO: Need to add service generated CSR implementation
     def request_cert(self, request, zone):
         if not request.csr:
             request.build_csr()
@@ -249,7 +245,6 @@ class TPPConnection(CommonConnection):
     @staticmethod
     def _parse_zone_config_to_policy(data):
         p = data["Policy"]
-        # todo: parsing and cover by tests
         if p["KeyPair"]["KeyAlgorithm"]["Locked"]:
             if p["KeyPair"]["KeyAlgorithm"]["Value"] == "RSA":
                 key_types = [KeyType(KeyType.RSA, p["KeyPair"]["KeySize"]["Value"])]
@@ -258,7 +253,8 @@ class TPPConnection(CommonConnection):
             else:
                 raise ServerUnexptedBehavior
         else:
-            key_types = [KeyType(KeyType.RSA, x) for x in KeyType.ALLOWED_SIZES] + [ KeyType(KeyType.ECDSA, x) for x in KeyType.ALLOWED_CURVES]
+            key_types = [KeyType(KeyType.RSA, x) for x in KeyType.ALLOWED_SIZES] + \
+                        [KeyType(KeyType.ECDSA, x) for x in KeyType.ALLOWED_CURVES]
         return Policy(key_types=key_types)
 
     @staticmethod

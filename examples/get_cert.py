@@ -49,17 +49,6 @@ def main():
         # be used.
         conn = Connection(url=url, token=token, user=user, password=password)
 
-
-
-
-
-    print("Trying to ping url %s" % conn)
-    status = conn.ping()
-    print("Server online:", status)
-    if not status:
-        print('Server offline - exit')
-        exit(1)
-
     request = CertificateRequest(common_name=randomword(10) + ".venafi.example.com")
     request.san_dns = ["www.client.venafi.example.com", "ww1.client.venafi.example.com"]
     if not isinstance(conn, CloudConnection):

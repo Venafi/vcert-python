@@ -137,13 +137,6 @@ def enroll_with_zone_update(conn, zone, cn=None):
 
 
 def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None, csr=None):
-    print("Trying to ping service")
-    status = conn.ping()
-    print("Server online:", status)
-    if not status:
-        print('Server offline')
-        exit(1)
-
     request = CertificateRequest(
         common_name=cn,
         private_key=private_key,

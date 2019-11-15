@@ -114,9 +114,6 @@ class FakeConnection(CommonConnection):
     def __str__(self):
         return "[Fake]"
 
-    def ping(self):
-        return True
-
     def auth(self):
         return fake_user()
 

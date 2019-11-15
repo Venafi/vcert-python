@@ -19,8 +19,7 @@ from __future__ import absolute_import, division, generators, unicode_literals, 
 
 import datetime
 import logging as log
-from six import string_types, binary_type, text_type
-import dateutil.parser
+from six import string_types, binary_type
 
 from .errors import VenafiConnectionError, ServerUnexptedBehavior, BadData, ClientBadData
 from .http import HTTPStatus
@@ -58,6 +57,7 @@ def log_errors(data):
     for e in data["errors"]:
         log.error("%s: %s" % (e['code'], e['message']))
 
+
 class RevocationReasons:
     NoReason = 0
     key_compromise = 1
@@ -76,7 +76,7 @@ class KeyType:
     def __init__(self, key_type, option):
         """
         :param str key_type:
-        :param option: key length for RSA (in int) or curve name for ECDSA
+        :param Union[str, int] option: key length for RSA (in int) or curve name for ECDSA
         """
         self.key_type = {"rsa": "rsa", "ec": "ec", "ecdsa": "ec"}.get(key_type.lower().strip())
         if self.key_type == KeyType.RSA:
@@ -117,6 +117,7 @@ class ZoneConfig:
         self.policy = policy
         self.key_type = key_type
 
+
 class Policy:
     def __init__(self, policy_id=None, company_id=None, name=None, system_generated=None,
                  creation_date=None, subject_cn_regexes=None, subject_o_regexes=None,
@@ -153,11 +154,9 @@ class Policy:
         self.key_types = key_types
         self.key_reuse = key_reuse
 
-
     def __repr__(self):
         return "Policy:\n" + "\n".join(["  %s: %s" % (k, v) for k, v in (
             ("Id", self.id),
-            ("Type", self.policy_type),
             ("Name", self.name),
             ("KeyReuse", self.key_reuse),
             ("Created", self.creation_date)
@@ -230,6 +229,9 @@ class CertificateRequest:
         elif key == "common_name":
             if isinstance(value, binary_type):
                 value = value.decode()
+        elif key == "key_type":
+            if isinstance(value, KeyType):
+                raise ClientBadData("key_type should be instance of vcert.KeyType")
         elif key == "private_key":
             if isinstance(value, string_types):
                 value = serialization.load_pem_private_key(value.encode(),
@@ -379,6 +381,7 @@ class CertificateRequest:
         if zone.key_type:
             self.key_type = zone.key_type
 
+
 class RevocationRequest:
     def __init__(self, req_id=None, thumbprint=None,  reason=RevocationReasons.NoReason,
                  comments="Revoked via api with python bindings", disable=True):
@@ -394,15 +397,6 @@ class RevocationRequest:
 
 
 class CommonConnection:
-    def __repr__(self):
-        return str(self)
-
-    def ping(self):
-        """
-
-        :return:
-        """
-        raise NotImplementedError
 
     def auth(self):
         """

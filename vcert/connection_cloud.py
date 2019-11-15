@@ -18,7 +18,6 @@ from __future__ import (absolute_import, division, generators, unicode_literals,
                         with_statement)
 
 import re
-import dateutil
 import logging as log
 
 import requests
@@ -42,7 +41,6 @@ class URLS:
     API_BASE_URL = "https://api.venafi.cloud/v1/"
 
     USER_ACCOUNTS = "useraccounts"
-    PING = "ping"
     ZONES = "zones"
     ZONE_BY_TAG = ZONES + "/tag/%s"
     POLICIES_BY_ID = "certificatepolicies/%s"
@@ -140,7 +138,8 @@ class CloudConnection(CommonConnection):
         else:
             raise ServerUnexptedBehavior
 
-    def _parse_policy_responce_to_object(self, d):
+    @staticmethod
+    def _parse_policy_responce_to_object(d):
         policy = Policy(
             d["id"],
             d["companyId"],
@@ -173,9 +172,6 @@ class CloudConnection(CommonConnection):
             log.error("Invalid status during geting policy: %s for policy %s" % (status, policy_id))
             raise ServerUnexptedBehavior
         return self._parse_policy_responce_to_object(data)
-
-    def ping(self):
-        return True
 
     def auth(self):
         status, data = self._get(URLS.USER_ACCOUNTS)
@@ -254,7 +250,6 @@ class CloudConnection(CommonConnection):
         if request.id:
             prev_request = self._get_cert_status(CertificateRequest(cert_id=request.id))
             manage_id = prev_request.manage_id
-            # todo: fill request object fields
             zone = prev_request.zoneId
         if not manage_id:
             log.error("Can`t find manage_id")
