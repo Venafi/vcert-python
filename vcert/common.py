@@ -58,15 +58,6 @@ def log_errors(data):
         log.error("%s: %s" % (e['code'], e['message']))
 
 
-class RevocationReasons:
-    NoReason = 0
-    key_compromise = 1
-    ca_compromise = 2
-    affiliation_changed = 3
-    superseded = 4
-    cessation_of_operation = 5  # OriginalUseNoLongerValid
-
-
 class KeyType:
     ALLOWED_SIZES = [512, 1024, 2048, 3072, 4096, 8192]
     ALLOWED_CURVES = ["p256", "p384", "p521"]
@@ -383,6 +374,14 @@ class CertificateRequest:
 
 
 class RevocationRequest:
+    class RevocationReasons:
+        NoReason = 0
+        key_compromise = 1
+        ca_compromise = 2
+        affiliation_changed = 3
+        superseded = 4
+        cessation_of_operation = 5  # OriginalUseNoLongerValid
+
     def __init__(self, req_id=None, thumbprint=None,  reason=RevocationReasons.NoReason,
                  comments="Revoked via api with python bindings", disable=True):
         """
