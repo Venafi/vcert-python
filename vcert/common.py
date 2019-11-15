@@ -221,7 +221,7 @@ class CertificateRequest:
             if isinstance(value, binary_type):
                 value = value.decode()
         elif key == "key_type":
-            if isinstance(value, KeyType):
+            if value is not None and not isinstance(value, KeyType):
                 raise ClientBadData("key_type should be instance of vcert.KeyType")
         elif key == "private_key":
             if isinstance(value, string_types):
