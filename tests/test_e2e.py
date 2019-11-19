@@ -18,8 +18,8 @@
 from __future__ import absolute_import, division, generators, unicode_literals, print_function, nested_scopes, \
     with_statement
 
-from vcert import CloudConnection, CertificateRequest, TPPConnection, FakeConnection, KeyTypes, ZoneConfig
-from vcert.common import CertField
+from vcert import CloudConnection, CertificateRequest, TPPConnection, FakeConnection, ZoneConfig
+from vcert.common import CertField, KeyType
 import string
 import random
 import logging
@@ -98,11 +98,10 @@ class TestEnrollMethods(unittest.TestCase):
         csr = open("/tmp/csr-test.csr.csr").read()
         enroll(conn, zone, private_key=key, csr=csr)
         self.renew_without_key_reuse(conn, zone)
-        #  todo: uncomment this after rewrite to new certfield. python2 doesn`t love magic
-        #cert = enroll_with_zone_update(conn, ecdsa_zone, randomword(10) + ".venafi.example.com")
-        #cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
-        #key = cert.public_key()
-        #self.assertEqual(key.curve.name, "secp521r1")
+        cert = enroll_with_zone_update(conn, ecdsa_zone, randomword(10) + ".venafi.example.com")
+        cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
+        key = cert.public_key()
+        self.assertEqual(key.curve.name, "secp521r1")
 
     def renew_without_key_reuse(self, conn, zone):
         cn = randomword(10) + ".venafi.example.com"
@@ -138,13 +137,6 @@ def enroll_with_zone_update(conn, zone, cn=None):
 
 
 def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None, csr=None):
-    print("Trying to ping service")
-    status = conn.ping()
-    print("Server online:", status)
-    if not status:
-        print('Server offline')
-        exit(1)
-
     request = CertificateRequest(
         common_name=cn,
         private_key=private_key,
@@ -273,25 +265,28 @@ class TestLocalMethods(unittest.TestCase):
         self.assertEqual(p.id, "3da4ba30-c370-11e9-9e69-99559a9ae32a")
         self.assertEqual(p.SubjectCNRegexes[-1], ".*.test")
         self.assertTrue(p.SubjectCRegexes == p.SubjectLRegexes == p.SubjectORegexes == p.SubjectOURegexes == p.SubjectSTRegexes == [".*"])
-        self.assertEqual(p.key_types[0].key_type, KeyTypes.RSA)
-        self.assertEqual(p.key_types[0].key_size, [2048, 4096])
-        self.assertTrue(len(p.key_types) == 1)
-
-    def test_parse_cloud_zone2(self):
-        conn = CloudConnection(token="")
-        p = conn._parse_policy_responce_to_object(json.loads(POLICY_CLOUD2))
+        self.assertEqual(p.key_types[0].key_type, KeyType.RSA)
+        self.assertEqual(p.key_types[0].option, 2048)
+        self.assertEqual(p.key_types[1].key_type, KeyType.RSA)
+        self.assertEqual(p.key_types[1].option,  4096)
         self.assertTrue(len(p.key_types) == 2)
-        self.assertEqual(p.key_types[1].key_type, KeyTypes.RSA)
-        self.assertEqual(p.key_types[0].key_type, KeyTypes.ECDSA)
-        self.assertEqual(p.key_types[0].key_curves,  ["p521"])
+
+    #  cloud doesnt support ecdsa yet. may be can be enabled in the future
+    # def test_parse_cloud_zone2(self):
+    #     conn = CloudConnection(token="")
+    #     p = conn._parse_policy_responce_to_object(json.loads(POLICY_CLOUD2))
+    #     self.assertTrue(len(p.key_types) == 2)
+    #     self.assertEqual(p.key_types[1].key_type, KeyType.RSA)
+    #     self.assertEqual(p.key_types[0].key_type,   KeyType.ECDSA)
+    #     self.assertEqual(p.key_types[0].key_curves,  ["p521"])
 
     def test_parse_tpp_zone1(self):
         conn = TPPConnection(url="http://example.com/", user="", password="")
         z = conn._parse_zone_data_to_object(json.loads(POLICY_TPP1))
-        self.assertEqual(z.country, "US")
-        self.assertEqual(z.locality, "Salt Lake")
-        self.assertEqual(z.province, "Utah")
-        self.assertEqual(z.organization, "Venafi Inc.")
+        self.assertEqual(z.country.value, "US")
+        self.assertEqual(z.locality.value, "Salt Lake")
+        self.assertEqual(z.province.value, "Utah")
+        self.assertEqual(z.organization.value, "Venafi Inc.")
 
     def test_update_request_with_zone_config(self):
         r = CertificateRequest()

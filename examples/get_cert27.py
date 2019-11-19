@@ -40,13 +40,6 @@ def main():
     # conn = Connection(url=url, token=token, user=user, password=password,
     #                   http_request_kwargs={"verify": "/path/to/trust/bundle.pem"})
 
-    print("Trying to ping url %s" % conn._base_url)
-    status = conn.ping()
-    print("Server online: %s" % status)
-    if not status:
-        print('Server offline - exit')
-        exit(1)
-
     request = CertificateRequest(common_name=randomword(10) + u".venafi.example.com")
     request.san_dns = [u"www.client.venafi.example.com", u"ww1.client.venafi.example.com"]
     if not isinstance(conn, CloudConnection):

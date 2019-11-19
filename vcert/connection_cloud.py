@@ -18,13 +18,12 @@ from __future__ import (absolute_import, division, generators, unicode_literals,
                         with_statement)
 
 import re
-import dateutil
 import logging as log
 
 import requests
 
 from .common import (ZoneConfig, CertificateRequest, CommonConnection, Policy, log_errors, MIME_JSON, MIME_TEXT,
-                     MIME_ANY, CertField, KeyType, KeyTypes)
+                     MIME_ANY, CertField, KeyType)
 from .pem import parse_pem
 from .errors import (VenafiConnectionError, ServerUnexptedBehavior, ClientBadData, CertificateRequestError,
                      CertificateRenewError)
@@ -42,7 +41,6 @@ class URLS:
     API_BASE_URL = "https://api.venafi.cloud/v1/"
 
     USER_ACCOUNTS = "useraccounts"
-    PING = "ping"
     ZONES = "zones"
     ZONE_BY_TAG = ZONES + "/tag/%s"
     POLICIES_BY_ID = "certificatepolicies/%s"
@@ -140,7 +138,8 @@ class CloudConnection(CommonConnection):
         else:
             raise ServerUnexptedBehavior
 
-    def _parse_policy_responce_to_object(self, d):
+    @staticmethod
+    def _parse_policy_responce_to_object(d):
         policy = Policy(
             d["id"],
             d["companyId"],
@@ -159,10 +158,9 @@ class CloudConnection(CommonConnection):
         )
         for kt in d.get('keyTypes', []):
             key_type = kt['keyType'].lower()
-            if key_type == KeyTypes.RSA:
-                policy.key_types.append(KeyType(key_type=key_type, key_sizes=kt['keyLengths']))
-            elif key_type == KeyTypes.ECDSA:
-                policy.key_types.append(KeyType(key_type=key_type, key_curves=kt['keyCurve']))
+            if key_type == KeyType.RSA:
+                for s in kt['keyLengths']:
+                    policy.key_types.append(KeyType(key_type, s))
             else:
                 log.error("Unknow key type: %s" % kt['keyType'])
                 raise ServerUnexptedBehavior
@@ -174,9 +172,6 @@ class CloudConnection(CommonConnection):
             log.error("Invalid status during geting policy: %s for policy %s" % (status, policy_id))
             raise ServerUnexptedBehavior
         return self._parse_policy_responce_to_object(data)
-
-    def ping(self):
-        return True
 
     def auth(self):
         status, data = self._get(URLS.USER_ACCOUNTS)
@@ -255,7 +250,6 @@ class CloudConnection(CommonConnection):
         if request.id:
             prev_request = self._get_cert_status(CertificateRequest(cert_id=request.id))
             manage_id = prev_request.manage_id
-            # todo: fill request object fields
             zone = prev_request.zoneId
         if not manage_id:
             log.error("Can`t find manage_id")
@@ -287,8 +281,7 @@ class CloudConnection(CommonConnection):
                 request.organizational_unit = c["subjectOU"]
             if c.get("subjectL"):
                 request.locality = c["subjectL"]
-            request.key_type = KeyTypes.RSA
-            request.key_length = c["keyStrength"]
+            request.key_type = KeyType(KeyType.RSA, c["keyStrength"])
             request.san_dns = c["subjectAlternativeNameDns"]
             request.build_csr()
             d["certificateSigningRequest"] = request.csr

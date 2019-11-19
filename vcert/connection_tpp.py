@@ -27,7 +27,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography import x509
 from cryptography.x509 import SignatureAlgorithmOID as algos
 
-from .common import CommonConnection, MIME_JSON, CertField, ZoneConfig, Policy, KeyTypes, KeyType
+from .common import CommonConnection, MIME_JSON, CertField, ZoneConfig, Policy, KeyType
 from .pem import parse_pem
 from .errors import (ServerUnexptedBehavior, ClientBadData, CertificateRequestError, AuthenticationError,
                      CertificateRenewError)
@@ -113,10 +113,6 @@ class TPPConnection(CommonConnection):
             raise ClientBadData
         return u
 
-    def ping(self):
-        status, data = self._get()
-        return status == HTTPStatus.OK and "" in data
-
     def auth(self):
         data = {"Username": self._user, "Password": self._password}
         r = requests.post(self._base_url + URLS.AUTHORIZE, json=data,
@@ -132,7 +128,7 @@ class TPPConnection(CommonConnection):
             log.error("Authentication status is not %s but %s. Exiting" % (HTTPStatus.OK, status[0]))
             raise AuthenticationError
 
-    # TODO: Need to add service genmerated CSR implementation
+    # TODO: Need to add service generated CSR implementation
     def request_cert(self, request, zone):
         if not request.csr:
             request.build_csr()
@@ -230,9 +226,9 @@ class TPPConnection(CommonConnection):
                 request.san_dns = list([x.value for x in e.value])
         if cert.signature_algorithm_oid in (algos.ECDSA_WITH_SHA1, algos.ECDSA_WITH_SHA224, algos.ECDSA_WITH_SHA256,
                                             algos.ECDSA_WITH_SHA384, algos.ECDSA_WITH_SHA512):
-            request.key_type = KeyTypes.ECDSA
+            request.key_type = (KeyType.ECDSA, KeyType.ALLOWED_CURVES[0])
         else:
-            request.key_type = KeyTypes.RSA
+            request.key_type = KeyType(KeyType.RSA, 2048)  # todo: make parsing key size
         if not request.csr:
             request.build_csr()
         status, data = self._post(URLS.CERTIFICATE_RENEW,
@@ -249,16 +245,16 @@ class TPPConnection(CommonConnection):
     @staticmethod
     def _parse_zone_config_to_policy(data):
         p = data["Policy"]
-        # todo: parsing and cover by tests
         if p["KeyPair"]["KeyAlgorithm"]["Locked"]:
             if p["KeyPair"]["KeyAlgorithm"]["Value"] == "RSA":
-                key_types = [KeyType(KeyTypes.RSA, key_sizes=p["KeyPair"]["KeySize"]["Value"])]
+                key_types = [KeyType(KeyType.RSA, p["KeyPair"]["KeySize"]["Value"])]
             elif p["KeyPair"]["KeyAlgorithm"]["Value"] == "ECC":
-                key_types = [KeyType(KeyTypes.ECDSA, key_curves=p["KeyPair"]["EllipticCurve"]["Value"])]
+                key_types = [KeyType(KeyType.ECDSA, p["KeyPair"]["EllipticCurve"]["Value"])]
             else:
                 raise ServerUnexptedBehavior
         else:
-            key_types = [KeyType(KeyTypes.RSA, key_sizes=KeyType.ALLOWED_SIZES), KeyType(KeyTypes.ECDSA, key_curves=KeyType.ALLOWED_CURVES)]
+            key_types = [KeyType(KeyType.RSA, x) for x in KeyType.ALLOWED_SIZES] + \
+                        [KeyType(KeyType.ECDSA, x) for x in KeyType.ALLOWED_CURVES]
         return Policy(key_types=key_types)
 
     @staticmethod
@@ -268,9 +264,7 @@ class TPPConnection(CommonConnection):
         policy = TPPConnection._parse_zone_config_to_policy(data)
         z = ZoneConfig(
             organization=CertField(s['Organization']['Value'], locked=s['Organization']['Locked']),
-            # TODO: dirty fix for OU list becoming CertField type in the zone object. Need to do refatoring to
-            #  completely fix it.
-            organizational_unit=CertField(ou[0] if ou else ou, locked=s['OrganizationalUnit']['Locked']),
+            organizational_unit=CertField(ou, locked=s['OrganizationalUnit']['Locked']),
             country=CertField(s['Country']['Value'], locked=s['Country']['Locked']),
             province=CertField(s['State']['Value'], locked=s['State']['Locked']),
             locality=CertField(s['City']['Value'], locked=s['City']['Locked']),

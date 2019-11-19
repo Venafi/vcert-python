@@ -19,8 +19,7 @@ from __future__ import absolute_import, division, generators, unicode_literals, 
 
 import datetime
 import logging as log
-from six import string_types, binary_type, text_type
-import dateutil.parser
+from six import string_types, binary_type
 
 from .errors import VenafiConnectionError, ServerUnexptedBehavior, BadData, ClientBadData
 from .http import HTTPStatus
@@ -42,20 +41,13 @@ MIME_CSV = "text/csv"
 MIME_ANY = "*/*"
 
 
-class CertField(text_type):
-    def __new__(cls, *args, **kwargs):
-        if "locked" in kwargs:
-            locked = kwargs["locked"]
-            del kwargs["locked"]
-        else:
-            locked = False
-        instance = super(CertField, cls).__new__(cls, *args, **kwargs)
-        instance.locked = locked
-        return instance
+class CertField:
+    def __init__(self, value, locked=False):
+        self.value = value
+        self.locked = locked
+
     def __bool__(self):
-        if self == CertField(None):  # magic
-            return False
-        return bool(text_type(self))
+        return bool(self.value)
 
 
 def log_errors(data):
@@ -66,50 +58,34 @@ def log_errors(data):
         log.error("%s: %s" % (e['code'], e['message']))
 
 
-class KeyTypes:
-    RSA = "rsa"
-    ECDSA = "ec"
-    # todo: check ECC value returned from tpp
-
-
-class RevocationReasons:
-    NoReason = 0
-    key_compromise = 1
-    ca_compromise = 2
-    affiliation_changed = 3
-    superseded = 4
-    cessation_of_operation = 5  # OriginalUseNoLongerValid
-
-
 class KeyType:
     ALLOWED_SIZES = [512, 1024, 2048, 3072, 4096, 8192]
     ALLOWED_CURVES = ["p256", "p384", "p521"]
-    def __init__(self, key_type, key_sizes=None, key_curves=None):
-        self.key_type = key_type.lower()
-        if self.key_type == KeyTypes.RSA:
-            if isinstance(key_sizes, list):
-                self.key_size = key_sizes
-            else:
-                self.key_size = [key_sizes]
-            for i in self.key_size:
-                if i not in KeyType.ALLOWED_SIZES:
-                    log.error("unknown size: %s" % i)
-                    raise BadData
-        elif self.key_type == KeyTypes.ECDSA:
-            if isinstance(key_curves, list):
-                self.key_curves = list([x.lower() for x in key_curves])
-            else:
-                self.key_curves = [key_curves.lower()]
-            for i in self.key_curves:
-                if i not in KeyType.ALLOWED_CURVES:
-                    log.error("unknown curve: %d" % i)
-                    raise BadData
+    RSA = "rsa"
+    ECDSA = "ec"
+
+    def __init__(self, key_type, option):
+        """
+        :param str key_type:
+        :param Union[str, int] option: key length for RSA (in int) or curve name for ECDSA
+        """
+        self.key_type = {"rsa": "rsa", "ec": "ec", "ecdsa": "ec"}.get(key_type.lower().strip())
+        if self.key_type == KeyType.RSA:
+            if option not in KeyType.ALLOWED_SIZES:
+                log.error("unknown size: %s" % option)
+                raise BadData
+        elif self.key_type == KeyType.ECDSA:
+            option = {"secp521r1": "p521", "secp384r1": "p384", "secp256r1": "p256", "p256": "p256", "p384":"p384", "p521": "p521"}[option.lower().strip()]
+            if option not in KeyType.ALLOWED_CURVES:
+                log.error("unknown curve: %s, should be one of %s" % (option, KeyType.ALLOWED_CURVES))
+                raise BadData
         else:
             log.error("unknown key type: %s" % key_type)
             raise BadData
+        self.option = option
 
     def __repr__(self):
-        return "KeyType(%s, %s)" % (self.key_type, self.key_size or self.key_curves)
+        return "KeyType(%s, %s)" % (self.key_type, self.option)
 
 
 class ZoneConfig:
@@ -131,6 +107,7 @@ class ZoneConfig:
         self.locality = locality
         self.policy = policy
         self.key_type = key_type
+
 
 class Policy:
     def __init__(self, policy_id=None, company_id=None, name=None, system_generated=None,
@@ -168,31 +145,9 @@ class Policy:
         self.key_types = key_types
         self.key_reuse = key_reuse
 
-    @classmethod
-    def from_server_response(cls, d):
-        """
-        :rtype Policy:
-        """
-        policy = cls(d['certificatePolicyType'], d['id'], d['companyId'], d['name'], d['systemGenerated'],
-                     dateutil.parser.parse(d['creationDate']), d.get('certificateProviderId'),
-                     d.get('subjectCNRegexes', []), d.get('subjectORegexes', []), d.get('subjectOURegexes', []),
-                     d.get('subjectSTRegexes', []), d.get('subjectLRegexes', []), d.get('subjectCRegexes', []),
-                     d.get('sanRegexes', []), [], d.get('keyReuse'))
-        for kt in d.get('keyTypes', []):
-            key_type = kt['keyType'].lower()
-            if key_type == KeyTypes.RSA:
-                policy.key_types.append(KeyType(key_type=key_type, key_sizes=kt['keyLengths']))
-            elif key_type == KeyTypes.ECDSA:
-                policy.key_types.append(KeyType(key_type=key_type, key_curves=kt['keyCurve']))
-            else:
-                log.error("Unknow key type: %s" % kt['keyType'])
-                raise ServerUnexptedBehavior
-        return policy
-
     def __repr__(self):
         return "Policy:\n" + "\n".join(["  %s: %s" % (k, v) for k, v in (
             ("Id", self.id),
-            ("Type", self.policy_type),
             ("Name", self.name),
             ("KeyReuse", self.key_reuse),
             ("Created", self.creation_date)
@@ -208,9 +163,7 @@ class CertificateRequest:
                  email_addresses="",
                  ip_addresses=None,
                  attributes=None,
-                 key_type=KeyTypes.RSA,
-                 key_length=2048,
-                 key_curve="P521",
+                 key_type=KeyType(KeyType.RSA, 2048),
                  private_key=None,
                  key_password=None,
                  csr=None,
@@ -229,10 +182,7 @@ class CertificateRequest:
         :param list[str] email_addresses: List of email addresses
         :param list[str] ip_addresses: List of IP addresses
         :param attributes:
-        :param str key_type: Type of asymmetric cryptography algorithm. Available values in vcert.KeyTypes.
-        :param int key_length: Key length for rsa algorithm
-        :param str key_curve: Curves name for ecdsa algorithm. Choices are "P521", "P384", "P256", "P224". P521 is
-        set by default.
+        :param KeyType key_type: Type of asymmetric cryptography algorithm. Default is RSA 2048.
         :param asymmetric.PrivateKey private_key: String with pem encoded private key or  asymmetric.PrivateKey
         :param str key_password: Password for encrypted private key. Not supported at this moment.
         :param str csr: Certificate Signing Request in pem format
@@ -247,12 +197,10 @@ class CertificateRequest:
         self.ip_addresses = ip_addresses or []
         self.attributes = attributes
         self.key_password = key_password
-        self.key_length = key_length
         self.key_type = key_type
-        self.key_curve = key_curve
         self.private_key = private_key
         self.public_key = None
-        self.public_key_from_private()
+        self._public_key_from_private()
         self.friendly_name = friendly_name or common_name
         self.id = cert_id
         self.common_name = common_name
@@ -272,16 +220,17 @@ class CertificateRequest:
         elif key == "common_name":
             if isinstance(value, binary_type):
                 value = value.decode()
+        elif key == "key_type":
+            if value is not None and not isinstance(value, KeyType):
+                raise ClientBadData("key_type should be instance of vcert.KeyType")
         elif key == "private_key":
             if isinstance(value, string_types):
                 value = serialization.load_pem_private_key(value.encode(),
                                                            password=self.key_password, backend=default_backend())
             if isinstance(value, rsa.RSAPrivateKey):
-                self.key_type = KeyTypes.RSA
-                self.key_length = value.key_size
+                self.key_type = KeyType(KeyType.RSA, value.key_size)
             elif isinstance(value, ec.EllipticCurvePrivateKey):
-                self.key_type = KeyTypes.ECDSA
-                self.key_curve = value.curve
+                self.key_type = KeyType(KeyType.ECDSA, value.curve.name)
             elif value is None:
                 self.public_key = None
             else:
@@ -312,29 +261,32 @@ class CertificateRequest:
                     pass
         self.__dict__[key] = value
 
+    def _gen_key(self):
+        if self.key_type.key_type == KeyType.RSA:
+            self.private_key = rsa.generate_private_key(
+                public_exponent=65537,
+                key_size=self.key_type.option,
+                backend=default_backend()
+            )
+        elif self.key_type.key_type == KeyType.ECDSA:
+            if self.key_type.option == "p521":
+                curve = ec.SECP521R1()
+            elif self.key_type.option == "p384":
+                curve = ec.SECP384R1()
+            elif self.key_type.option == "p256":
+                curve = ec.SECP256R1()
+            else:
+                curve = ec.SECP256R1()
+            self.private_key = ec.generate_private_key(
+                curve, default_backend()
+            )
+        else:
+            raise ClientBadData
+        self._public_key_from_private()
+
     def build_csr(self):
         if not self.private_key:
-            if self.key_type == KeyTypes.RSA:
-                self.private_key = rsa.generate_private_key(
-                                                            public_exponent=65537,
-                                                            key_size=self.key_length,
-                                                            backend=default_backend()
-                                                        )
-            elif self.key_type == KeyTypes.ECDSA:
-                if self.key_curve == "p521":
-                    curve = ec.SECP521R1()
-                elif self.key_curve == "p384":
-                    curve = ec.SECP384R1()
-                elif self.key_curve == "p256":
-                    curve = ec.SECP256R1()
-                else:
-                    curve = ec.SECP256R1()
-                self.private_key = ec.generate_private_key(
-                    curve, default_backend()
-                )
-            else:
-                raise ClientBadData
-            self.public_key_from_private()
+            self._gen_key()
 
         csr_builder = x509.CertificateSigningRequestBuilder()
         subject = [x509.NameAttribute(NameOID.COMMON_NAME, self.common_name,)]
@@ -391,7 +343,7 @@ class CertificateRequest:
             encryption_algorithm=encryption,
         ).decode()
 
-    def public_key_from_private(self):
+    def _public_key_from_private(self):
         if self.private_key is None:
             return
         self.public_key = self.private_key.public_key()
@@ -408,23 +360,28 @@ class CertificateRequest:
         :param ZoneConfig zone:
         """
         if zone.organization.locked or (not self.organization and zone.organization):
-            self.organization = zone.organization
+            self.organization = zone.organization.value
         if zone.organizational_unit.locked or (not self.organizational_unit and zone.organizational_unit):
-            self.organizational_unit = zone.organizational_unit
+            self.organizational_unit = zone.organizational_unit.value
         if zone.country.locked or (not self.country and zone.country):
-            self.country = zone.country
+            self.country = zone.country.value
         if zone.province.locked or (not self.province and zone.province):
-            self.province = zone.province
+            self.province = zone.province.value
         if zone.locality.locked or (not self.locality and zone.locality):
-            self.locality = zone.locality
+            self.locality = zone.locality.value
         if zone.key_type:
-            self.key_type = zone.key_type.key_type
-            if self.key_type == KeyTypes.ECDSA:
-                self.key_curve = zone.key_type.key_curves[0]
-            else:
-                self.key_length = zone.key_type.key_size[0]
+            self.key_type = zone.key_type
+
 
 class RevocationRequest:
+    class RevocationReasons:
+        NoReason = 0
+        key_compromise = 1
+        ca_compromise = 2
+        affiliation_changed = 3
+        superseded = 4
+        cessation_of_operation = 5  # OriginalUseNoLongerValid
+
     def __init__(self, req_id=None, thumbprint=None,  reason=RevocationReasons.NoReason,
                  comments="Revoked via api with python bindings", disable=True):
         """
@@ -439,15 +396,6 @@ class RevocationRequest:
 
 
 class CommonConnection:
-    def __repr__(self):
-        return str(self)
-
-    def ping(self):
-        """
-
-        :return:
-        """
-        raise NotImplementedError
 
     def auth(self):
         """
