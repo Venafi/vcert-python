@@ -262,6 +262,12 @@ class TPPConnection(CommonConnection):
         s = data["Policy"]["Subject"]
         ou = s['OrganizationalUnit'].get('Values')
         policy = TPPConnection._parse_zone_config_to_policy(data)
+        if data["Policy"]["KeyPair"]["KeyAlgorithm"]["Value"] == "RSA":
+            key_type = KeyType(KeyType.RSA, data["Policy"]["KeyPair"]["KeySize"]["Value"])
+        elif data["Policy"]["KeyPair"]["KeyAlgorithm"]["Value"] == "ECC":
+            key_type = KeyType(KeyType.ECDSA, data["Policy"]["KeyPair"]["EllipticCurve"]["Value"])
+        else:
+            key_type = None
         z = ZoneConfig(
             organization=CertField(s['Organization']['Value'], locked=s['Organization']['Locked']),
             organizational_unit=CertField(ou, locked=s['OrganizationalUnit']['Locked']),
@@ -269,7 +275,7 @@ class TPPConnection(CommonConnection):
             province=CertField(s['State']['Value'], locked=s['State']['Locked']),
             locality=CertField(s['City']['Value'], locked=s['City']['Locked']),
             policy=policy,
-            key_type=policy.key_types[0] if policy.key_types else None,
+            key_type=key_type,
         )
         return z
 
