@@ -4,7 +4,7 @@ from setuptools import setup
 
 
 setup(name='vcert',
-      version='0.6.9',
+      version='0.7.0',
       url="https://github.com/Venafi/vcert-python",
       packages=['vcert'],
       install_requires=['requests', 'python-dateutil>=2.6.1', 'certvalidator', 'six',
