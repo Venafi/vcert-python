@@ -370,7 +370,7 @@ class CertificateRequest:
             self.province = zone.province.value
         if zone.locality.locked or (not self.locality and zone.locality):
             self.locality = zone.locality.value
-        if zone.key_type:
+        if not self.key_type and zone.key_type:
             self.key_type = zone.key_type
 
 
