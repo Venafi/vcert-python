@@ -356,6 +356,7 @@ class CertificateRequest:
         ).decode()
 
     def update_from_zone_config(self, zone):
+        # TODO: check request against zone configuration
         """
         :param ZoneConfig zone:
         """

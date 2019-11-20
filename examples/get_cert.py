@@ -17,7 +17,7 @@
 
 from __future__ import print_function
 from vcert import (CertificateRequest, Connection, CloudConnection,
-                   FakeConnection, TPPConnection, RevocationRequest)
+                   FakeConnection, TPPConnection, RevocationRequest, KeyType)
 import string
 import random
 import logging
@@ -58,6 +58,10 @@ def main():
         # Specify ordering certificates in chain. Root can be "first" or "last". By default it last. You also can
         # specify "ignore" to ignore chain (supported only for Platform).
 
+    # configure key type, RSA example
+    # request.key_type = KeyType(KeyType.RSA, 4096)
+    # or set it to ECDSA
+    request.key_type = KeyType(KeyType.ECDSA, "p521")
     # Update certificate request from zone
     zone_config = conn.read_zone_conf(zone)
     request.update_from_zone_config(zone_config)
