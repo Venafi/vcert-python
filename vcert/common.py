@@ -163,7 +163,7 @@ class CertificateRequest:
                  email_addresses="",
                  ip_addresses=None,
                  attributes=None,
-                 key_type=KeyType(KeyType.RSA, 2048),
+                 key_type=None,
                  private_key=None,
                  key_password=None,
                  csr=None,
@@ -262,6 +262,8 @@ class CertificateRequest:
         self.__dict__[key] = value
 
     def _gen_key(self):
+        if self.key_type == None:
+            self.key_type = KeyType(KeyType.RSA, 2048)
         if self.key_type.key_type == KeyType.RSA:
             self.private_key = rsa.generate_private_key(
                 public_exponent=65537,
