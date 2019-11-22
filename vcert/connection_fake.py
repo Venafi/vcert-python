@@ -134,7 +134,7 @@ class FakeConnection(CommonConnection):
 
     def read_zone_conf(self, tag):
         policy = Policy()
-        policy.key_types = [KeyType(key_type="rsa",key_sizes=[1024, 2048, 4096, 8192])]
+        policy.key_types = list([KeyType(KeyType.RSA, x) for x in KeyType.ALLOWED_SIZES])
         z = ZoneConfig(
             organization=CertField(""),
             organizational_unit=CertField(""),
