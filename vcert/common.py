@@ -87,6 +87,9 @@ class KeyType:
     def __repr__(self):
         return "KeyType(%s, %s)" % (self.key_type, self.option)
 
+    def __eq__(self, other):
+        return self.key_type == other.key_type and self.option == other.option
+
 
 class ZoneConfig:
     def __init__(self, organization, organizational_unit, country, province, locality,
