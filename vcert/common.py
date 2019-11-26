@@ -88,6 +88,8 @@ class KeyType:
         return "KeyType(%s, %s)" % (self.key_type, self.option)
 
     def __eq__(self, other):
+        if not isinstance(other, KeyType):
+            return False
         return self.key_type == other.key_type and self.option == other.option
 
 
