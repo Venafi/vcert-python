@@ -223,7 +223,9 @@ class TPPConnection(CommonConnection):
                 request.organizational_unit = a.value
         for e in cert.extensions:
             if e.oid == x509.OID_SUBJECT_ALTERNATIVE_NAME:
-                request.san_dns = list([x.value for x in e.value])
+                request.san_dns = list([x.value for x in e.value if isinstance(x, x509.DNSName)])
+                request.email_addresses = list([x.value for x in e.value if isinstance(x, x509.RFC822Name)])
+                request.ip_addresses = list([x.value.exploded for x in e.value if isinstance(x, x509.IPAddress)])
         if cert.signature_algorithm_oid in (algos.ECDSA_WITH_SHA1, algos.ECDSA_WITH_SHA224, algos.ECDSA_WITH_SHA256,
                                             algos.ECDSA_WITH_SHA384, algos.ECDSA_WITH_SHA512):
             request.key_type = (KeyType.ECDSA, KeyType.ALLOWED_CURVES[0])
