@@ -38,16 +38,18 @@ def main():
     fake = environ.get('FAKE')
 
     if fake:
-        # If fake set to true, test connection will be used.
+        # If fake is true, test connection will be used.
         conn = Connection(fake=True)
     else:
-        # If your TPP server certificate signed with your own CA or available only via proxy you can specify requests vars
+        # Connection will be chosen automatically based on which arguments are passed.
+        # If token is passed Venafi Cloud connection will be used. 
+        # If user, password, and URL Venafi Platform (TPP) will be used.
         conn = Connection(url=url, token=token, user=user, password=password,
                           http_request_kwargs={"verify": False})
-        # connection will be chosen automatically based on what arguments are passed,
-        # If token is passed Venafi Cloud connection will be used. if user, password, and URL Venafi Platform (TPP) will
-        # be used.
-        conn = Connection(url=url, token=token, user=user, password=password)
+        # If your TPP server certificate signed with your own CA, or available only via proxy, you can specify
+        # a trust bundle using requests vars:
+        #conn = Connection(url=url, token=token, user=user, password=password,
+        #                  http_request_kwargs={"verify": "/path-to/bundle.pem"})
 
     request = CertificateRequest(common_name=randomword(10) + ".venafi.example.com")
     request.san_dns = ["www.client.venafi.example.com", "ww1.client.venafi.example.com"]
@@ -98,9 +100,12 @@ def main():
                 break
             else:
                 time.sleep(5)
-        print(new_cert.cert)
+        print(new_cert.cert, new_request.private_key_pem, sep="\n")
         fn = open("/tmp/new_cert.pem", "w")
         fn.write(new_cert.cert)
+        fn = open("/tmp/new_cert.key", "w")
+        fn.write(new_request.private_key_pem)
+        fn.close()
     if isinstance(conn, TPPConnection):
         revocation_req = RevocationRequest(req_id=request.id,
                                            comments="Just for test")
