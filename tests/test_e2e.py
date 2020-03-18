@@ -38,12 +38,12 @@ logging.getLogger("urllib3").setLevel(logging.DEBUG)
 from assets import *
 FAKE = environ.get('FAKE')
 
-TOKEN = environ.get('TOKEN')
+TOKEN = environ.get('CLOUD_APIKEY')
 
-USER = environ.get('TPPUSER')
-PASSWORD = environ.get('TPPPASSWORD')
-TPPURL = environ.get('TPPURL')
-CLOUDURL = environ.get('CLOUDURL')
+USER = environ.get('TPP_USER')
+PASSWORD = environ.get('TPP_PASSWORD')
+TPPURL = environ.get('TPP_URL')
+CLOUDURL = environ.get('CLOUD_URL')
 RANDOM_DOMAIN = environ.get("RANDOM_DOMAIN")
 if not isinstance(RANDOM_DOMAIN, text_type):
     RANDOM_DOMAIN = RANDOM_DOMAIN.decode()
@@ -66,7 +66,7 @@ class TestEnrollMethods(unittest.TestCase):
 
     def test_cloud(self):
         print("Using Cloud connection")
-        zone = environ['CLOUDZONE']
+        zone = environ['CLOUD_ZONE']
         conn = CloudConnection(token=TOKEN, url=CLOUDURL)
         cn = randomword(10) + ".venafi.example.com"
         cert_id, pkey, sn, _ = enroll(conn, zone, cn)
@@ -76,8 +76,8 @@ class TestEnrollMethods(unittest.TestCase):
         self.renew_without_key_reuse(conn, zone)
 
     def test_tpp(self):
-        zone = environ['TPPZONE']
-        ecdsa_zone = environ['TPPZONE_ECDSA']
+        zone = environ['TPP_ZONE']
+        ecdsa_zone = environ['TPP_ZONE_ECDSA']
         print("Using TPP conection")
         conn = TPPConnection(USER, PASSWORD, TPPURL, http_request_kwargs={"verify": "/tmp/chain.pem"})
         cn = randomword(10) + ".venafi.example.com"

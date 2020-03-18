@@ -7,13 +7,13 @@ test:
 	--env PYTHONPATH=$$PYTHONPATH \
 	--env PYTHONUNBUFFERED=$$PYTHONUNBUFFERED \
 	--env FAKE=$$FAKE \
-	--env TPPUSER=$$TPPUSER \
-	--env TPPPASSWORD=$$TPPPASSWORD \
-	--env TPPURL=$$TPPURL \
-	--env TPPZONE=$$TPPZONE \
-	--env TOKEN=$$TOKEN \
-	--env CLOUDZONE=$$CLOUDZONE \
-	--env CLOUDURL=$$CLOUDURL \
+	--env TPP_USER=$$TPP_USER \
+	--env TPP_PASSWORD=$$TPP_PASSWORD \
+	--env TPP_URL=$$TPP_URL \
+	--env TPP_ZONE=$$TPP_ZONE \
+	--env CLOUD_APIKEY=$$CLOUD_APIKEY \
+	--env CLOUD_ZONE=$$CLOUD_ZONE \
+	--env CLOUD_URL=$$CLOUD_URL \
 	 vcert-tests
 
 publish:
