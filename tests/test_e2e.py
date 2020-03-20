@@ -109,6 +109,7 @@ class TestEnrollMethods(unittest.TestCase):
     def renew_without_key_reuse(self, conn, zone):
         cn = randomword(10) + ".venafi.example.com"
         cert_id, pkey, sn, public_key = enroll(conn, zone, cn)
+        time.sleep(5)
         req = CertificateRequest(cert_id=cert_id)
         conn.renew_cert(req, reuse_key=False)
         t = time.time()
