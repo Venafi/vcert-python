@@ -48,7 +48,7 @@ class URLS:
     ZONE_CONFIG = "certificates/checkpolicy"
 
 
-TOKEN_HEADER_NAME = "x-venafi-api-key"
+TOKEN_HEADER_NAME = "x-venafi-api-key"  # nosec
 
 
 class TPPConnection(CommonConnection):
