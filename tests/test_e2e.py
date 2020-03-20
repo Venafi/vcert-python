@@ -70,9 +70,12 @@ class TestEnrollMethods(unittest.TestCase):
         conn = CloudConnection(token=TOKEN, url=CLOUDURL)
         cn = randomword(10) + ".venafi.example.com"
         cert_id, pkey, sn, _ = enroll(conn, zone, cn)
+        time.sleep(5)
         cert = renew(conn, cert_id, pkey, sn, cn)
+        time.sleep(5)
         renew_by_thumbprint(conn, cert)
         req = CertificateRequest(cert_id=cert_id)
+        time.sleep(5)
         self.renew_without_key_reuse(conn, zone)
 
     def test_tpp(self):
