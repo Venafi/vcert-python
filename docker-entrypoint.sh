@@ -4,6 +4,6 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-py.test
+py.test -v
 bandit -r vcert/
 safety check
