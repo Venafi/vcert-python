@@ -27,10 +27,10 @@ logging.getLogger("urllib3").setLevel(logging.ERROR)
 
 def main():
     # Get credentials from environment variables
-    token = environ.get('TOKEN')
-    user = environ.get('TPPUSER')
-    password = environ.get('TPPPASSWORD')
-    url = environ.get('TPPURL')
+    token = environ.get('CLOUD_APIKEY')
+    user = environ.get('TPP_USER')
+    password = environ.get('TPP_PASSWORD')
+    url = environ.get('TPP_URL')
     zone = environ.get("ZONE")
     # connection will be chosen automatically based on what arguments are passed,
     # If token is passed Venafi Cloud connection will be used. if user, password, and URL Venafi Platform (TPP) will
