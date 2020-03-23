@@ -58,7 +58,7 @@ class CondorChainOptions:
     ROOT_LAST = "EE_FIRST"
 
 
-TOKEN_HEADER_NAME = "tppl-api-key"
+TOKEN_HEADER_NAME = "tppl-api-key"  # nosec
 
 
 class CertificateStatusResponse:
