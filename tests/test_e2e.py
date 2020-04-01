@@ -105,7 +105,7 @@ class TestEnrollMethods(unittest.TestCase):
         self.renew_without_key_reuse(conn, zone)
         cn = randomword(10) + ".venafi.example.com"
         cert = enroll_with_zone_update(conn, ecdsa_zone, cn)
-        config_dn = conn._read_config_dn(conn._get_policy_dn(zone) + "\\" + cn, "Origin")
+        config_dn = conn._read_config_dn(conn._get_policy_dn(ecdsa_zone) + "\\" + cn, "Origin")
         self.assertEqual(config_dn["Values"][0], "Python-SDK ECDSA")
         cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
         key = cert.public_key()
