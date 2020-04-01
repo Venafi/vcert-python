@@ -86,6 +86,8 @@ class TestEnrollMethods(unittest.TestCase):
         cn = randomword(10) + ".venafi.example.com"
         cert_id, pkey, sn, _ = enroll(conn, zone, cn)
         time.sleep(5)
+        config_dn = conn._read_config_dn(conn._get_policy_dn(zone) + "\\"+cn, "Origin")
+        self.assertEqual(config_dn["Values"][0], "Venafi VCert-Python")
         cert = renew(conn, cert_id, pkey, sn, cn)
         time.sleep(5)
         renew_by_thumbprint(conn, cert)
@@ -101,7 +103,10 @@ class TestEnrollMethods(unittest.TestCase):
         csr = open("/tmp/csr-test.csr.csr").read()
         enroll(conn, zone, private_key=key, csr=csr)
         self.renew_without_key_reuse(conn, zone)
-        cert = enroll_with_zone_update(conn, ecdsa_zone, randomword(10) + ".venafi.example.com")
+        cn = randomword(10) + ".venafi.example.com"
+        cert = enroll_with_zone_update(conn, ecdsa_zone, cn)
+        config_dn = conn._read_config_dn(conn._get_policy_dn(zone) + "\\" + cn, "Origin")
+        self.assertEqual(config_dn["Values"][0], "Python-SDK ECDSA")
         cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
         key = cert.public_key()
         self.assertEqual(key.curve.name, "secp521r1")
@@ -127,7 +132,7 @@ class TestEnrollMethods(unittest.TestCase):
         self.assertNotEqual(public_key_new, public_key)
 
 def enroll_with_zone_update(conn, zone, cn=None):
-    request = CertificateRequest(common_name=cn)
+    request = CertificateRequest(common_name=cn, origin="Python-SDK ECDSA")
     zc = conn.read_zone_conf(zone)
     request.update_from_zone_config(zc)
     conn.request_cert(request, zone)

@@ -46,6 +46,7 @@ class URLS:
     CERTIFICATE_SEARCH = "certificates/"
     CERTIFICATE_IMPORT = "certificates/import"
     ZONE_CONFIG = "certificates/checkpolicy"
+    CONFIG_READ_DN = "Config/ReadDn"
 
 
 TOKEN_HEADER_NAME = "x-venafi-api-key"  # nosec
@@ -132,11 +133,18 @@ class TPPConnection(CommonConnection):
     def request_cert(self, request, zone):
         if not request.csr:
             request.build_csr()
-        status, data = self._post(URLS.CERTIFICATE_REQUESTS,
-                                  data={"PolicyDN": self._get_policy_dn(zone),
-                                        "PKCS10": request.csr,
-                                        "ObjectName": request.friendly_name,
-                                        "DisableAutomaticRenewal": "true"})
+        request_data = {"PolicyDN": self._get_policy_dn(zone),
+                 "PKCS10": request.csr,
+                 "ObjectName": request.friendly_name,
+                 "DisableAutomaticRenewal": "true"}
+        if request.origin:
+            request_data["Origin"] = request.origin
+            ca_origin = {"Name": "Origin", "Value": request.origin}
+            if request_data.get("CASpecificAttributes"):
+                request_data["CASpecificAttributes"].append(ca_origin)
+            else:
+                request_data["CASpecificAttributes"] = [ca_origin]
+        status, data = self._post(URLS.CERTIFICATE_REQUESTS, data=request_data)
         if status == HTTPStatus.OK:
             request.id = data['CertificateDN']
             log.debug("Certificate sucessfully requested with request id %s." % request.id)
@@ -316,3 +324,12 @@ class TPPConnection(CommonConnection):
         if not data['Certificates']:
             raise ClientBadData("Certificate not found by thumbprint")
         return data['Certificates'][0]['DN']
+
+    def _read_config_dn(self, dn, attribute_name):
+        status, data = self._post(URLS.CONFIG_READ_DN, {
+            "ObjectDN": dn,
+            "AttributeName": attribute_name,
+        })
+        if status != HTTPStatus.OK:
+            raise ServerUnexptedBehavior("")
+        return data
