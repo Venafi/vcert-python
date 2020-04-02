@@ -179,7 +179,8 @@ class CertificateRequest:
                  organizational_unit=None,
                  country=None,
                  province=None,
-                 locality=None
+                 locality=None,
+                 origin=None
                  ):
         """
         :param str cert_id: Certificate request id. Generating by server.
@@ -194,6 +195,7 @@ class CertificateRequest:
         :param str friendly_name: Name for certificate in the platform. If not specified common name will be used.
         :param str common_name: Common name of certificate. Usually domain name.
         :param str thumbprint: Certificate thumbprint. Can be used for identifying certificate on the platform.
+        :param str origin: application identifier
         """
 
         self.chain_option = "last"
@@ -217,6 +219,7 @@ class CertificateRequest:
         self.locality = locality
         # CSR should be last, because it checks subject to match with over parameters
         self.csr = csr
+        self.origin = origin or "Venafi VCert-Python"
 
     def __setattr__(self, key, value):
         if key == "key_password":
