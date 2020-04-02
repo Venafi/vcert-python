@@ -1,6 +1,6 @@
 pytest
 safety
 bandit
-twine
+twine>=3.1.1
 setuptools
 wheel
