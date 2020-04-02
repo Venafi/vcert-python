@@ -1,3 +1,6 @@
 pytest
 safety
 bandit
+twine
+setuptools
+wheel
