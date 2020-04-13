@@ -56,56 +56,82 @@ def randomword(length):
 
 class TestEnrollMethods(unittest.TestCase):
 
-    def test_fake(self):
-        print("Using fake connection")
+    def __init__(self, *args, **kwargs):
+        self.cloud_zone = environ['CLOUD_ZONE']
+        self.tpp_zone = environ['TPP_ZONE']
+        self.tpp_zone_ecdsa = environ['TPP_ZONE_ECDSA']
+        self.cloud_conn = CloudConnection(token=TOKEN, url=CLOUDURL)
+        self.tpp_conn = TPPConnection(USER, PASSWORD, TPPURL, http_request_kwargs={"verify": "/tmp/chain.pem"})
+        super(TestEnrollMethods, self).__init__(*args, **kwargs)
+
+    def test_fake_enroll(self):
         conn = FakeConnection()
         zone = "Default"
         cn = randomword(10) + ".venafi.example.com"
-        cert_id, pkey, sn, _ = enroll(conn, zone, cn)
+        enroll(conn, zone, cn)
         # renew(conn, cert_id, pkey)
 
-    def test_cloud(self):
-        print("Using Cloud connection")
-        zone = environ['CLOUD_ZONE']
-        conn = CloudConnection(token=TOKEN, url=CLOUDURL)
+    def test_cloud_enroll(self):
         cn = randomword(10) + ".venafi.example.com"
-        cert_id, pkey, sn, _ = enroll(conn, zone, cn)
-        time.sleep(5)
-        cert = renew(conn, cert_id, pkey, sn, cn)
-        time.sleep(5)
-        renew_by_thumbprint(conn, cert)
-        req = CertificateRequest(cert_id=cert_id)
-        time.sleep(5)
-        self.renew_without_key_reuse(conn, zone)
+        enroll(self.cloud_conn, self.cloud_zone, cn)
 
-    def test_tpp(self):
-        zone = environ['TPP_ZONE']
-        ecdsa_zone = environ['TPP_ZONE_ECDSA']
-        print("Using TPP conection")
-        conn = TPPConnection(USER, PASSWORD, TPPURL, http_request_kwargs={"verify": "/tmp/chain.pem"})
+    def test_cloud_renew(self):
         cn = randomword(10) + ".venafi.example.com"
-        cert_id, pkey, sn, _ = enroll(conn, zone, cn)
-        time.sleep(5)
-        config_dn = conn._read_config_dn(conn._get_policy_dn(zone) + "\\"+cn, "Origin")
+        cert_id, pkey, cert, _ = enroll(self.cloud_conn, self.cloud_zone, cn)
+        renew(self.cloud_conn, cert_id, pkey, cert.serial_number, cn)
+
+    def test_cloud_renew_by_thumbprint(self):
+        cn = randomword(10) + ".venafi.example.com"
+        cert_id, pkey, cert, _ = enroll(self.cloud_conn, self.cloud_zone, cn)
+        renew_by_thumbprint(self.cloud_zone, cert)
+
+    def test_cloud_renew_without_key_reuse(self):
+        self.renew_without_key_reuse(self.cloud_conn, self.cloud_zone)
+
+    def test_tpp_enroll(self):
+        cn = randomword(10) + ".venafi.example.com"
+        cert_id, pkey, cert, _ = enroll(self.tpp_conn, self.tpp_zone, cn)
+        config_dn = self.tpp_conn._read_config_dn(self.tpp_conn._get_policy_dn(self.tpp_zone) + "\\"+cn, "Origin")
         self.assertEqual(config_dn["Values"][0], "Venafi VCert-Python")
-        cert = renew(conn, cert_id, pkey, sn, cn)
-        time.sleep(5)
-        renew_by_thumbprint(conn, cert)
 
+    def test_tpp_enroll_origin(self):
         cn = randomword(10) + ".venafi.example.com"
-        enroll(conn, ecdsa_zone, cn, TEST_KEY_ECDSA[0], TEST_KEY_ECDSA[1])
-        cn = randomword(10) + ".venafi.example.com"
-        enroll(conn, zone, cn, TEST_KEY_RSA_4096[0], TEST_KEY_RSA_4096[1])
-        cn = randomword(10) + ".venafi.example.com"
-        enroll(conn, zone, cn, TEST_KEY_RSA_2048_ENCRYPTED[0], TEST_KEY_RSA_2048_ENCRYPTED[1], 'venafi')
+        cert_id, pkey, cert, _ = enroll(self.tpp_conn, self.tpp_zone, cn)
+        config_dn = self.tpp_conn._read_config_dn(self.tpp_conn._get_policy_dn(self.tpp_zone) + "\\"+cn, "Origin")
+        self.assertEqual(config_dn["Values"][0], "Venafi VCert-Python")
 
+    def test_tpp_renew(self):
+        cn = randomword(10) + ".venafi.example.com"
+        cert_id, pkey, cert, _ = enroll(self.tpp_conn, self.tpp_zone, cn)
+        cert = renew(self.tpp_conn, cert_id, pkey, cert.serial_number, cn)
+
+    def test_renew_by_thumbprint(self):
+        cn = randomword(10) + ".venafi.example.com"
+        cert_id, pkey, cert, _ = enroll(self.tpp_conn, self.tpp_zone, cn)
+        renew_by_thumbprint(self.tpp_conn, cert)
+
+    def test_tpp_enroll_ecdsa(self):
+        cn = randomword(10) + ".venafi.example.com"
+        enroll(self.tpp_conn, self.tpp_zone_ecdsa, cn, TEST_KEY_ECDSA[0], TEST_KEY_ECDSA[1])
+
+    def test_tpp_enroll_with_custom_key(self):
+        cn = randomword(10) + ".venafi.example.com"
+        enroll(self.tpp_conn, self.tpp_zone, cn, TEST_KEY_RSA_4096[0], TEST_KEY_RSA_4096[1])
+
+    def test_tpp_enroll_with_encrypted_key(self):
+        cn = randomword(10) + ".venafi.example.com"
+        enroll(self.tpp_conn, self.tpp_zone, cn, TEST_KEY_RSA_2048_ENCRYPTED[0], TEST_KEY_RSA_2048_ENCRYPTED[1], 'venafi')
+
+    def test_tpp_enroll_with_custom_csr(self):
         key = open("/tmp/csr-test.key.pem").read()
         csr = open("/tmp/csr-test.csr.csr").read()
-        enroll(conn, zone, private_key=key, csr=csr)
-        self.renew_without_key_reuse(conn, zone)
+        enroll(self.tpp_conn, self.tpp_zone, private_key=key, csr=csr)
+        self.renew_without_key_reuse(self.tpp_conn, self.tpp_zone)
+
+    def test_tpp_enroll_with_zone_update_and_custom_origin(self):
         cn = randomword(10) + ".venafi.example.com"
-        cert = enroll_with_zone_update(conn, ecdsa_zone, cn)
-        config_dn = conn._read_config_dn(conn._get_policy_dn(ecdsa_zone) + "\\" + cn, "Origin")
+        cert = enroll_with_zone_update(self.tpp_conn, self.tpp_zone_ecdsa, cn)
+        config_dn = self.tpp_conn._read_config_dn(self.tpp_conn._get_policy_dn(self.tpp_zone_ecdsa) + "\\" + cn, "Origin")
         self.assertEqual(config_dn["Values"][0], "Python-SDK ECDSA")
         cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
         key = cert.public_key()
@@ -113,7 +139,7 @@ class TestEnrollMethods(unittest.TestCase):
 
     def renew_without_key_reuse(self, conn, zone):
         cn = randomword(10) + ".venafi.example.com"
-        cert_id, pkey, sn, public_key = enroll(conn, zone, cn)
+        cert_id, pkey, _, public_key = enroll(conn, zone, cn)
         time.sleep(5)
         req = CertificateRequest(cert_id=cert_id)
         conn.renew_cert(req, reuse_key=False)
@@ -204,7 +230,7 @@ def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None
     print(source_public_key_pem)
     print(cert_public_key_pem)
     assert source_public_key_pem == cert_public_key_pem
-    return request.id, request.private_key_pem, cert.serial_number, cert_public_key_pem
+    return request.id, request.private_key_pem, cert, cert_public_key_pem
 
 
 def renew(conn, cert_id, pkey, sn, cn):
