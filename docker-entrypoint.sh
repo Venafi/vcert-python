@@ -6,4 +6,4 @@ set -o pipefail
 
 bandit -r vcert/
 safety check
-py.test -v --junit-xml=junit.xml
+py.test -v --junit-xml=junit.xml --junit-prefix=`python3 -V | tr ' ' '_'`
