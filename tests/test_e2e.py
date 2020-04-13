@@ -78,12 +78,14 @@ class TestEnrollMethods(unittest.TestCase):
     def test_cloud_renew(self):
         cn = randomword(10) + ".venafi.example.com"
         cert_id, pkey, cert, _ = enroll(self.cloud_conn, self.cloud_zone, cn)
+        time.sleep(5)
         renew(self.cloud_conn, cert_id, pkey, cert.serial_number, cn)
 
     def test_cloud_renew_by_thumbprint(self):
         cn = randomword(10) + ".venafi.example.com"
         cert_id, pkey, cert, _ = enroll(self.cloud_conn, self.cloud_zone, cn)
-        renew_by_thumbprint(self.cloud_zone, cert)
+        time.sleep(5)
+        renew_by_thumbprint(self.cloud_conn, cert)
 
     def test_cloud_renew_without_key_reuse(self):
         self.renew_without_key_reuse(self.cloud_conn, self.cloud_zone)
