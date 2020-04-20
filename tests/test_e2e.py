@@ -133,6 +133,7 @@ class TestCloudMethods(unittest.TestCase):
         req, cert = simple_enroll(self.cloud_conn, self.cloud_zone)
         cert = x509.load_pem_x509_certificate(cert.cert.encode(),  default_backend())
         fingerprint = binascii.hexlify(cert.fingerprint(hashes.SHA1())).decode()
+        time.sleep(1)
         found = self.cloud_conn.search_by_thumbprint(fingerprint)
         self.assertEqual(found.manage_id, req.manage_id)
 
@@ -262,7 +263,7 @@ class TestTPPMethods(unittest.TestCase):
 
     def test_revoke_without_disable(self):
         req, cert = simple_enroll(self.tpp_conn, self.tpp_zone)
-        rev_req = RevocationRequest(req_id=req.id, )
+        rev_req = RevocationRequest(req_id=req.id, disable=False)
         self.tpp_conn.revoke_cert(rev_req)
         time.sleep(1)
         self.tpp_conn.renew_cert(req)
