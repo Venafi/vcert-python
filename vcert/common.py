@@ -59,7 +59,7 @@ def log_errors(data):
 
 
 class KeyType:
-    ALLOWED_SIZES = [512, 1024, 2048, 3072, 4096, 8192]
+    ALLOWED_SIZES = [2048, 3072, 4096, 8192]
     ALLOWED_CURVES = ["p256", "p384", "p521"]
     RSA = "rsa"
     ECDSA = "ec"

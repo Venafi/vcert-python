@@ -65,9 +65,9 @@ class TPPConnection(CommonConnection):
         self._password = password  # type: str
         self._token = None  # type: tuple
         if http_request_kwargs is None:
-            http_request_kwargs = {"timeout": 60}
+            http_request_kwargs = {"timeout": 180}
         elif "timeout" not in http_request_kwargs:
-            http_request_kwargs["timeout"] = 60
+            http_request_kwargs["timeout"] = 180
         self._http_request_kwargs = http_request_kwargs or {}
 
     def __setattr__(self, key, value):
@@ -194,6 +194,8 @@ class TPPConnection(CommonConnection):
             d["CertificateDN"] = request.id
         elif request.thumbprint:
             d["Thumbprint"] = request.thumbprint
+        else:
+            raise ClientBadData
         if request.comments:
             d["Comments"] = request.comments
         status, data = self._post(URLS.CERTIFICATE_REVOKE, data=d)
@@ -254,17 +256,31 @@ class TPPConnection(CommonConnection):
 
     @staticmethod
     def _parse_zone_config_to_policy(data):
+        # todo: parse over values to regexps (dont forget tests!)
         p = data["Policy"]
         if p["KeyPair"]["KeyAlgorithm"]["Locked"]:
             if p["KeyPair"]["KeyAlgorithm"]["Value"] == "RSA":
-                key_types = [KeyType(KeyType.RSA, p["KeyPair"]["KeySize"]["Value"])]
+                if p["KeyPair"]["KeySize"]["Locked"]:
+                    key_types = [KeyType(KeyType.RSA, p["KeyPair"]["KeySize"]["Value"])]
+                else:
+                    key_types = [KeyType(KeyType.RSA, x) for x in KeyType.ALLOWED_SIZES]
             elif p["KeyPair"]["KeyAlgorithm"]["Value"] == "ECC":
-                key_types = [KeyType(KeyType.ECDSA, p["KeyPair"]["EllipticCurve"]["Value"])]
+                if p["KeyPair"]["EllipticCurve"]["Locked"]:
+                    key_types = [KeyType(KeyType.ECDSA, p["KeyPair"]["EllipticCurve"]["Value"])]
+                else:
+                    key_types = [KeyType(KeyType.ECDSA, x) for x in KeyType.ALLOWED_CURVES]
             else:
                 raise ServerUnexptedBehavior
         else:
-            key_types = [KeyType(KeyType.RSA, x) for x in KeyType.ALLOWED_SIZES] + \
-                        [KeyType(KeyType.ECDSA, x) for x in KeyType.ALLOWED_CURVES]
+            key_types = []
+            if p["KeyPair"].get("KeySize", {}).get("Locked"):
+                key_types += [KeyType(KeyType.RSA, p["KeyPair"]["KeySize"]["Value"])]
+            else:
+                key_types += [KeyType(KeyType.RSA, x) for x in KeyType.ALLOWED_SIZES]
+            if p["KeyPair"].get("EllipticCurve", {}).get("Locked"):
+                key_types += [KeyType(KeyType.ECDSA, p["KeyPair"]["EllipticCurve"]["Value"])]
+            else:
+                key_types += [KeyType(KeyType.ECDSA, x) for x in KeyType.ALLOWED_CURVES]
         return Policy(key_types=key_types)
 
     @staticmethod

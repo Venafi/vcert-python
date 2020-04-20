@@ -75,9 +75,9 @@ class CloudConnection(CommonConnection):
         self._token = token
         self._normalize_and_verify_base_url()
         if http_request_kwargs is None:
-            http_request_kwargs = {"timeout": 60}
+            http_request_kwargs = {"timeout": 180}
         elif "timeout" not in http_request_kwargs:
-            http_request_kwargs["timeout"] = 60
+            http_request_kwargs["timeout"] = 180
         self._http_request_kwargs = http_request_kwargs
 
     def __str__(self):

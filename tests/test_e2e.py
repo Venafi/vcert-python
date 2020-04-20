@@ -18,8 +18,9 @@
 from __future__ import absolute_import, division, generators, unicode_literals, print_function, nested_scopes, \
     with_statement
 
-from vcert import CloudConnection, CertificateRequest, TPPConnection, FakeConnection, ZoneConfig
+from vcert import CloudConnection, CertificateRequest, TPPConnection, FakeConnection, ZoneConfig, RevocationRequest
 from vcert.common import CertField, KeyType
+from vcert.pem import parse_pem
 import string
 import random
 import logging
@@ -29,6 +30,7 @@ from six import string_types, text_type
 import unittest
 import binascii
 import json
+import base64
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.x509.oid import NameOID
@@ -54,16 +56,7 @@ def randomword(length):
     return ''.join(random.choice(letters) for _ in range(length))
 
 
-class TestEnrollMethods(unittest.TestCase):
-
-    def __init__(self, *args, **kwargs):
-        self.cloud_zone = environ['CLOUD_ZONE']
-        self.tpp_zone = environ['TPP_ZONE']
-        self.tpp_zone_ecdsa = environ['TPP_ZONE_ECDSA']
-        self.cloud_conn = CloudConnection(token=TOKEN, url=CLOUDURL)
-        self.tpp_conn = TPPConnection(USER, PASSWORD, TPPURL, http_request_kwargs={"verify": "/tmp/chain.pem"})
-        super(TestEnrollMethods, self).__init__(*args, **kwargs)
-
+class TestFakeMethods(unittest.TestCase):
     def test_fake_enroll(self):
         conn = FakeConnection()
         zone = "Default"
@@ -71,13 +64,33 @@ class TestEnrollMethods(unittest.TestCase):
         enroll(conn, zone, cn)
         # renew(conn, cert_id, pkey)
 
+
+class TestCloudMethods(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        self.cloud_zone = environ['CLOUD_ZONE']
+        self.cloud_conn = CloudConnection(token=TOKEN, url=CLOUDURL)
+        super(TestCloudMethods, self).__init__(*args, **kwargs)
+
     def test_cloud_enroll(self):
         cn = randomword(10) + ".venafi.example.com"
         enroll(self.cloud_conn, self.cloud_zone, cn)
 
+    def test_cloud_enroll_with_custom_csr(self):
+        key = open("/tmp/csr-test.key.pem").read()
+        csr = open("/tmp/csr-test.csr.csr").read()
+        enroll(self.cloud_conn, self.cloud_zone, private_key=key, csr=csr)
+
     def test_cloud_renew(self):
         cn = randomword(10) + ".venafi.example.com"
         cert_id, pkey, cert, _ = enroll(self.cloud_conn, self.cloud_zone, cn)
+        time.sleep(5)
+        renew(self.cloud_conn, cert_id, pkey, cert.serial_number, cn)
+
+    def test_cloud_renew_twice(self):
+        cn = randomword(10) + ".venafi.example.com"
+        cert_id, pkey, cert, _ = enroll(self.cloud_conn, self.cloud_zone, cn)
+        time.sleep(5)
+        renew(self.cloud_conn, cert_id, pkey, cert.serial_number, cn)
         time.sleep(5)
         renew(self.cloud_conn, cert_id, pkey, cert.serial_number, cn)
 
@@ -88,7 +101,61 @@ class TestEnrollMethods(unittest.TestCase):
         renew_by_thumbprint(self.cloud_conn, cert)
 
     def test_cloud_renew_without_key_reuse(self):
-        self.renew_without_key_reuse(self.cloud_conn, self.cloud_zone)
+        renew_without_key_reuse(self, self.cloud_conn, self.cloud_zone)
+
+    def test_cloud_read_zone_config(self):
+        zone = self.cloud_conn.read_zone_conf(self.cloud_zone)
+        self.assertEqual(zone.key_type.key_type, KeyType.RSA)
+        self.assertEqual(zone.key_type.option, 2048)
+        p = zone.policy
+        self.assertListEqual(p.SubjectCNRegexes, ['.*.example.com', '.*.example.org', '.*.example.net', '.*.invalid', '.*.local', '.*.localhost', '.*.test', '.*.vfidev.com'])
+        self.assertListEqual(p.SubjectCRegexes, [".*"])
+        self.assertListEqual(p.SubjectLRegexes, [".*"])
+        self.assertListEqual(p.SubjectORegexes, [".*"])
+        self.assertListEqual(p.SubjectOURegexes, [".*"])
+        self.assertEqual(p.key_types[0].option, 2048)
+        self.assertEqual(p.key_types[1].option, 4096)
+
+    def test_cloud_read_zone_unknown_zone(self):
+        with self.assertRaises(Exception):
+            self.cloud_conn.read_zone_conf("4d806fbc-06bb-4a2a-b224-9e58a7e996f5")
+
+    def test_cloud_read_zone_invalud_zone(self):
+        with self.assertRaises(Exception):
+            self.cloud_conn.read_zone_conf("fdsfsfa")
+
+    def test_cloud_retrieve_non_issued(self):
+        req = CertificateRequest(cert_id="4d806fbc-06bb-4a2a-b224-9e58a7e996f5")
+        with self.assertRaises(Exception):
+            self.cloud_conn.retrieve_cert(req)
+
+    def test_cloud_search_by_thumbpint(self):
+        req, cert = simple_enroll(self.cloud_conn, self.cloud_zone)
+        cert = x509.load_pem_x509_certificate(cert.cert.encode(),  default_backend())
+        fingerprint = binascii.hexlify(cert.fingerprint(hashes.SHA1())).decode()
+        found = self.cloud_conn.search_by_thumbprint(fingerprint)
+        self.assertEqual(found, req.id)
+
+    def test_auth(self):
+        self.cloud_conn.auth()
+
+    def test_invalid_auth(self):
+        cloud_conn = CloudConnection(token='5eebed3b-0542-4c0d-a42e-b1e6e4630c3d', url=CLOUDURL)
+        with self.assertRaises(Exception):
+            cloud_conn.auth()
+
+    def test_invalid_auth2(self):
+        cloud_conn = CloudConnection(token='invalid-format-token', url=CLOUDURL)
+        with self.assertRaises(Exception):
+            cloud_conn.auth()
+
+
+class TestTPPMethods(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        self.tpp_zone = environ['TPP_ZONE']
+        self.tpp_zone_ecdsa = environ['TPP_ZONE_ECDSA']
+        self.tpp_conn = TPPConnection(USER, PASSWORD, TPPURL, http_request_kwargs={"verify": "/tmp/chain.pem"})
+        super(TestTPPMethods, self).__init__(*args, **kwargs)
 
     def test_tpp_enroll(self):
         cn = randomword(10) + ".venafi.example.com"
@@ -107,10 +174,21 @@ class TestEnrollMethods(unittest.TestCase):
         cert_id, pkey, cert, _ = enroll(self.tpp_conn, self.tpp_zone, cn)
         cert = renew(self.tpp_conn, cert_id, pkey, cert.serial_number, cn)
 
-    def test_renew_by_thumbprint(self):
+    def test_tpp_renew_twice(self):
+        cn = randomword(10) + ".venafi.example.com"
+        cert_id, pkey, cert, _ = enroll(self.tpp_conn, self.tpp_zone, cn)
+        time.sleep(5)
+        renew(self.tpp_conn, cert_id, pkey, cert.serial_number, cn)
+        time.sleep(5)
+        renew(self.tpp_conn, cert_id, pkey, cert.serial_number, cn)
+
+    def test_tpp_renew_by_thumbprint(self):
         cn = randomword(10) + ".venafi.example.com"
         cert_id, pkey, cert, _ = enroll(self.tpp_conn, self.tpp_zone, cn)
         renew_by_thumbprint(self.tpp_conn, cert)
+
+    def test_tpp_renew_without_key_reuse(self):
+        renew_without_key_reuse(self, self.tpp_conn, self.tpp_zone)
 
     def test_tpp_enroll_ecdsa(self):
         cn = randomword(10) + ".venafi.example.com"
@@ -128,7 +206,6 @@ class TestEnrollMethods(unittest.TestCase):
         key = open("/tmp/csr-test.key.pem").read()
         csr = open("/tmp/csr-test.csr.csr").read()
         enroll(self.tpp_conn, self.tpp_zone, private_key=key, csr=csr)
-        self.renew_without_key_reuse(self.tpp_conn, self.tpp_zone)
 
     def test_tpp_enroll_with_zone_update_and_custom_origin(self):
         cn = randomword(10) + ".venafi.example.com"
@@ -139,25 +216,101 @@ class TestEnrollMethods(unittest.TestCase):
         key = cert.public_key()
         self.assertEqual(key.curve.name, "secp521r1")
 
-    def renew_without_key_reuse(self, conn, zone):
-        cn = randomword(10) + ".venafi.example.com"
-        cert_id, pkey, _, public_key = enroll(conn, zone, cn)
-        time.sleep(5)
-        req = CertificateRequest(cert_id=cert_id)
-        conn.renew_cert(req, reuse_key=False)
-        t = time.time()
-        while time.time() - t < 300:
-            cert = conn.retrieve_cert(req)
-            if cert:
-                break
-            else:
-                time.sleep(5)
-        cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
-        public_key_new = cert.public_key().public_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo
-        ).decode()
-        self.assertNotEqual(public_key_new, public_key)
+    def test_tpp_read_zone_config(self):
+        zone = self.tpp_conn.read_zone_conf(self.tpp_zone)
+        self.assertEqual(zone.country.value, "US")
+        self.assertEqual(zone.province.value, "Utah")
+        self.assertEqual(zone.locality.value, "Salt Lake")
+        self.assertEqual(zone.organization.value, "Venafi Inc.")
+        self.assertEqual(zone.organizational_unit.value, ["Integrations"])
+        self.assertEqual(zone.key_type.key_type, KeyType.RSA)
+        self.assertEqual(zone.key_type.option, 2048)
+
+    def test_tpp_read_zone_unknown_zone(self):
+        with self.assertRaises(Exception):
+            self.tpp_conn.read_zone_conf("fdsfsd")
+
+    def test_tpp_retrieve_non_issued(self):
+        with self.assertRaises(Exception):
+            self.tpp_conn.retrieve_cert(self.tpp_zone + "\\devops\\vcert\\test-non-issued.example.com")
+
+    def test_tpp_search_by_thumbpint(self):
+        req, cert = simple_enroll(self.tpp_conn, self.tpp_zone)
+        cert = x509.load_pem_x509_certificate(cert.cert.encode(),  default_backend())
+        fingerprint = binascii.hexlify(cert.fingerprint(hashes.SHA1())).decode()
+        found = self.tpp_conn.search_by_thumbprint(fingerprint)
+        self.assertEqual(found, req.id)
+
+    def test_revoke_not_issued(self):
+        req = RevocationRequest(req_id=self.tpp_zone + '\\not-issued.example.com')
+        with self.assertRaises(Exception):
+            self.tpp_conn.revoke_cert(req)
+        req = RevocationRequest(thumbprint="2b25ff9f8725dfee37c6a7adcba31897b12e921d")
+        with self.assertRaises(Exception):
+            self.tpp_conn.revoke_cert(req)
+        req = RevocationRequest()
+        with self.assertRaises(Exception):
+            self.tpp_conn.revoke_cert(req)
+
+    def test_revoke_normal(self):
+        req, cert = simple_enroll(self.tpp_conn, self.tpp_zone)
+        rev_req = RevocationRequest(req_id=req.id)
+        self.tpp_conn.revoke_cert(rev_req)
+        time.sleep(1)
+        with self.assertRaises(Exception):
+            self.tpp_conn.retrieve_cert(req)
+
+    def test_revoke_without_disable(self):
+        req, cert = simple_enroll(self.tpp_conn, self.tpp_zone)
+        rev_req = RevocationRequest(req_id=req.id, )
+        self.tpp_conn.revoke_cert(rev_req)
+        time.sleep(1)
+        self.tpp_conn.retrieve_cert(req)
+
+    def test_revoke_normal_thumbprint(self):
+        req, cert = simple_enroll(self.tpp_conn, self.tpp_zone)
+        cert = x509.load_pem_x509_certificate(cert.cert.encode(),default_backend())
+        thumbprint = binascii.hexlify(cert.fingerprint(hashes.SHA1())).decode()
+        rev_req = RevocationRequest(thumbprint=thumbprint)
+        self.tpp_conn.revoke_cert(rev_req)
+        time.sleep(1)
+        with self.assertRaises(Exception):
+            self.tpp_conn.retrieve_cert(req)
+
+
+
+def simple_enroll(conn,  zone):
+    req = CertificateRequest(common_name=randomword(12) + ".venafi.example.com")
+    conn.request_cert(req, zone)
+    t = time.time()
+    while time.time() - t < 300:
+        cert = conn.retrieve_cert(req)
+        if cert:
+            break
+        else:
+            time.sleep(5)
+    return req, cert
+
+def renew_without_key_reuse(unittest_object, conn, zone):
+    cn = randomword(10) + ".venafi.example.com"
+    cert_id, pkey, _, public_key = enroll(conn, zone, cn)
+    time.sleep(5)
+    req = CertificateRequest(cert_id=cert_id)
+    conn.renew_cert(req, reuse_key=False)
+    t = time.time()
+    while time.time() - t < 300:
+        cert = conn.retrieve_cert(req)
+        if cert:
+            break
+        else:
+            time.sleep(5)
+    cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
+    public_key_new = cert.public_key().public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    ).decode()
+    unittest_object.assertNotEqual(public_key_new, public_key)
+
 
 def enroll_with_zone_update(conn, zone, cn=None):
     request = CertificateRequest(common_name=cn, origin="Python-SDK ECDSA")
@@ -325,6 +478,18 @@ class TestLocalMethods(unittest.TestCase):
         self.assertEqual(z.province.value, "Utah")
         self.assertEqual(z.organization.value, "Venafi Inc.")
 
+    def test_parse_tpp_policy1(self):
+        conn = TPPConnection(url="http://example.com/", user="", password="")
+        raw_data = json.loads(POLICY_TPP1)
+        p = conn._parse_zone_config_to_policy(raw_data)
+        self.assertEqual(len(p.key_types), 7)
+        raw_data['Policy']['KeyPair']['KeySize']['Locked'] = True
+        p = conn._parse_zone_config_to_policy(raw_data)
+        self.assertEqual(len(p.key_types), 4)
+        raw_data['Policy']['KeyPair']['KeyAlgorithm']['Locked'] = True
+        p = conn._parse_zone_config_to_policy(raw_data)
+        self.assertEqual(len(p.key_types), 1)
+
     def test_update_request_with_zone_config(self):
         r = CertificateRequest()
         z = ZoneConfig(
@@ -361,3 +526,95 @@ class TestLocalMethods(unittest.TestCase):
         req = CertificateRequest(csr=EXAMPLE_CSR)
         self.assertEqual(req.common_name, None)
 
+    def test_generate_rsa_csr(self):
+        req = CertificateRequest(common_name="test.example.com", key_type=KeyType("rsa", 2048))
+        req.build_csr()
+        req = x509.load_pem_x509_csr(req.csr.encode(), default_backend())
+        self.assertEqual(req.public_key().key_size, 2048)
+
+    def test_generate_ecdsa_csr(self):
+        req = CertificateRequest(common_name="test.exampe.com", key_type=KeyType("ecdsa", "p384"))
+        req.build_csr()
+        req = x509.load_pem_x509_csr(req.csr.encode(), default_backend())
+        self.assertEqual(req.public_key().curve.name, "secp384r1")
+
+    def test_generate_rsa_key(self):
+        req = CertificateRequest(common_name="test.example.com", key_type=KeyType("rsa", 2048))
+        req._gen_key()
+        self.assertEqual(req.public_key.key_size, 2048)
+
+    def test_generate_ecdsa_key(self):
+        req = CertificateRequest(common_name="test.exampe.com", key_type=KeyType("ecdsa", "p384"))
+        req._gen_key()
+        self.assertEqual(req.public_key.curve.name, "secp384r1")
+
+    def test_parse_key_arguments(self):
+        k = KeyType("rsa", 2048)
+        self.assertEqual(k.key_type, k.RSA)
+        self.assertEqual(k.option, 2048)
+        k = KeyType("Rsa", 4096)
+        self.assertEqual(k.key_type, k.RSA)
+        self.assertEqual(k.option, 4096)
+        k = KeyType("ecdsa", "secp256r1")
+        self.assertEqual(k.key_type, k.ECDSA)
+        self.assertEqual(k.option, "p256")
+        with self.assertRaises(Exception):
+            k = KeyType("ololo", 2048)
+        with self.assertRaises(Exception):
+            k = KeyType("ecdsa", 2048)
+        with self.assertRaises(Exception):
+            k = KeyType("ecdsa", "secp256k1")
+        with self.assertRaises(Exception):
+            k = KeyType("rsa", "")
+        with self.assertRaises(Exception):
+            k = KeyType("rsa", 1024)
+        with self.assertRaises(Exception):
+            k = KeyType("rsa", None)
+
+    def test_pass_invalid_key_type_to_request(self):
+        with self.assertRaises(Exception):
+            req = CertificateRequest(common_name="test.example.com", key_type="rsa")
+
+    def test_return_pem_private_key(self):
+        req = CertificateRequest(common_name="test.example.com", key_password="ololo")
+        req.build_csr()
+        self.assertIn("ENCRYPTED", req.private_key_pem)
+        req = CertificateRequest(common_name="test.example.com")
+        req.build_csr()
+        self.assertNotIn("ENCRYPTED", req.private_key_pem)
+
+    def test_return_pem_csr(self):
+        req = CertificateRequest(common_name="test.example.com")
+        req.build_csr()
+        self.assertIn("CERTIFICATE REQUEST", req.csr)
+
+    def test_return_pem_cert(self):
+        conn = FakeConnection()
+        req = CertificateRequest(common_name="test.example.com")
+        conn.request_cert(req, "")
+        cert = conn.retrieve_cert(req)
+        self.assertIn("BEGIN CERTIFICATE", cert.cert)
+
+    def test_tpp_url_noramlization(self):
+        conn = TPPConnection(url="localhost", user="user", password="password")
+        self.assertEqual(conn._base_url, "https://localhost/vedsdk/")
+        conn._base_url = "http://localhost:8080"
+        self.assertEqual(conn._base_url, "https://localhost:8080/vedsdk/")
+        conn._base_url = "http://localhost:8080/"
+        self.assertEqual(conn._base_url, "https://localhost:8080/vedsdk/")
+        with self.assertRaises(Exception):
+            conn._base_url = "ftp://example.com"
+        with self.assertRaises(Exception):
+            conn._base_url = ""
+        with self.assertRaises(Exception):
+            conn._base_url = "https://"
+
+    def test_parse_pem_chain(self):
+        cert = parse_pem(EXAMPLE_CHAIN, "last")
+        self.assertEqual(len(cert.chain), 2)
+        self.assertIn("PRIVATE", cert.key)
+        c = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
+        for a in c.subject:
+            if a.oid == x509.NameOID.COMMON_NAME:
+                subject = a.value
+        self.assertEqual(subject, "test2.example.com")
