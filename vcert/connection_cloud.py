@@ -75,9 +75,9 @@ class CloudConnection(CommonConnection):
         self._token = token
         self._normalize_and_verify_base_url()
         if http_request_kwargs is None:
-            http_request_kwargs = {"timeout": 60}
+            http_request_kwargs = {"timeout": 180}
         elif "timeout" not in http_request_kwargs:
-            http_request_kwargs["timeout"] = 60
+            http_request_kwargs["timeout"] = 180
         self._http_request_kwargs = http_request_kwargs
 
     def __str__(self):
@@ -224,6 +224,7 @@ class CloudConnection(CommonConnection):
                 log.debug("Status is %s. Returning data for debug" % data['status'])
                 return "Certificate FAILED"
             elif data['status'] == CertStatuses.ISSUED:
+                request.manage_id = data['managedCertificateId']
                 status, data = self._get(url)
                 if status == HTTPStatus.OK:
                     return parse_pem(data, request.chain_option)

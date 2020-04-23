@@ -47,7 +47,7 @@ def parse_pem(pem_str, order):
     for p in parsed:
         if p[0] == "CERTIFICATE":
             certs.append(p[1])
-        elif p[0] == "PRIVATE KEY":
+        elif p[0].endswith("PRIVATE KEY"):
             key = p[1]
     if order == "last":
         return Certificate(certs[0], certs[1:], key)
