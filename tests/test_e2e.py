@@ -333,8 +333,8 @@ def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None
         private_key=private_key,
         key_password=password
     )
+    request.san_dns = ["www.client.venafi.example.com", "ww1.client.venafi.example.com"]
     if isinstance(conn, (FakeConnection or TPPConnection)):
-        request.san_dns = ["www.client.venafi.example.com", "ww1.client.venafi.example.com"]
         request.email_addresses = ["e1@venafi.example.com", "e2@venafi.example.com"]
         request.ip_addresses = ["127.0.0.1", "192.168.1.1"]
 
