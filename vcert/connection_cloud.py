@@ -282,7 +282,7 @@ class CloudConnection(CommonConnection):
                 request.organizational_unit = c["subjectOU"]
             if c.get("subjectL"):
                 request.locality = c["subjectL"]
-            if c.get("subjectAlternativeNameDns")
+            if c.get("subjectAlternativeNameDns"):
                 request.san_dns = c["subjectAlternativeNameDns"]
             request.key_type = KeyType(KeyType.RSA, c["keyStrength"])
             request.build_csr()
