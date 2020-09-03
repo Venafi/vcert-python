@@ -113,6 +113,17 @@ class ZoneConfig:
         self.policy = policy
         self.key_type = key_type
 
+class AcessToken:
+    def __init__(self, access_token, expires, identity, refresh_token, refresh_until,
+                 scope, token_type):
+        self.access_token = access_token
+        self.expires = expires
+        self.identity = identity
+        self.refresh_token = refresh_token
+        self.refresh_until = refresh_until
+        self.scope = scope
+        self.token_type=token_type
+
 
 class Policy:
     def __init__(self, policy_id=None, company_id=None, name=None, system_generated=None,
