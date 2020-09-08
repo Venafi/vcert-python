@@ -113,7 +113,8 @@ class ZoneConfig:
         self.policy = policy
         self.key_type = key_type
 
-class AcessToken:
+
+class TokenInfo:
     def __init__(self, access_token, expires, identity, refresh_token, refresh_until,
                  scope, token_type):
         self.access_token = access_token
@@ -122,7 +123,7 @@ class AcessToken:
         self.refresh_token = refresh_token
         self.refresh_until = refresh_until
         self.scope = scope
-        self.token_type=token_type
+        self.token_type = token_type
 
 
 class Policy:
@@ -417,6 +418,24 @@ class RevocationRequest:
         self.disable = disable
 
 
+CLIENT_ID = "vcert-sdk"  # type: str
+SCOPE = "certificate:manage,revoke"  # type: str
+
+
+class Authentication:
+    def __init__(self, user=None, password=None, access_token=None, refresh_token=None, api_key=None, state=None,
+                 token_expires=None, client_id=CLIENT_ID, scope=SCOPE):
+        self.user = user
+        self.password = password
+        self.access_token = access_token
+        self.refresh_token = refresh_token
+        self.token_expires = token_expires
+        self.api_key = api_key
+        self.client_id = client_id
+        self.scope = scope
+        self.state = state
+
+
 class CommonConnection:
 
     def auth(self):
@@ -476,14 +495,18 @@ class CommonConnection:
                 log_errors(r.content)
             raise VenafiConnectionError("Server status: %s\n Response: %s" %
                                         (r.status_code, r.request.url))
+
         content_type = r.headers.get("content-type")
+        # Content-type not present, return status and reason (if any)
+        if content_type is None:
+            return r.status_code, r.reason
         if content_type.startswith(MIME_TEXT):
             log.debug(r.text)
             return r.status_code, r.text
         elif content_type.startswith(MIME_HTML):
             log.debug(r.text)
             return r.status_code, r.text
-        # content-type in respons is  application/json; charset=utf-8
+        # content-type in response is  application/json; charset=utf-8
         elif content_type.startswith(MIME_JSON):
             log.debug(r.content.decode())
             return r.status_code, r.json()

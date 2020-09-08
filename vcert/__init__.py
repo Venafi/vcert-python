@@ -16,7 +16,7 @@
 
 from .connection_cloud import CloudConnection
 from .connection_tpp import TPPConnection
-from .token_connection_tpp import TPPTokenConnection
+from .connection_tpp_token import TPPTokenConnection
 from .connection_fake import FakeConnection
 from .common import CertificateRequest, CommonConnection, RevocationRequest, ZoneConfig, KeyType
 
@@ -44,5 +44,7 @@ def Connection(url=None, token=None, user=None, password=None, fake=False, http_
     else:
         raise Exception("Bad credentials list")
 
-def TokenConnection(user=None, password=None, url=None, access_token=None, refresh_token=None, http_request_kwargs=None):
-    return TPPTokenConnection(user=user, password=password, url=url, access_token=access_token, refresh_token=refresh_token, http_request_kwargs=http_request_kwargs)
+
+def token_connection(url=None, user=None, password=None, access_token=None, refresh_token=None, http_request_kwargs=None):
+    return TPPTokenConnection(url=url, user=user, password=password, access_token=access_token,
+                              refresh_token=refresh_token, http_request_kwargs=http_request_kwargs)
