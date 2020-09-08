@@ -204,3 +204,6 @@ class TPPTokenConnection(TPPCommonConnection):
             token_type=data["token_type"]
         )
         return token_info
+
+    def _read_config_dn(self, dn, attribute_name):
+        pass
