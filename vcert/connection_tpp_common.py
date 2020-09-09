@@ -134,9 +134,9 @@ class TPPCommonConnection(CommonConnection, ABC):
         elif status == HTTPStatus.ACCEPTED:
             log.debug(data['Status'])
             return None
-        else:
-            log.error("Status is not %s. %s" % HTTPStatus.OK, status)
-            raise ServerUnexptedBehavior
+
+        log.error("Status is not %s. %s" % HTTPStatus.OK, status)
+        raise ServerUnexptedBehavior
 
     def revoke_cert(self, request):
         if not (request.id or request.thumbprint):
@@ -206,9 +206,9 @@ class TPPCommonConnection(CommonConnection, ABC):
                 request.id = data['CertificateDN']
             log.debug("Certificate successfully requested with request id %s." % request.id)
             return True
-        else:
-            log.error("Request status is not %s. %s." % HTTPStatus.OK, status)
-            raise CertificateRequestError
+
+        log.error("Request status is not %s. %s." % HTTPStatus.OK, status)
+        raise CertificateRequestError
 
     @staticmethod
     def _parse_zone_config_to_policy(data):
