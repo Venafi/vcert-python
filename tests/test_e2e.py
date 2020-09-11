@@ -50,8 +50,6 @@ TPPURL = environ.get('TPP_URL')
 CLOUDURL = environ.get('CLOUD_URL')
 RANDOM_DOMAIN = environ.get("RANDOM_DOMAIN")
 TPP_TOKEN_URL = environ.get("TPP_TOKEN_URL")
-TPP_ACCESS_TOKEN = environ.get("TPP_ACCESS_TOKEN")
-TPP_REFRESH_TOKEN = environ.get("TPP_REFRESH_TOKEN")
 
 if not isinstance(RANDOM_DOMAIN, text_type):
     RANDOM_DOMAIN = RANDOM_DOMAIN.decode()
@@ -290,7 +288,7 @@ class TestTPPTokenMethods(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         self.tpp_zone = environ['TPP_ZONE']
         self.tpp_zone_ecdsa = environ['TPP_ZONE_ECDSA']
-        self.tpp_conn = TPPTokenConnection(USER, PASSWORD, TPP_TOKEN_URL, TPP_ACCESS_TOKEN, TPP_REFRESH_TOKEN,
+        self.tpp_conn = TPPTokenConnection(url=TPP_TOKEN_URL, user=USER, password=PASSWORD,
                                            http_request_kwargs={"verify": "/tmp/chain.pem"})
         super(TestTPPTokenMethods, self).__init__(*args, **kwargs)
 
@@ -418,7 +416,7 @@ class TestTPPTokenMethods(unittest.TestCase):
 class TestTPPTokenAccess(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         self.tpp_zone = environ['TPP_ZONE']
-        self.tpp_conn = TPPTokenConnection(user=USER, password=PASSWORD, url=TPP_TOKEN_URL,
+        self.tpp_conn = TPPTokenConnection(url=TPP_TOKEN_URL, user=USER, password=PASSWORD,
                                            http_request_kwargs={"verify": "/tmp/chain.pem"})
         super(TestTPPTokenAccess, self).__init__(*args, **kwargs)
 
