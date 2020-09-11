@@ -18,8 +18,12 @@
 from __future__ import absolute_import, division, generators, unicode_literals, print_function, nested_scopes, \
     with_statement
 
-from vcert import CloudConnection, CertificateRequest, TPPConnection, FakeConnection, ZoneConfig, RevocationRequest
+from tests.assets import TEST_KEY_RSA_4096, TEST_KEY_ECDSA, TEST_KEY_RSA_2048_ENCRYPTED, POLICY_CLOUD1, POLICY_TPP1, \
+    EXAMPLE_CSR, EXAMPLE_CHAIN
+from vcert import CloudConnection, CertificateRequest, TPPConnection, FakeConnection, ZoneConfig, RevocationRequest, \
+    TPPTokenConnection
 from vcert.common import CertField, KeyType
+from vcert.errors import ClientBadData, ServerUnexptedBehavior
 from vcert.pem import parse_pem
 import string
 import random
@@ -30,23 +34,25 @@ from six import string_types, text_type
 import unittest
 import binascii
 import json
-import base64
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import serialization, hashes
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("urllib3").setLevel(logging.DEBUG)
-from assets import *
+
+
 FAKE = environ.get('FAKE')
-
 TOKEN = environ.get('CLOUD_APIKEY')
-
 USER = environ.get('TPP_USER')
 PASSWORD = environ.get('TPP_PASSWORD')
 TPPURL = environ.get('TPP_URL')
 CLOUDURL = environ.get('CLOUD_URL')
 RANDOM_DOMAIN = environ.get("RANDOM_DOMAIN")
+TPP_TOKEN_URL = environ.get("TPP_TOKEN_URL")
+TPP_ACCESS_TOKEN = environ.get("TPP_ACCESS_TOKEN")
+TPP_REFRESH_TOKEN = environ.get("TPP_REFRESH_TOKEN")
+
 if not isinstance(RANDOM_DOMAIN, text_type):
     RANDOM_DOMAIN = RANDOM_DOMAIN.decode()
 
@@ -108,7 +114,8 @@ class TestCloudMethods(unittest.TestCase):
         self.assertEqual(zone.key_type.key_type, KeyType.RSA)
         self.assertEqual(zone.key_type.option, 2048)
         p = zone.policy
-        self.assertListEqual(p.SubjectCNRegexes, ['.*.example.com', '.*.example.org', '.*.example.net', '.*.invalid', '.*.local', '.*.localhost', '.*.test', '.*.vfidev.com'])
+        self.assertListEqual(p.SubjectCNRegexes, ['.*.example.com', '.*.example.org', '.*.example.net', '.*.invalid',
+                                                  '.*.local', '.*.localhost', '.*.test', '.*.vfidev.com'])
         self.assertListEqual(p.SubjectCRegexes, [".*"])
         self.assertListEqual(p.SubjectLRegexes, [".*"])
         self.assertListEqual(p.SubjectORegexes, [".*"])
@@ -279,6 +286,179 @@ class TestTPPMethods(unittest.TestCase):
             self.tpp_conn.renew_cert(req)
 
 
+class TestTPPTokenMethods(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        self.tpp_zone = environ['TPP_ZONE']
+        self.tpp_zone_ecdsa = environ['TPP_ZONE_ECDSA']
+        self.tpp_conn = TPPTokenConnection(USER, PASSWORD, TPP_TOKEN_URL, TPP_ACCESS_TOKEN, TPP_REFRESH_TOKEN,
+                                           http_request_kwargs={"verify": "/tmp/chain.pem"})
+        super(TestTPPTokenMethods, self).__init__(*args, **kwargs)
+
+    def test_tpp_token_enroll(self):
+        cn = randomword(10) + ".venafi.example.com"
+        try:
+            cert_id, pkey, cert, _ = enroll(self.tpp_conn, self.tpp_zone, cn)
+        except Exception as err:
+            self.fail("Error in test: %s" % err.__str__)
+
+    def test_tpp_token_enroll_origin(self):
+        cn = randomword(10) + ".venafi.example.com"
+        try:
+            cert_id, pkey, cert, _ = enroll(self.tpp_conn, self.tpp_zone, cn)
+        except Exception as err:
+            self.fail("Error in test: %s" %err.__str__())
+
+    def test_tpp_token_renew(self):
+        cn = randomword(10) + ".venafi.example.com"
+        cert_id, pkey, cert, _ = enroll(self.tpp_conn, self.tpp_zone, cn)
+        cert = renew(self.tpp_conn, cert_id, pkey, cert.serial_number, cn)
+
+    def test_tpp_token_renew_twice(self):
+        cn = randomword(10) + ".venafi.example.com"
+        cert_id, pkey, cert, _ = enroll(self.tpp_conn, self.tpp_zone, cn)
+        time.sleep(5)
+        renew(self.tpp_conn, cert_id, pkey, cert.serial_number, cn)
+        time.sleep(5)
+        renew(self.tpp_conn, cert_id, pkey, cert.serial_number, cn)
+
+    def test_tpp_token_renew_by_thumbprint(self):
+        cn = randomword(10) + ".venafi.example.com"
+        cert_id, pkey, cert, _ = enroll(self.tpp_conn, self.tpp_zone, cn)
+        renew_by_thumbprint(self.tpp_conn, cert)
+
+    def test_tpp_token_renew_without_key_reuse(self):
+        renew_without_key_reuse(self, self.tpp_conn, self.tpp_zone)
+
+    def test_tpp_token_enroll_ecdsa(self):
+        cn = randomword(10) + ".venafi.example.com"
+        enroll(self.tpp_conn, self.tpp_zone_ecdsa, cn, TEST_KEY_ECDSA[0], TEST_KEY_ECDSA[1])
+
+    def test_tpp_token_enroll_with_custom_key(self):
+        cn = randomword(10) + ".venafi.example.com"
+        enroll(self.tpp_conn, self.tpp_zone, cn, TEST_KEY_RSA_4096[0], TEST_KEY_RSA_4096[1])
+
+    def test_tpp_token_enroll_with_encrypted_key(self):
+        cn = randomword(10) + ".venafi.example.com"
+        enroll(self.tpp_conn, self.tpp_zone, cn, TEST_KEY_RSA_2048_ENCRYPTED[0], TEST_KEY_RSA_2048_ENCRYPTED[1], 'venafi')
+
+    def test_tpp_token_enroll_with_custom_csr(self):
+        key = open("/tmp/csr-test.key.pem").read()
+        csr = open("/tmp/csr-test.csr.csr").read()
+        enroll(self.tpp_conn, self.tpp_zone, private_key=key, csr=csr)
+
+    def test_tpp_token_enroll_with_zone_update_and_custom_origin(self):
+        cn = randomword(10) + ".venafi.example.com"
+        cert = enroll_with_zone_update(self.tpp_conn, self.tpp_zone_ecdsa, cn)
+        cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
+        key = cert.public_key()
+        self.assertEqual(key.curve.name, "secp521r1")
+
+    def test_tpp_token_read_zone_config(self):
+        zone = self.tpp_conn.read_zone_conf(self.tpp_zone)
+        self.assertEqual(zone.country.value, "US")
+        self.assertEqual(zone.province.value, "Utah")
+        self.assertEqual(zone.locality.value, "Salt Lake")
+        self.assertEqual(zone.organization.value, "Venafi Inc.")
+        self.assertEqual(zone.organizational_unit.value, ["Integrations"])
+        self.assertEqual(zone.key_type.key_type, KeyType.RSA)
+        self.assertEqual(zone.key_type.option, 2048)
+
+    def test_tpp_token_read_zone_unknown_zone(self):
+        with self.assertRaises(Exception):
+            self.tpp_conn.read_zone_conf("fdsfsd")
+
+    def test_tpp_token_retrieve_non_issued(self):
+        with self.assertRaises(Exception):
+            self.tpp_conn.retrieve_cert(self.tpp_zone + "\\devops\\vcert\\test-non-issued.example.com")
+
+    def test_tpp_token_search_by_thumbprint(self):
+        req, cert = simple_enroll(self.tpp_conn, self.tpp_zone)
+        cert = x509.load_pem_x509_certificate(cert.cert.encode(),  default_backend())
+        fingerprint = binascii.hexlify(cert.fingerprint(hashes.SHA1())).decode()
+        found = self.tpp_conn.search_by_thumbprint(fingerprint)
+        self.assertEqual(found, req.id)
+
+    def test_token_revoke_not_issued(self):
+        req = RevocationRequest(req_id=self.tpp_zone + '\\not-issued.example.com')
+        with self.assertRaises(Exception):
+            self.tpp_conn.revoke_cert(req)
+        req = RevocationRequest(thumbprint="2b25ff9f8725dfee37c6a7adcba31897b12e921d")
+        with self.assertRaises(Exception):
+            self.tpp_conn.revoke_cert(req)
+        req = RevocationRequest()
+        with self.assertRaises(Exception):
+            self.tpp_conn.revoke_cert(req)
+
+    def test_token_revoke_normal(self):
+        req, cert = simple_enroll(self.tpp_conn, self.tpp_zone)
+        rev_req = RevocationRequest(req_id=req.id)
+        self.tpp_conn.revoke_cert(rev_req)
+        time.sleep(1)
+        with self.assertRaises(Exception):
+            self.tpp_conn.renew_cert(req)
+
+    def test_token_revoke_without_disable(self):
+        req, cert = simple_enroll(self.tpp_conn, self.tpp_zone)
+        rev_req = RevocationRequest(req_id=req.id, disable=False)
+        self.tpp_conn.revoke_cert(rev_req)
+        time.sleep(1)
+        self.tpp_conn.renew_cert(req)
+
+    def test_token_revoke_normal_thumbprint(self):
+        req, cert = simple_enroll(self.tpp_conn, self.tpp_zone)
+        cert = x509.load_pem_x509_certificate(cert.cert.encode(),default_backend())
+        thumbprint = binascii.hexlify(cert.fingerprint(hashes.SHA1())).decode()
+        rev_req = RevocationRequest(thumbprint=thumbprint)
+        self.tpp_conn.revoke_cert(rev_req)
+        time.sleep(1)
+        with self.assertRaises(Exception):
+            self.tpp_conn.renew_cert(req)
+
+
+class TestTPPTokenAccess(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        self.tpp_zone = environ['TPP_ZONE']
+        self.tpp_conn = TPPTokenConnection(user=USER, password=PASSWORD, url=TPP_TOKEN_URL,
+                                           http_request_kwargs={"verify": "/tmp/chain.pem"})
+        super(TestTPPTokenAccess, self).__init__(*args, **kwargs)
+
+    def test_get_access_token(self):
+        try:
+            token_info = self.tpp_conn.get_access_token()
+            self.assertIsNotNone(token_info)
+            self.assertIsNotNone(token_info.access_token)
+            self.assertIsNotNone(token_info.refresh_token)
+            self.assertIsNotNone(token_info.expires)
+        except ClientBadData:
+            self.fail("Error in Test Data")
+        except ServerUnexptedBehavior as sub:
+            self.fail("Error from server: %s" % sub.__str__())
+
+    def test_refresh_access_token(self):
+        try:
+            self.tpp_conn.get_access_token()
+            refresh_info = self.tpp_conn.refresh_access_token()
+            self.assertIsNotNone(refresh_info)
+            self.assertIsNotNone(refresh_info.access_token)
+            self.assertIsNotNone(refresh_info.refresh_token)
+            self.assertIsNotNone(refresh_info.expires)
+        except ClientBadData:
+            self.fail("Error in Test Data")
+        except ServerUnexptedBehavior as sub:
+            self.fail("Error from server: %s" % sub.__str__())
+
+    def test_revoke_access_token(self):
+        try:
+            self.tpp_conn.get_access_token()
+            status, resp = self.tpp_conn.revoke_access_token()
+            self.assertEqual(status, 200)
+        except Exception as err:
+            self.fail("Error happened: %s" % err.__str__())
+
+        cn = randomword(10) + ".venafi.example.com"
+        with self.assertRaises(Exception):
+            enroll(self.tpp_conn, self.tpp_zone, cn)
+
 
 def simple_enroll(conn,  zone):
     req = CertificateRequest(common_name=randomword(12) + ".venafi.example.com")
@@ -291,6 +471,7 @@ def simple_enroll(conn,  zone):
         else:
             time.sleep(5)
     return req, cert
+
 
 def renew_without_key_reuse(unittest_object, conn, zone):
     cn = randomword(10) + ".venafi.example.com"
@@ -334,7 +515,7 @@ def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None
         key_password=password
     )
     request.san_dns = ["www.client.venafi.example.com", "ww1.client.venafi.example.com"]
-    if isinstance(conn, (FakeConnection or TPPConnection)):
+    if isinstance(conn, (FakeConnection or TPPConnection or TPPTokenConnection)):
         request.email_addresses = ["e1@venafi.example.com", "e2@venafi.example.com"]
         request.ip_addresses = ["127.0.0.1", "192.168.1.1"]
 
