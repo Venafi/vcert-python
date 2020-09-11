@@ -30,8 +30,8 @@ from .connection_tpp_common import TPPCommonConnection, URLS
 from .errors import (ClientBadData, ServerUnexptedBehavior, AuthenticationError)
 
 
-API_TOKEN_URL = "vedauth/"  # type: str
-API_BASE_URL = "vedsdk/"  # type: str
+API_TOKEN_URL = "vedauth/"  # type: str # nosec
+API_BASE_URL = "vedsdk/"  # type: str # nosec
 
 PATH_AUTHORIZE_TOKEN = API_TOKEN_URL + "authorize/oauth"  # type: str
 PATH_REFRESH_TOKEN = API_TOKEN_URL + "authorize/token"  # type: str
