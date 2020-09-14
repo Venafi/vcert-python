@@ -169,9 +169,9 @@ class TPPTokenConnection(CommonConnection):
             request.id = data['CertificateDN']
             log.debug("Certificate sucessfully requested with request id %s." % request.id)
             return True
-        else:
-            log.error("Request status is not %s. %s." % HTTPStatus.OK, status)
-            raise CertificateRequestError
+
+        log.error("Request status is not %s. %s." % HTTPStatus.OK, status)
+        raise CertificateRequestError
 
     def retrieve_cert(self, certificate_request):
         log.debug("Getting certificate status for id %s" % certificate_request.id)
@@ -198,9 +198,9 @@ class TPPTokenConnection(CommonConnection):
         elif status == HTTPStatus.ACCEPTED:
             log.debug(data['Status'])
             return None
-        else:
-            log.error("Status is not %s. %s" % HTTPStatus.OK, status)
-            raise ServerUnexptedBehavior
+
+        log.error("Status is not %s. %s" % HTTPStatus.OK, status)
+        raise ServerUnexptedBehavior
 
     def revoke_cert(self, request):
         if not (request.id or request.thumbprint):
@@ -270,9 +270,9 @@ class TPPTokenConnection(CommonConnection):
                 request.id = data['CertificateDN']
             log.debug("Certificate successfully requested with request id %s." % request.id)
             return True
-        else:
-            log.error("Request status is not %s. %s." % HTTPStatus.OK, status)
-            raise CertificateRequestError
+
+        log.error("Request status is not %s. %s." % HTTPStatus.OK, status)
+        raise CertificateRequestError
 
     @staticmethod
     def _parse_zone_config_to_policy(data):

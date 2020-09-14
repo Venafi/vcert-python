@@ -38,7 +38,8 @@ from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import serialization, hashes
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("urllib3").setLevel(logging.DEBUG)
-from assets import *
+from assets import TEST_KEY_RSA_4096, TEST_KEY_ECDSA, TEST_KEY_RSA_2048_ENCRYPTED, POLICY_CLOUD1, POLICY_TPP1,\
+    EXAMPLE_CSR, EXAMPLE_CHAIN
 
 FAKE = environ.get('FAKE')
 TOKEN = environ.get('CLOUD_APIKEY')
