@@ -512,9 +512,11 @@ def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None
         key_password=password
     )
     request.san_dns = ["www.client.venafi.example.com", "ww1.client.venafi.example.com"]
-    if isinstance(conn, (FakeConnection or TPPConnection or TPPTokenConnection)):
+    if isinstance(conn, (FakeConnection, TPPConnection, TPPTokenConnection)):
         request.email_addresses = ["e1@venafi.example.com", "e2@venafi.example.com"]
         request.ip_addresses = ["127.0.0.1", "192.168.1.1"]
+        request.user_principal_names = ["e1@venafi.example.com", "e2@venafi.example.com"]
+        request.uniform_resource_identifiers = ["https://www.venafi.com","https://venafi.cloud"]
 
     if csr:
         request.csr = csr

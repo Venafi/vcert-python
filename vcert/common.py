@@ -32,6 +32,7 @@ from cryptography import x509
 from cryptography.x509.oid import NameOID, ExtensionOID
 from cryptography.hazmat.primitives import hashes
 import ipaddress
+import asn1
 
 
 MIME_JSON = "application/json"
@@ -179,6 +180,8 @@ class CertificateRequest:
                  san_dns=None,
                  email_addresses="",
                  ip_addresses=None,
+                 user_principal_names=None,
+                 uniform_resource_identifiers=None,
                  attributes=None,
                  key_type=None,
                  private_key=None,
@@ -199,6 +202,8 @@ class CertificateRequest:
         :param list[str] san_dns: Alternative names for SNI.
         :param list[str] email_addresses: List of email addresses
         :param list[str] ip_addresses: List of IP addresses
+        :param list[str] user_principal_names: user principal names in username@domain format
+        :param list[str] uniform_resource_identifiers: URIs
         :param attributes:
         :param KeyType key_type: Type of asymmetric cryptography algorithm. Default is RSA 2048.
         :param asymmetric.PrivateKey private_key: String with pem encoded private key or  asymmetric.PrivateKey
@@ -214,6 +219,8 @@ class CertificateRequest:
         self.san_dns = san_dns or []
         self.email_addresses = email_addresses
         self.ip_addresses = ip_addresses or []
+        self.user_principal_names = user_principal_names or []
+        self.uniform_resource_identifiers = uniform_resource_identifiers or []
         self.attributes = attributes
         self.key_password = key_password
         self.key_type = key_type
@@ -341,6 +348,25 @@ class CertificateRequest:
         if self.email_addresses:
             for mail in self.email_addresses:
                 alt_names.append(x509.RFC822Name(mail))
+
+        if self.uniform_resource_identifiers:
+            for uri in self.uniform_resource_identifiers:
+                alt_names.append(x509.UniformResourceIdentifier(uri))
+
+        if self.user_principal_names:
+            for upn in self.user_principal_names:
+                # Python cryptography library doesn't include
+                # OID for UPN in any of the OID constants
+                # See http://www.oid-info.com/get/1.3.6.1.4.1.311.20.2.3
+                # and https://docs.microsoft.com/en-us/windows/security/identity-protection/smart-cards/smart-card-certificate-requirements-and-enumeration
+                UPNOID = x509.ObjectIdentifier('1.3.6.1.4.1.311.20.2.3')
+                # x509 library expects DER encoded string, so encode UPN into bytes
+                # and use asn1 module to create DER encoded value to pass to x509.OtherName
+                encoder = asn1.Encoder()
+                encoder.start()
+                encoder.write(bytes(upn,'utf-8'),asn1.Numbers.UTF8String)
+                upnb = encoder.output()
+                alt_names.append(x509.OtherName(UPNOID,upnb))
 
         csr_builder = csr_builder.add_extension(
             x509.SubjectAlternativeName(alt_names),
