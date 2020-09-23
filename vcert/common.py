@@ -32,7 +32,6 @@ from cryptography import x509
 from cryptography.x509.oid import NameOID, ExtensionOID
 from cryptography.hazmat.primitives import hashes
 import ipaddress
-import asn1
 
 
 MIME_JSON = "application/json"
@@ -361,12 +360,16 @@ class CertificateRequest:
                 # and https://docs.microsoft.com/en-us/windows/security/identity-protection/smart-cards/smart-card-certificate-requirements-and-enumeration
                 UPNOID = x509.ObjectIdentifier('1.3.6.1.4.1.311.20.2.3')
                 # x509 library expects DER encoded string, so encode UPN into bytes
-                # and use asn1 module to create DER encoded value to pass to x509.OtherName
-                encoder = asn1.Encoder()
-                encoder.start()
-                encoder.write(bytes(upn,'utf-8'),asn1.Numbers.UTF8String)
-                upnb = encoder.output()
-                alt_names.append(x509.OtherName(UPNOID,upnb))
+                # with ASN1 syntax for UTF8String, which is a type/length/value encoding
+                # per https://docs.microsoft.com/en-us/windows/win32/seccertenroll/about-utf8string
+                # Construct the array of bytes (note bytes are strings in python2)
+                # by inserting the header consisting of the tag '0x0C' followed by the length of the upn
+                bupn = ''.join(chr(x) for x in [12,len(upn)])
+                # append the upn to the array
+                bupn = bupn + upn
+                # python2 treats the string constructed above as a unicode object, it needs
+                # to be a plain str in order for the crypto library to understand it.
+                alt_names.append(x509.OtherName(UPNOID,str(bupn)))
 
         csr_builder = csr_builder.add_extension(
             x509.SubjectAlternativeName(alt_names),
