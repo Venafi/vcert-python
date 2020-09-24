@@ -256,6 +256,13 @@ class TPPTokenConnection(CommonConnection):
                 request.san_dns = list([x.value for x in e.value if isinstance(x, x509.DNSName)])
                 request.email_addresses = list([x.value for x in e.value if isinstance(x, x509.RFC822Name)])
                 request.ip_addresses = list([x.value.exploded for x in e.value if isinstance(x, x509.IPAddress)])
+                # remove header bytes from ASN1 encoded UPN field before setting it in the request object
+                upns = []
+                for x in e.value:
+                    if isinstance(x,x509.OtherName):
+                        upns.append(x.value[2 : :])
+                request.user_principal_names = upns
+                request.uniform_resource_identifiers = list([x.value for x in e.value if isinstance(x,x509.UniformResourceIdentifier)])
         if cert.signature_algorithm_oid in (algos.ECDSA_WITH_SHA1, algos.ECDSA_WITH_SHA224, algos.ECDSA_WITH_SHA256,
                                             algos.ECDSA_WITH_SHA384, algos.ECDSA_WITH_SHA512):
             request.key_type = (KeyType.ECDSA, KeyType.ALLOWED_CURVES[0])

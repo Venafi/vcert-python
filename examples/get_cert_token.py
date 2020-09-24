@@ -50,16 +50,18 @@ def main():
         #                         http_request_kwargs={"verify": "/path-to/bundle.pem"})
 
     request = CertificateRequest(common_name=random_word(10) + ".venafi.example.com")
-    request.san_dns = ["www.client.venafi.example.com", "ww1.client.venafi.example.com"]
-    request.email_addresses = ["e1@venafi.example.com", "e2@venafi.example.com"]
-    request.ip_addresses = ["127.0.0.1", "192.168.1.1"]
+    request.san_dns = [u"www.client.venafi.example.com", u"ww1.client.venafi.example.com"]
+    request.email_addresses = [u"e1@venafi.example.com", u"e2@venafi.example.com"]
+    request.ip_addresses = [u"127.0.0.1", u"192.168.1.1"]
+    request.uniform_resource_identifiers = [u"http://wgtest.com",u"https://ragnartest.com"]
+    request.user_principal_names = [u"e1@venafi.example.com", u"e2@venafi.example.com"] 
     # Specify ordering certificates in chain. Root can be "first" or "last". By default its last. You also can
     # specify "ignore" to ignore chain (supported only for Platform).
 
     # configure key type, RSA example
-    # request.key_type = KeyType(KeyType.RSA, 4096)
+    request.key_type = KeyType(KeyType.RSA, 2048)
     # or set it to ECDSA
-    request.key_type = KeyType(KeyType.ECDSA, "p521")
+    #request.key_type = KeyType(KeyType.ECDSA, "p521")
     # Update certificate request from zone
     zone_config = conn.read_zone_conf(zone)
     request.update_from_zone_config(zone_config)
