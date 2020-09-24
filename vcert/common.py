@@ -34,11 +34,7 @@ from cryptography import x509
 from cryptography.x509.oid import NameOID, ExtensionOID
 from cryptography.hazmat.primitives import hashes
 import ipaddress
-<<<<<<< Updated upstream
-import asn1
-=======
 import sys
->>>>>>> Stashed changes
 
 
 MIME_JSON = "application/json"
