@@ -57,6 +57,8 @@ def main():
         # Venafi Cloud doesn't support email or IP SANs in CSR
         request.email_addresses = ["e1@venafi.example.com", "e2@venafi.example.com"]
         request.ip_addresses = ["127.0.0.1", "192.168.1.1"]
+        request.uniform_resource_identifiers = ["http://wgtest.com","https://ragnartest.com"]
+        request.user_principal_names = ["e1@venafi.example.com", "e2@venafi.example.com"] 
         # Specify ordering certificates in chain. Root can be "first" or "last". By default it last. You also can
         # specify "ignore" to ignore chain (supported only for Platform).
 

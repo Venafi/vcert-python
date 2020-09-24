@@ -15,7 +15,9 @@
 #
 
 from __future__ import absolute_import, division, generators, unicode_literals, print_function, nested_scopes, \
-    with_statement
+    with_statement 
+
+from builtins import bytes
 
 import datetime
 import logging as log
@@ -32,6 +34,7 @@ from cryptography import x509
 from cryptography.x509.oid import NameOID, ExtensionOID
 from cryptography.hazmat.primitives import hashes
 import ipaddress
+import sys
 
 
 MIME_JSON = "application/json"
@@ -179,6 +182,8 @@ class CertificateRequest:
                  san_dns=None,
                  email_addresses="",
                  ip_addresses=None,
+                 user_principal_names=None,
+                 uniform_resource_identifiers=None,
                  attributes=None,
                  key_type=None,
                  private_key=None,
@@ -199,6 +204,8 @@ class CertificateRequest:
         :param list[str] san_dns: Alternative names for SNI.
         :param list[str] email_addresses: List of email addresses
         :param list[str] ip_addresses: List of IP addresses
+        :param list[str] user_principal_names: user principal names in username@domain format
+        :param list[str] uniform_resource_identifiers: URIs
         :param attributes:
         :param KeyType key_type: Type of asymmetric cryptography algorithm. Default is RSA 2048.
         :param asymmetric.PrivateKey private_key: String with pem encoded private key or  asymmetric.PrivateKey
@@ -214,6 +221,8 @@ class CertificateRequest:
         self.san_dns = san_dns or []
         self.email_addresses = email_addresses
         self.ip_addresses = ip_addresses or []
+        self.user_principal_names = user_principal_names or []
+        self.uniform_resource_identifiers = uniform_resource_identifiers or []
         self.attributes = attributes
         self.key_password = key_password
         self.key_type = key_type
@@ -341,6 +350,43 @@ class CertificateRequest:
         if self.email_addresses:
             for mail in self.email_addresses:
                 alt_names.append(x509.RFC822Name(mail))
+
+        if self.uniform_resource_identifiers:
+            for uri in self.uniform_resource_identifiers:
+                alt_names.append(x509.UniformResourceIdentifier(uri))
+
+        if self.user_principal_names:
+            for upn in self.user_principal_names:
+                # Python cryptography library doesn't include
+                # OID for UPN in any of the OID constants
+                # See http://www.oid-info.com/get/1.3.6.1.4.1.311.20.2.3
+                # and https://docs.microsoft.com/en-us/windows/security/identity-protection/smart-cards/smart-card-certificate-requirements-and-enumeration
+                UPNOID = x509.ObjectIdentifier('1.3.6.1.4.1.311.20.2.3')
+                # x509 library expects DER encoded string, so encode UPN into bytes
+                # with ASN1 syntax for UTF8String, which is a type/length/value encoding
+                # per https://docs.microsoft.com/en-us/windows/win32/seccertenroll/about-utf8string
+                # Construct the array of bytes (note bytes are strings in python2)
+                # by inserting the header consisting of the tag '0x0C' followed by the length of the upn
+                if (sys.version_info > (3,0)):
+                    # For python3, since we have native bytes available we'll convert the string into bytes.
+                    # However, for cases when this method is called with inputs extracted from existing certificates
+                    # & csrs, the input will already be encoded as bytes. So we'll check the input, if it is a 
+                    # string we'll convert it into a bytes object then insert our header. Otherwise, we'll just
+                    # insert the header in the passed in bytes.
+                    if (isinstance(upn,str)):
+                        bupn = bytes(upn,'utf-8')
+                    else:
+                        bupn = upn
+                    values = [12,len(upn)]
+                    header = bytes(values)
+                    data = header + bupn
+                    alt_names.append(x509.OtherName(UPNOID,data))
+                else:
+                    # For python2, since there is no native bytes method, we'll use the bytes method 
+                    # in the future module to convert the string we constructed into bytes.
+                    bupn = ''.join(chr(x) for x in [12,len(upn)])
+                    bupn = bupn + str(upn)
+                    alt_names.append(x509.OtherName(UPNOID,bytes(bupn,'utf-8')))
 
         csr_builder = csr_builder.add_extension(
             x509.SubjectAlternativeName(alt_names),
