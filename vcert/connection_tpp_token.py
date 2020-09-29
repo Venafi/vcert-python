@@ -381,6 +381,9 @@ class TPPTokenConnection(CommonConnection):
         if authentication and isinstance(authentication, Authentication):
             self._auth = authentication
 
+        if self._auth.user is None or self._auth.password is None:
+            raise ClientBadData("user/password missing. Cannot request new access token")
+
         request_data = {
             "username": self._auth.user,
             "password": self._auth.password,
