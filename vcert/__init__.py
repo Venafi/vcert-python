@@ -49,17 +49,17 @@ def venafi_connection(url=None, api_key=None, user=None, password=None, access_t
                       fake=False, http_request_kwargs=None):
     """
     Return connection based on credentials list.
-    Venafi Platform (TPP) required URL, user, password
-    Cloud required token and optional URL
-    Fake required no parameters
+    Venafi Platform (TPP) requires URL and access_token (or user and password for getting a new access_token)
+    Cloud requires api_key and optional URL
+    Fake requires no parameters
     :param str url: TPP or Venafi Cloud URL (for Cloud is optional)
-    :param str api_key: Venafi Cloud token
-    :param str user: TPP username
-    :param str password: TPP password
+    :param str api_key: Venafi Cloud API Key
+    :param str user: TPP username for getting new tokens
+    :param str password: TPP password for getting new tokens
     :param str access_token: TPP access token
     :param str refresh_token: TPP refresh token (optional)
     :param bool fake: Use fake connection
-    :param dict[str, Any] http_request_kwargs: Option for work with untrusted  https certificate (only for TPP).
+    :param dict[str, Any] http_request_kwargs: Option for specifying trust bundle or to operate insecurely.
     :rtype CommonConnection:
     """
     if fake:
