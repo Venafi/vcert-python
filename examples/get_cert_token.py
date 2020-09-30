@@ -17,7 +17,7 @@
 
 from __future__ import print_function
 from vcert import (CertificateRequest, Connection, FakeConnection, TPPConnection, RevocationRequest, KeyType,
-                   token_connection, TPPTokenConnection)
+                   TPPTokenConnection, venafi_connection)
 import string
 import random
 import logging
@@ -43,7 +43,7 @@ def main():
         # If user and password are passed, you can get a new token from them.
         # If access_token and refresh_token are passed, there is no need for the username and password.
         # If only access_token is passed, the Connection will fail when token expires, as there is no way to refresh it.
-        conn = token_connection(url=url, user=user, password=password, http_request_kwargs={"verify": False})
+        conn = venafi_connection(url=url, user=user, password=password, http_request_kwargs={"verify": False})
         # If your TPP server certificate signed with your own CA, or available only via proxy, you can specify
         # a trust bundle using requests vars:
         # conn = token_connection(url=url, user=user, password=password,
