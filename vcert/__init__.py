@@ -64,7 +64,7 @@ def venafi_connection(url=None, api_key=None, user=None, password=None, access_t
     """
     if fake:
         return FakeConnection()
-    if url and (access_token or (user and password)):
+    if url and (access_token or refresh_token or (user and password)):
         return TPPTokenConnection(url=url, user=user, password=password, access_token=access_token,
                                   refresh_token=refresh_token, http_request_kwargs=http_request_kwargs)
     if api_key:
