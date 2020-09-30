@@ -16,7 +16,7 @@ VCert Python is a Python library and SDK  designed to simplify key generation an
 This implementation is based on the original Go library, https://github.com/Venafi/vcert.
 
 #### Compatibility
-VCert supports Python 3, and Python 2.7.  VCert releases are tested using the latest version of Trust Protection Platform.  The [latest VCert release](../../releases/latest) should be compatible with Trust Protection Platform 17.3 or higher based on the subset of API methods it consumes.
+VCert supports Python 3, and Python 2.7 (when the [future](http://python-future.org/) module is installed).  VCert releases are tested using the latest version of Trust Protection Platform.  The [latest VCert release](../../releases/latest) should be compatible with Trust Protection Platform 17.3 or higher based on the subset of API methods it consumes.
 
 ## Installation
 Get the library using pip:  
@@ -40,7 +40,7 @@ For code samples of programmatic use, please review the files in [/examples](/ex
     1. CA Template that Trust Protection Platform will use to enroll certificate requests submitted by VCert
     2. Subject DN values for Organizational Unit (OU), Organization (O), City (L), State (ST) and Country (C)
     3. Management Type not locked or locked to 'Enrollment'
-    4. Certificate Signing Request (CSR) Generation not locked or locked to 'Service Generated CSR'
+    4. Certificate Signing Request (CSR) Generation unlocked or not locked to 'Service Generated CSR'.
     5. Generate Key/CSR on Application not locked or locked to 'No'
     6. (Recommended) Disable Automatic Renewal set to 'Yes'
     7. (Recommended) Key Bit Strength set to 2048 or higher
