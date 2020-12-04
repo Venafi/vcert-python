@@ -457,7 +457,7 @@ class CustomField:
 
     @property
     def name(self):
-        return self.name
+        return self._name
 
     @name.setter
     def name(self, value):
@@ -465,7 +465,7 @@ class CustomField:
 
     @property
     def value(self):
-        return self.value
+        return self._value
 
     @value.setter
     def value(self, value):
