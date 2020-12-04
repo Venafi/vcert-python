@@ -318,9 +318,10 @@ class TestTPPTokenMethods(unittest.TestCase):
             CustomField(name="cfListMulti", value="tier1"),
             CustomField(name="cfListMulti", value="tier4")
         ]
-        cert_id, pkey, cert, _ = enroll(conn=self.tpp_conn, zone=self.tpp_zone, cn=cn, custom_fields=custom_fields)
-        config_dn = self.tpp_conn._read_config_dn(self.tpp_conn._get_policy_dn(self.tpp_zone) + "\\" + cn, "Origin")
-        self.assertEqual(config_dn["Values"][0], "Venafi VCert-Python")
+        try:
+            cert_id, pkey, cert, _ = enroll(conn=self.tpp_conn, zone=self.tpp_zone, cn=cn, custom_fields=custom_fields)
+        except Exception as err:
+            self.fail("Error in test: %s" % err.__str__)
 
     def test_tpp_token_enroll_origin(self):
         cn = randomword(10) + ".venafi.example.com"
