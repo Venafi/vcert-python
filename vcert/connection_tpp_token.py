@@ -25,7 +25,7 @@ import time
 
 from cryptography.hazmat.backends import default_backend
 from cryptography import x509
-from cryptography.x509 import SignatureAlgorithmOID as algos
+from cryptography.x509 import SignatureAlgorithmOID as AlgOID
 
 from .http import HTTPStatus
 
@@ -164,6 +164,25 @@ class TPPTokenConnection(CommonConnection):
                 request_data["CASpecificAttributes"].append(ca_origin)
             else:
                 request_data["CASpecificAttributes"] = [ca_origin]
+
+        if request.custom_fields:
+            custom_fields_map = {}
+            for c_field in request.custom_fields:
+                if custom_fields_map.get(c_field.name):
+                    custom_fields_map[c_field.name].append(c_field.value)
+                else:
+                    custom_fields_map[c_field.name] = [c_field.value]
+
+            for key in custom_fields_map:
+                custom_field_json = {
+                    "Name": key,
+                    "Values": custom_fields_map[key]
+                }
+                if request_data.get("CustomFields"):
+                    request_data["CustomFields"].append(custom_field_json)
+                else:
+                    request_data["CustomFields"] = [custom_field_json]
+
         status, data = self._post(URLS.CERTIFICATE_REQUESTS, data=request_data)
         if status == HTTPStatus.OK:
             request.id = data['CertificateDN']
@@ -263,8 +282,8 @@ class TPPTokenConnection(CommonConnection):
                         upns.append(x.value[2 : :])
                 request.user_principal_names = upns
                 request.uniform_resource_identifiers = list([x.value for x in e.value if isinstance(x,x509.UniformResourceIdentifier)])
-        if cert.signature_algorithm_oid in (algos.ECDSA_WITH_SHA1, algos.ECDSA_WITH_SHA224, algos.ECDSA_WITH_SHA256,
-                                            algos.ECDSA_WITH_SHA384, algos.ECDSA_WITH_SHA512):
+        if cert.signature_algorithm_oid in (AlgOID.ECDSA_WITH_SHA1, AlgOID.ECDSA_WITH_SHA224, AlgOID.ECDSA_WITH_SHA256,
+                                            AlgOID.ECDSA_WITH_SHA384, AlgOID.ECDSA_WITH_SHA512):
             request.key_type = (KeyType.ECDSA, KeyType.ALLOWED_CURVES[0])
         else:
             request.key_type = KeyType(KeyType.RSA, 2048)  # todo: make parsing key size

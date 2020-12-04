@@ -78,7 +78,8 @@ class KeyType:
                 log.error("unknown size: %s" % option)
                 raise BadData
         elif self.key_type == KeyType.ECDSA:
-            option = {"secp521r1": "p521", "secp384r1": "p384", "secp256r1": "p256", "p256": "p256", "p384":"p384", "p521": "p521"}[option.lower().strip()]
+            option = {"secp521r1": "p521", "secp384r1": "p384", "secp256r1": "p256", "p256": "p256", "p384": "p384",
+                      "p521": "p521"}[option.lower().strip()]
             if option not in KeyType.ALLOWED_CURVES:
                 log.error("unknown curve: %s, should be one of %s" % (option, KeyType.ALLOWED_CURVES))
                 raise BadData
@@ -197,7 +198,8 @@ class CertificateRequest:
                  country=None,
                  province=None,
                  locality=None,
-                 origin=None
+                 origin=None,
+                 custom_fields=None,
                  ):
         """
         :param str cert_id: Certificate request id. Generating by server.
@@ -215,6 +217,7 @@ class CertificateRequest:
         :param str common_name: Common name of certificate. Usually domain name.
         :param str thumbprint: Certificate thumbprint. Can be used for identifying certificate on the platform.
         :param str origin: application identifier
+        :param list[CustomField] custom_fields: list of custom fields values to be added to the certificate.
         """
 
         self.chain_option = "last"
@@ -241,6 +244,7 @@ class CertificateRequest:
         # CSR should be last, because it checks subject to match with over parameters
         self.csr = csr
         self.origin = origin or "Venafi VCert-Python"
+        self.custom_fields = custom_fields
 
     def __setattr__(self, key, value):
         if key == "key_password":
@@ -367,26 +371,26 @@ class CertificateRequest:
                 # per https://docs.microsoft.com/en-us/windows/win32/seccertenroll/about-utf8string
                 # Construct the array of bytes (note bytes are strings in python2)
                 # by inserting the header consisting of the tag '0x0C' followed by the length of the upn
-                if (sys.version_info > (3,0)):
+                if sys.version_info > (3, 0):
                     # For python3, since we have native bytes available we'll convert the string into bytes.
                     # However, for cases when this method is called with inputs extracted from existing certificates
                     # & csrs, the input will already be encoded as bytes. So we'll check the input, if it is a 
                     # string we'll convert it into a bytes object then insert our header. Otherwise, we'll just
                     # insert the header in the passed in bytes.
-                    if (isinstance(upn,str)):
+                    if isinstance(upn, str):
                         bupn = bytes(upn,'utf-8')
                     else:
                         bupn = upn
                     values = [12,len(upn)]
                     header = bytes(values)
                     data = header + bupn
-                    alt_names.append(x509.OtherName(UPNOID,data))
+                    alt_names.append(x509.OtherName(UPNOID, data))
                 else:
                     # For python2, since there is no native bytes method, we'll use the bytes method 
                     # in the future module to convert the string we constructed into bytes.
                     bupn = ''.join(chr(x) for x in [12,len(upn)])
                     bupn = bupn + str(upn)
-                    alt_names.append(x509.OtherName(UPNOID,bytes(bupn,'utf-8')))
+                    alt_names.append(x509.OtherName(UPNOID,bytes(bupn, 'utf-8')))
 
         csr_builder = csr_builder.add_extension(
             x509.SubjectAlternativeName(alt_names),
@@ -440,6 +444,32 @@ class CertificateRequest:
             self.locality = zone.locality.value
         if not self.key_type and zone.key_type:
             self.key_type = zone.key_type
+
+
+class CustomField:
+    def __init__(self, name, value):
+        """
+        :param str name: The name of the custom field
+        :param str value: The value to be added to the specified custom field
+        """
+        self.name = name
+        self.value = value
+
+    @property
+    def name(self):
+        return self.name
+
+    @name.setter
+    def name(self, value):
+        self._name = value
+
+    @property
+    def value(self):
+        return self.value
+
+    @value.setter
+    def value(self, value):
+        self._value = value
 
 
 class RevocationRequest:
