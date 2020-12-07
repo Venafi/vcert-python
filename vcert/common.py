@@ -245,6 +245,7 @@ class CertificateRequest:
         self.csr = csr
         self.origin = origin or "Venafi VCert-Python"
         self.custom_fields = custom_fields
+        self.cert_guid = None
 
     def __setattr__(self, key, value):
         if key == "key_password":

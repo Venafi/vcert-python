@@ -26,6 +26,7 @@ import requests
 from cryptography.hazmat.backends import default_backend
 from cryptography import x509
 from cryptography.x509 import SignatureAlgorithmOID as AlgOID
+from pip._internal.utils import deprecation
 
 from .common import CommonConnection, MIME_JSON, CertField, ZoneConfig, Policy, KeyType
 from .pem import parse_pem
@@ -169,7 +170,9 @@ class TPPConnection(CommonConnection):
         status, data = self._post(URLS.CERTIFICATE_REQUESTS, data=request_data)
         if status == HTTPStatus.OK:
             request.id = data['CertificateDN']
-            log.debug("Certificate sucessfully requested with request id %s." % request.id)
+            request.cert_guid = data['Guid']
+            log.debug("Certificate successfully requested with request id %s." % request.id)
+            log.debug("Certificate successfully requested with GUID %s." % request.cert_guid)
             return True
 
         log.error("Request status is not %s. %s." % HTTPStatus.OK, status)
@@ -376,6 +379,12 @@ class TPPConnection(CommonConnection):
             "ObjectDN": dn,
             "AttributeName": attribute_name,
         })
+        if status != HTTPStatus.OK:
+            raise ServerUnexptedBehavior("")
+        return data
+
+    def _get_certificate_details(self, cert_guid):
+        status, data = self._get(URLS.CERTIFICATE_SEARCH + cert_guid)
         if status != HTTPStatus.OK:
             raise ServerUnexptedBehavior("")
         return data
