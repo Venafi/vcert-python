@@ -164,8 +164,8 @@ class TestTPPMethods(unittest.TestCase):
 
     def test_tpp_enroll(self):
         cn = randomword(10) + ".venafi.example.com"
-        _, pkey, cert, _, guid = enroll(self.tpp_conn, self.tpp_zone, cn)
-        cert_config = self.tpp_conn._get_certificate_details(guid)
+        _, pkey, cert, _, cert_guid = enroll(self.tpp_conn, self.tpp_zone, cn)
+        cert_config = self.tpp_conn._get_certificate_details(cert_guid)
         self.assertEqual(cert_config["Origin"], "Venafi VCert-Python")
 
     def test_tpp_enroll_with_custom_fields(self):
@@ -306,8 +306,8 @@ class TestTPPTokenMethods(unittest.TestCase):
     def test_tpp_token_enroll(self):
         cn = randomword(10) + ".venafi.example.com"
         try:
-            cert_id, pkey, cert, _, guid = enroll(self.tpp_conn, self.tpp_zone, cn)
-            cert_config = self.tpp_conn._get_certificate_details(guid)
+            cert_id, pkey, cert, _, cert_guid = enroll(self.tpp_conn, self.tpp_zone, cn)
+            cert_config = self.tpp_conn._get_certificate_details(cert_guid)
             self.assertEqual(cert_config["Origin"], "Venafi VCert-Python")
         except Exception as err:
             self.fail("Error in test: %s" % err.__str__)
@@ -321,8 +321,8 @@ class TestTPPTokenMethods(unittest.TestCase):
             CustomField(name="cfListMulti", value="tier4")
         ]
         try:
-            cert_id, pkey, cert, _, guid = enroll(conn=self.tpp_conn, zone=self.tpp_zone, cn=cn, custom_fields=custom_fields)
-            cert_config = self.tpp_conn._get_certificate_details(guid)
+            cert_id, pkey, cert, _, cert_guid = enroll(conn=self.tpp_conn, zone=self.tpp_zone, cn=cn, custom_fields=custom_fields)
+            cert_config = self.tpp_conn._get_certificate_details(cert_guid)
             self.assertEqual(cert_config["Origin"], "Venafi VCert-Python")
         except Exception as err:
             self.fail("Error in test: %s" % err.__str__)
