@@ -25,7 +25,8 @@ import time
 import requests
 from cryptography.hazmat.backends import default_backend
 from cryptography import x509
-from cryptography.x509 import SignatureAlgorithmOID as algos
+from cryptography.x509 import SignatureAlgorithmOID as AlgOID
+from pip._internal.utils import deprecation
 
 from .common import CommonConnection, MIME_JSON, CertField, ZoneConfig, Policy, KeyType
 from .pem import parse_pem
@@ -35,6 +36,9 @@ from .http import HTTPStatus
 
 
 class URLS:
+    def __init__(self):
+        pass
+
     API_BASE_URL = ""
 
     AUTHORIZE = "authorize/"
@@ -94,7 +98,7 @@ class TPPConnection(CommonConnection):
 
         if isinstance(data, dict):
             r = requests.post(self._base_url + url, headers={TOKEN_HEADER_NAME: self._token[0], 'content-type':
-                              MIME_JSON, "cache-control": "no-cache"}, json=data,  **self._http_request_kwargs)
+                              MIME_JSON, "cache-control": "no-cache"}, json=data, **self._http_request_kwargs)
         else:
             log.error("Unexpected client data type: %s for %s" % (type(data), url))
             raise ClientBadData
@@ -134,9 +138,9 @@ class TPPConnection(CommonConnection):
         if not request.csr:
             request.build_csr()
         request_data = {"PolicyDN": self._get_policy_dn(zone),
-                 "PKCS10": request.csr,
-                 "ObjectName": request.friendly_name,
-                 "DisableAutomaticRenewal": "true"}
+                        "PKCS10": request.csr,
+                        "ObjectName": request.friendly_name,
+                        "DisableAutomaticRenewal": "true"}
         if request.origin:
             request_data["Origin"] = request.origin
             ca_origin = {"Name": "Origin", "Value": request.origin}
@@ -144,10 +148,31 @@ class TPPConnection(CommonConnection):
                 request_data["CASpecificAttributes"].append(ca_origin)
             else:
                 request_data["CASpecificAttributes"] = [ca_origin]
+
+        if request.custom_fields:
+            custom_fields_map = {}
+            for c_field in request.custom_fields:
+                if custom_fields_map.get(c_field.name):
+                    custom_fields_map[c_field.name].append(c_field.value)
+                else:
+                    custom_fields_map[c_field.name] = [c_field.value]
+
+            for key in custom_fields_map:
+                custom_field_json = {
+                    "Name": key,
+                    "Values": custom_fields_map[key]
+                }
+                if request_data.get("CustomFields"):
+                    request_data["CustomFields"].append(custom_field_json)
+                else:
+                    request_data["CustomFields"] = [custom_field_json]
+
         status, data = self._post(URLS.CERTIFICATE_REQUESTS, data=request_data)
         if status == HTTPStatus.OK:
             request.id = data['CertificateDN']
-            log.debug("Certificate sucessfully requested with request id %s." % request.id)
+            request.cert_guid = data['Guid']
+            log.debug("Certificate successfully requested with request id %s." % request.id)
+            log.debug("Certificate successfully requested with GUID %s." % request.cert_guid)
             return True
 
         log.error("Request status is not %s. %s." % HTTPStatus.OK, status)
@@ -239,12 +264,13 @@ class TPPConnection(CommonConnection):
                 # remove header bytes from ASN1 encoded UPN field before setting it in the request object
                 upns = []
                 for x in e.value:
-                    if isinstance(x,x509.OtherName):
-                        upns.append(x.value[2 : :])
+                    if isinstance(x, x509.OtherName):
+                        upns.append(x.value[2::])
                 request.user_principal_names = upns
-                request.uniform_resource_identifiers = list([x.value for x in e.value if isinstance(x,x509.UniformResourceIdentifier)])
-        if cert.signature_algorithm_oid in (algos.ECDSA_WITH_SHA1, algos.ECDSA_WITH_SHA224, algos.ECDSA_WITH_SHA256,
-                                            algos.ECDSA_WITH_SHA384, algos.ECDSA_WITH_SHA512):
+                request.uniform_resource_identifiers = list(
+                    [x.value for x in e.value if isinstance(x, x509.UniformResourceIdentifier)])
+        if cert.signature_algorithm_oid in (AlgOID.ECDSA_WITH_SHA1, AlgOID.ECDSA_WITH_SHA224, AlgOID.ECDSA_WITH_SHA256,
+                                            AlgOID.ECDSA_WITH_SHA384, AlgOID.ECDSA_WITH_SHA512):
             request.key_type = (KeyType.ECDSA, KeyType.ALLOWED_CURVES[0])
         else:
             request.key_type = KeyType(KeyType.RSA, 2048)  # todo: make parsing key size
@@ -313,7 +339,7 @@ class TPPConnection(CommonConnection):
         return z
 
     def read_zone_conf(self, tag):
-        status, data = self._post(URLS.ZONE_CONFIG, {"PolicyDN":  self._get_policy_dn(tag)})
+        status, data = self._post(URLS.ZONE_CONFIG, {"PolicyDN": self._get_policy_dn(tag)})
         if status != HTTPStatus.OK:
             raise ServerUnexptedBehavior("Server returns %d status on reading zone configuration." % status)
         return self._parse_zone_data_to_object(data)
@@ -353,6 +379,12 @@ class TPPConnection(CommonConnection):
             "ObjectDN": dn,
             "AttributeName": attribute_name,
         })
+        if status != HTTPStatus.OK:
+            raise ServerUnexptedBehavior("")
+        return data
+
+    def _get_certificate_details(self, cert_guid):
+        status, data = self._get(URLS.CERTIFICATE_SEARCH + cert_guid)
         if status != HTTPStatus.OK:
             raise ServerUnexptedBehavior("")
         return data
