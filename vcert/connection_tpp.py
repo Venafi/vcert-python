@@ -26,7 +26,6 @@ import requests
 from cryptography.hazmat.backends import default_backend
 from cryptography import x509
 from cryptography.x509 import SignatureAlgorithmOID as AlgOID
-from pip._internal.utils import deprecation
 
 from .common import CommonConnection, MIME_JSON, CertField, ZoneConfig, Policy, KeyType
 from .pem import parse_pem
