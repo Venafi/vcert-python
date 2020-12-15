@@ -57,6 +57,12 @@ def main():
     request.user_principal_names = [u"e1@venafi.example.com", u"e2@venafi.example.com"] 
     # Specify ordering certificates in chain. Root can be "first" or "last". By default its last. You also can
     # specify "ignore" to ignore chain (supported only for Platform).
+    # To set Custom Fields for the certificate, specify an array of CustomField objects as name-value pairs
+    #request.custom_fields = [
+    #    CustomField(name="Cost Center", value="ABC123"),
+    #    CustomField(name="Environment", value="Production"),
+    #    CustomField(name="Environment", value="Staging")
+    #]
 
     # configure key type, RSA example
     request.key_type = KeyType(KeyType.RSA, 2048)

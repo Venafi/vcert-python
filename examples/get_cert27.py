@@ -48,6 +48,12 @@ def main():
         request.ip_addresses = [u"127.0.0.1", u"192.168.1.1"]
         # Specify ordering certificates in chain. Root can be "first" or "last". By default it last. You also can
         # specify "ignore" to ignore chain (supported only for Platform).
+        # To set Custom Fields for the certificate, specify an array of CustomField objects as name-value pairs
+        #request.custom_fields = [
+        #    CustomField(name="Cost Center", value="ABC123"),
+        #    CustomField(name="Environment", value="Production"),
+        #    CustomField(name="Environment", value="Staging")
+        #]
 
     # Update certificate request from zone
     zone_config = conn.read_zone_conf(zone)
