@@ -70,7 +70,7 @@ class TestFakeMethods(unittest.TestCase):
 
 class TestCloudMethods(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        self.cloud_zone = environ['CLOUD_ZONE_2']
+        self.cloud_zone = environ['CLOUD_ZONE']
         self.cloud_conn = CloudConnection(token=TOKEN, url=CLOUDURL)
         super(TestCloudMethods, self).__init__(*args, **kwargs)
 
