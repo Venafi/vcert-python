@@ -513,6 +513,16 @@ class Authentication:
         self.state = state
 
 
+class AppDetails:
+    def __init__(self, app_id=None, cit_map=None):
+        """
+        :param str app_id:
+        :param dict cit_ids:
+        """
+        self.app_id = app_id
+        self.cit_alias_id_map = cit_map
+
+
 class CommonConnection:
 
     def auth(self):

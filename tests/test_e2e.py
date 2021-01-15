@@ -70,7 +70,7 @@ class TestFakeMethods(unittest.TestCase):
 
 class TestCloudMethods(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        self.cloud_zone = environ['CLOUD_ZONE']
+        self.cloud_zone = environ['CLOUD_ZONE_2']
         self.cloud_conn = CloudConnection(token=TOKEN, url=CLOUDURL)
         super(TestCloudMethods, self).__init__(*args, **kwargs)
 
@@ -124,7 +124,7 @@ class TestCloudMethods(unittest.TestCase):
         with self.assertRaises(Exception):
             self.cloud_conn.read_zone_conf("4d806fbc-06bb-4a2a-b224-9e58a7e996f5")
 
-    def test_cloud_read_zone_invalud_zone(self):
+    def test_cloud_read_zone_invalid_zone(self):
         with self.assertRaises(Exception):
             self.cloud_conn.read_zone_conf("fdsfsfa")
 
@@ -139,20 +139,7 @@ class TestCloudMethods(unittest.TestCase):
         fingerprint = binascii.hexlify(cert.fingerprint(hashes.SHA1())).decode()
         time.sleep(1)
         found = self.cloud_conn.search_by_thumbprint(fingerprint)
-        self.assertEqual(found.manage_id, req.manage_id)
-
-    def test_auth(self):
-        self.cloud_conn.auth()
-
-    def test_invalid_auth(self):
-        cloud_conn = CloudConnection(token='5eebed3b-0542-4c0d-a42e-b1e6e4630c3d', url=CLOUDURL)
-        with self.assertRaises(Exception):
-            cloud_conn.auth()
-
-    def test_invalid_auth2(self):
-        cloud_conn = CloudConnection(token='invalid-format-token', url=CLOUDURL)
-        with self.assertRaises(Exception):
-            cloud_conn.auth()
+        self.assertEqual(found.certificateIds[0], req.cert_guid)
 
 
 class TestTPPMethods(unittest.TestCase):
