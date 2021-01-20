@@ -227,17 +227,19 @@ class CloudConnection(CommonConnection):
         cit_id = details.cit_alias_id_map.get(cit_alias_decoded)
         if not request.csr:
             request.build_csr()
-        status, data = self._post(URLS.CERTIFICATE_REQUESTS,
-                                  data={"certificateSigningRequest": request.csr,
-                                        "applicationId": details.app_id,
-                                        "certificateIssuingTemplateId": cit_id,
-                                        # TODO remove validity period workaround
-                                        "validityPeriod": "PT48H",
-                                        "apiClientInformation": {
-                                            "type": request.origin,
-                                            "identifier": get_ip_address
-                                        },
-                                        })
+
+        ip_address = get_ip_address()
+        status, data = self._post(URLS.CERTIFICATE_REQUESTS, data={
+            "certificateSigningRequest": request.csr,
+            "applicationId": details.app_id,
+            "certificateIssuingTemplateId": cit_id,
+            # TODO remove validity period workaround
+            "validityPeriod": "PT48H",
+            "apiClientInformation": {
+                "type": request.origin,
+                "identifier": ip_address
+            }
+        })
         if status == HTTPStatus.CREATED:
             request.id = data['certificateRequests'][0]['id']
             request.cert_guid = data['certificateRequests'][0]['certificateIds'][0]

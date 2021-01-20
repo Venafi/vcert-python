@@ -17,7 +17,7 @@
 from __future__ import absolute_import, division, generators, unicode_literals, print_function, nested_scopes, \
     with_statement
 
-from socket import socket
+import socket
 
 from builtins import bytes
 
@@ -45,6 +45,7 @@ MIME_TEXT = "text/plain"
 MIME_CSV = "text/csv"
 MIME_ANY = "*/*"
 LOCALHOST = "127.0.0.1"
+
 
 class CertField:
     def __init__(self, value, locked=False):

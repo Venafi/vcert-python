@@ -93,9 +93,12 @@ class TestCloudMethods(unittest.TestCase):
         cn = randomword(10) + ".venafi.example.com"
         cert_id, pkey, cert, _, _ = enroll(self.cloud_conn, self.cloud_zone, cn)
         time.sleep(5)
-        renew(self.cloud_conn, cert_id, pkey, cert.serial_number, cn)
+        new_cert = renew(self.cloud_conn, cert_id, pkey, cert.serial_number, cn)
+        fingerprint = binascii.hexlify(new_cert.fingerprint(hashes.SHA1())).decode()
+        found_cert = self.cloud_conn.search_by_thumbprint(fingerprint)
+
         time.sleep(5)
-        renew(self.cloud_conn, cert_id, pkey, cert.serial_number, cn)
+        renew(self.cloud_conn, found_cert.csrId, pkey, new_cert.serial_number, cn)
 
     def test_cloud_renew_by_thumbprint(self):
         cn = randomword(10) + ".venafi.example.com"
@@ -133,7 +136,7 @@ class TestCloudMethods(unittest.TestCase):
         with self.assertRaises(Exception):
             self.cloud_conn.retrieve_cert(req)
 
-    def test_cloud_search_by_thumbpint(self):
+    def test_cloud_search_by_thumbprint(self):
         req, cert = simple_enroll(self.cloud_conn, self.cloud_zone)
         cert = x509.load_pem_x509_certificate(cert.cert.encode(),  default_backend())
         fingerprint = binascii.hexlify(cert.fingerprint(hashes.SHA1())).decode()
@@ -601,7 +604,7 @@ def renew(conn, cert_id, pkey, sn, cn):
     time.sleep(5)
     t = time.time()
     while time.time() - t < 300:
-        new_cert= conn.retrieve_cert(new_request)
+        new_cert = conn.retrieve_cert(new_request)
         if new_cert:
             break
         else:
@@ -628,6 +631,7 @@ def renew(conn, cert_id, pkey, sn, cn):
         encoding=serialization.Encoding.PEM,
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     )
+    # TODO this assertion only works when the reuse key is set to true in the renew method
     # assert private_key_public_key_pem == public_key_pem
     return cert
 
