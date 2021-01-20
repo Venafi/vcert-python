@@ -596,7 +596,7 @@ def renew(conn, cert_id, pkey, sn, cn):
     new_request = CertificateRequest(
         cert_id=cert_id,
     )
-    conn.renew_cert(new_request, reuse_key=True)
+    conn.renew_cert(new_request, reuse_key=False)
     time.sleep(5)
     t = time.time()
     while time.time() - t < 300:
@@ -627,7 +627,7 @@ def renew(conn, cert_id, pkey, sn, cn):
         encoding=serialization.Encoding.PEM,
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     )
-    assert private_key_public_key_pem == public_key_pem
+    # assert private_key_public_key_pem == public_key_pem
     return cert
 
 

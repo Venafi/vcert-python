@@ -27,7 +27,7 @@ from .common import (ZoneConfig, CertificateRequest, CommonConnection, Policy, l
                      MIME_ANY, CertField, KeyType, AppDetails)
 from .pem import parse_pem
 from .errors import (VenafiConnectionError, ServerUnexptedBehavior, ClientBadData, CertificateRequestError,
-                     CertificateRenewError)
+                     CertificateRenewError, VenafiError)
 from .http import HTTPStatus
 
 
@@ -303,9 +303,12 @@ class CloudConnection(CommonConnection):
                 d["certificateSigningRequest"] = request.csr
                 d["reuseCSR"] = False
             else:
-                d["reuseCSR"] = True
+                log.error("Certificate renew by reusing the CSR is not supported right now."
+                          "\nSet [reuse_key] to False or just remove it")
+                raise VenafiError
+                # d["reuseCSR"] = True
         else:
-            c = data['certificates'][0]
+            c = data
             if c.get("subjectCN"):
                 request.common_name = c['subjectCN'][0]
             if c.get("subjectC"):
