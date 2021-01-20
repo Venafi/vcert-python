@@ -15,7 +15,9 @@
 #
 
 from __future__ import absolute_import, division, generators, unicode_literals, print_function, nested_scopes, \
-    with_statement 
+    with_statement
+
+from socket import socket
 
 from builtins import bytes
 
@@ -42,7 +44,7 @@ MIME_HTML = "text/html"
 MIME_TEXT = "text/plain"
 MIME_CSV = "text/csv"
 MIME_ANY = "*/*"
-
+LOCALHOST = "127.0.0.1"
 
 class CertField:
     def __init__(self, value, locked=False):
@@ -59,6 +61,20 @@ def log_errors(data):
         return
     for e in data["errors"]:
         log.error("%s: %s" % (e['code'], e['message']))
+
+
+def get_ip_address():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    ip = None
+    try:
+        # doesn't even have to be reachable, it just allows the socket to be opened
+        s.connect(('10.255.255.255', 1))
+        ip = s.getsockname()[0]
+    except Exception:
+        ip = LOCALHOST
+    finally:
+        s.close()
+    return ip
 
 
 class KeyType:

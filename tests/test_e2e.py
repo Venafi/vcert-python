@@ -596,6 +596,7 @@ def renew(conn, cert_id, pkey, sn, cn):
     new_request = CertificateRequest(
         cert_id=cert_id,
     )
+    # TODO change back to True when support for renew with csr use is deployed.
     conn.renew_cert(new_request, reuse_key=False)
     time.sleep(5)
     t = time.time()
@@ -635,7 +636,8 @@ def renew_by_thumbprint(conn, prev_cert):
     print("Trying to renew by thumbprint")
     thumbprint = binascii.hexlify(prev_cert.fingerprint(hashes.SHA1())).decode()
     new_request = CertificateRequest(thumbprint=thumbprint)
-    conn.renew_cert(new_request, reuse_key=True)
+    # TODO change back to True when support for renew with csr use is deployed.
+    conn.renew_cert(new_request, reuse_key=False)
     t = time.time()
     while time.time() - t < 300:
         new_cert = conn.retrieve_cert(new_request)

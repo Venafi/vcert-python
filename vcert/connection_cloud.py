@@ -23,8 +23,8 @@ import urllib
 
 import requests
 
-from .common import (ZoneConfig, CertificateRequest, CommonConnection, Policy, log_errors, MIME_JSON, MIME_TEXT,
-                     MIME_ANY, CertField, KeyType, AppDetails)
+from .common import (ZoneConfig, CertificateRequest, CommonConnection, Policy, get_ip_address, log_errors, MIME_JSON,
+                     MIME_TEXT, MIME_ANY, CertField, KeyType, AppDetails)
 from .pem import parse_pem
 from .errors import (VenafiConnectionError, ServerUnexptedBehavior, ClientBadData, CertificateRequestError,
                      CertificateRenewError, VenafiError)
@@ -76,6 +76,7 @@ class CertificateStatusResponse:
         self.applicationId = d.get('applicationId')
         self.citId = d.get('certificateIssuingTemplateId')
         self.certificateIds = d.get('certificateIds') or [d.get('id')]
+        self.csrId = d.get('certificateRequestId')
 
 
 def _parse_zone(zone):
@@ -116,7 +117,9 @@ class CloudConnection(CommonConnection):
     def _post(self, url, data=None):
         if isinstance(data, dict):
             r = requests.post(self._base_url + url, json=data,
-                              headers={TOKEN_HEADER_NAME: self._token, "cache-control": "no-cache", "Accept": MIME_JSON},
+                              headers={TOKEN_HEADER_NAME: self._token,
+                                       "cache-control": "no-cache",
+                                       "Accept": MIME_JSON},
                               **self._http_request_kwargs
                               )
         else:
@@ -228,7 +231,12 @@ class CloudConnection(CommonConnection):
                                   data={"certificateSigningRequest": request.csr,
                                         "applicationId": details.app_id,
                                         "certificateIssuingTemplateId": cit_id,
-                                        "validityPeriod": "PT48H"  # This is a workaround!!! Remove for production
+                                        # TODO remove validity period workaround
+                                        "validityPeriod": "PT48H",
+                                        "apiClientInformation": {
+                                            "type": request.origin,
+                                            "identifier": get_ip_address
+                                        },
                                         })
         if status == HTTPStatus.CREATED:
             request.id = data['certificateRequests'][0]['id']
@@ -269,22 +277,23 @@ class CloudConnection(CommonConnection):
         raise NotImplementedError
 
     def renew_cert(self, request, reuse_key=False):
-        certificate_id = None
-        app_id = None
-        cit_id = None
+        cert_request_id = None
         if not request.id and not request.thumbprint:
             log.error("prev_cert_id or thumbprint or manage_id must be specified for renewing certificate")
             raise ClientBadData
+
         if request.thumbprint:
             response = self.search_by_thumbprint(request.thumbprint)
-            certificate_id = response.certificateIds[0]
-            app_id = response.applicationId
-            cit_id = response.citId
+            cert_request_id = response.csrId
+
         if request.id:
-            prev_request = self._get_cert_status(CertificateRequest(cert_id=request.id))
-            certificate_id = prev_request.certificateIds[0]
-            app_id = prev_request.applicationId
-            cit_id = prev_request.citId
+            cert_request_id = request.id
+
+        prev_request = self._get_cert_status(CertificateRequest(cert_id=cert_request_id))
+        certificate_id = prev_request.certificateIds[0]
+        app_id = prev_request.applicationId
+        cit_id = prev_request.citId
+
         if not certificate_id or not app_id or not cit_id:
             log.error("Can`t find certificate_id")
             raise ClientBadData
