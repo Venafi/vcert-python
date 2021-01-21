@@ -16,13 +16,10 @@
 
 from __future__ import (absolute_import, division, generators, unicode_literals, print_function, nested_scopes,
                         with_statement)
-
 import re
 import logging as log
-import urllib
-
 import requests
-
+import six.moves.urllib.parse as urlparse
 from .common import (ZoneConfig, CertificateRequest, CommonConnection, Policy, get_ip_address, log_errors, MIME_JSON,
                      MIME_TEXT, MIME_ANY, CertField, KeyType, AppDetails)
 from .pem import parse_pem
@@ -88,8 +85,8 @@ def _parse_zone(zone):
         log.error("Invalid zone. Incorrect format")
         raise ClientBadData("Invalid Zone. The zone format is incorrect")
 
-    app_name = urllib.quote(segments[0])
-    cit_alias = urllib.quote(segments[1])
+    app_name = urlparse.quote(segments[0])
+    cit_alias = urlparse.quote(segments[1])
     return app_name, cit_alias
 
 
@@ -223,7 +220,7 @@ class CloudConnection(CommonConnection):
     def request_cert(self, request, zone):
         app_name, cit_alias = _parse_zone(zone)
         details = self._get_app_details_by_name(app_name)
-        cit_alias_decoded = urllib.unquote(cit_alias)
+        cit_alias_decoded = urlparse.unquote(cit_alias)
         cit_id = details.cit_alias_id_map.get(cit_alias_decoded)
         if not request.csr:
             request.build_csr()
