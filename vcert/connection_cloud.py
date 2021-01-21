@@ -303,9 +303,15 @@ class CloudConnection(CommonConnection):
         else:
             raise ServerUnexptedBehavior
 
+        ip_address = get_ip_address()
         d = {"existingCertificateId": certificate_id,
              "applicationId": app_id,
-             "certificateIssuingTemplateId": cit_id}
+             "certificateIssuingTemplateId": cit_id,
+             "apiClientInformation": {
+                 "type": request.origin,
+                 "identifier": ip_address
+             }}
+
         if reuse_key:
             if request.csr:
                 d["certificateSigningRequest"] = request.csr
