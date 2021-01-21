@@ -660,7 +660,7 @@ class TestLocalMethods(unittest.TestCase):
 
     def test_parse_cloud_zone1(self):
         conn = CloudConnection(token="")
-        p = conn._parse_policy_responce_to_object(json.loads(POLICY_CLOUD1))
+        p = conn._parse_policy_response_to_object(json.loads(POLICY_CLOUD1))
         self.assertEqual(p.id, "3da4ba30-c370-11e9-9e69-99559a9ae32a")
         self.assertEqual(p.SubjectCNRegexes[-1], ".*.test")
         self.assertTrue(p.SubjectCRegexes == p.SubjectLRegexes == p.SubjectORegexes == p.SubjectOURegexes == p.SubjectSTRegexes == [".*"])
