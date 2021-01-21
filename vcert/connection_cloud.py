@@ -230,8 +230,6 @@ class CloudConnection(CommonConnection):
             "certificateSigningRequest": request.csr,
             "applicationId": details.app_id,
             "certificateIssuingTemplateId": cit_id,
-            # TODO remove validity period workaround
-            "validityPeriod": "PT48H",
             "apiClientInformation": {
                 "type": request.origin,
                 "identifier": ip_address
