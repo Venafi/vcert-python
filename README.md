@@ -90,7 +90,7 @@ Venafi welcomes contributions from the developer community.
 7. Create a new Pull Request (https://github.com/youracct/vcert-python/pull/new/your-branch-name)
 
 NOTE: While developing with vcert-python, it is helpful if you are using a virtualenv to
-install the vcert-python library from source in development mode with 'pip install --editable .'
+install the vcert-python library from source in development mode with `pip install --editable`.
 See https://packaging.python.org/guides/installing-using-pip-and-virtual-environments/
 
 ## License
