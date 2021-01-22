@@ -93,9 +93,12 @@ class TestCloudMethods(unittest.TestCase):
         cn = randomword(10) + ".venafi.example.com"
         cert_id, pkey, cert, _, _ = enroll(self.cloud_conn, self.cloud_zone, cn)
         time.sleep(5)
-        renew(self.cloud_conn, cert_id, pkey, cert.serial_number, cn)
+        new_cert = renew(self.cloud_conn, cert_id, pkey, cert.serial_number, cn)
+        fingerprint = binascii.hexlify(new_cert.fingerprint(hashes.SHA1())).decode()
+        found_cert = self.cloud_conn.search_by_thumbprint(fingerprint)
+
         time.sleep(5)
-        renew(self.cloud_conn, cert_id, pkey, cert.serial_number, cn)
+        renew(self.cloud_conn, found_cert.csrId, pkey, new_cert.serial_number, cn)
 
     def test_cloud_renew_by_thumbprint(self):
         cn = randomword(10) + ".venafi.example.com"
@@ -124,7 +127,7 @@ class TestCloudMethods(unittest.TestCase):
         with self.assertRaises(Exception):
             self.cloud_conn.read_zone_conf("4d806fbc-06bb-4a2a-b224-9e58a7e996f5")
 
-    def test_cloud_read_zone_invalud_zone(self):
+    def test_cloud_read_zone_invalid_zone(self):
         with self.assertRaises(Exception):
             self.cloud_conn.read_zone_conf("fdsfsfa")
 
@@ -133,26 +136,13 @@ class TestCloudMethods(unittest.TestCase):
         with self.assertRaises(Exception):
             self.cloud_conn.retrieve_cert(req)
 
-    def test_cloud_search_by_thumbpint(self):
+    def test_cloud_search_by_thumbprint(self):
         req, cert = simple_enroll(self.cloud_conn, self.cloud_zone)
         cert = x509.load_pem_x509_certificate(cert.cert.encode(),  default_backend())
         fingerprint = binascii.hexlify(cert.fingerprint(hashes.SHA1())).decode()
         time.sleep(1)
         found = self.cloud_conn.search_by_thumbprint(fingerprint)
-        self.assertEqual(found.manage_id, req.manage_id)
-
-    def test_auth(self):
-        self.cloud_conn.auth()
-
-    def test_invalid_auth(self):
-        cloud_conn = CloudConnection(token='5eebed3b-0542-4c0d-a42e-b1e6e4630c3d', url=CLOUDURL)
-        with self.assertRaises(Exception):
-            cloud_conn.auth()
-
-    def test_invalid_auth2(self):
-        cloud_conn = CloudConnection(token='invalid-format-token', url=CLOUDURL)
-        with self.assertRaises(Exception):
-            cloud_conn.auth()
+        self.assertEqual(found.certificateIds[0], req.cert_guid)
 
 
 class TestTPPMethods(unittest.TestCase):
@@ -609,11 +599,12 @@ def renew(conn, cert_id, pkey, sn, cn):
     new_request = CertificateRequest(
         cert_id=cert_id,
     )
-    conn.renew_cert(new_request, reuse_key=True)
+    # TODO change back to True when support for renew with csr use is deployed.
+    conn.renew_cert(new_request, reuse_key=False)
     time.sleep(5)
     t = time.time()
     while time.time() - t < 300:
-        new_cert= conn.retrieve_cert(new_request)
+        new_cert = conn.retrieve_cert(new_request)
         if new_cert:
             break
         else:
@@ -640,7 +631,8 @@ def renew(conn, cert_id, pkey, sn, cn):
         encoding=serialization.Encoding.PEM,
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     )
-    assert private_key_public_key_pem == public_key_pem
+    # TODO this assertion only works when the reuse key is set to true in the renew method
+    # assert private_key_public_key_pem == public_key_pem
     return cert
 
 
@@ -648,7 +640,8 @@ def renew_by_thumbprint(conn, prev_cert):
     print("Trying to renew by thumbprint")
     thumbprint = binascii.hexlify(prev_cert.fingerprint(hashes.SHA1())).decode()
     new_request = CertificateRequest(thumbprint=thumbprint)
-    conn.renew_cert(new_request, reuse_key=True)
+    # TODO change back to True when support for renew with csr use is deployed.
+    conn.renew_cert(new_request, reuse_key=False)
     t = time.time()
     while time.time() - t < 300:
         new_cert = conn.retrieve_cert(new_request)
@@ -667,7 +660,7 @@ class TestLocalMethods(unittest.TestCase):
 
     def test_parse_cloud_zone1(self):
         conn = CloudConnection(token="")
-        p = conn._parse_policy_responce_to_object(json.loads(POLICY_CLOUD1))
+        p = conn._parse_policy_response_to_object(json.loads(POLICY_CLOUD1))
         self.assertEqual(p.id, "3da4ba30-c370-11e9-9e69-99559a9ae32a")
         self.assertEqual(p.SubjectCNRegexes[-1], ".*.test")
         self.assertTrue(p.SubjectCRegexes == p.SubjectLRegexes == p.SubjectORegexes == p.SubjectOURegexes == p.SubjectSTRegexes == [".*"])

@@ -16,21 +16,22 @@
 
 from __future__ import (absolute_import, division, generators, unicode_literals, print_function, nested_scopes,
                         with_statement)
-
 import re
 import logging as log
-
 import requests
-
-from .common import (ZoneConfig, CertificateRequest, CommonConnection, Policy, log_errors, MIME_JSON, MIME_TEXT,
-                     MIME_ANY, CertField, KeyType)
+import six.moves.urllib.parse as urlparse
+from .common import (ZoneConfig, CertificateRequest, CommonConnection, Policy, get_ip_address, log_errors, MIME_JSON,
+                     MIME_TEXT, MIME_ANY, CertField, KeyType, AppDetails)
 from .pem import parse_pem
 from .errors import (VenafiConnectionError, ServerUnexptedBehavior, ClientBadData, CertificateRequestError,
-                     CertificateRenewError)
+                     CertificateRenewError, VenafiError)
 from .http import HTTPStatus
 
 
 class CertStatuses:
+    def __init__(self):
+        pass
+
     REQUESTED = 'REQUESTED'
     PENDING = 'PENDING'
     FAILED = 'FAILED'
@@ -38,22 +39,26 @@ class CertStatuses:
 
 
 class URLS:
-    API_BASE_URL = "https://api.venafi.cloud/v1/"
+    def __init__(self):
+        pass
 
-    USER_ACCOUNTS = "useraccounts"
-    ZONES = "zones"
-    ZONE_BY_TAG = ZONES + "/tag/%s"
+    API_BASE_URL = "https://api.venafi.cloud/outagedetection/v1/"
+
+    USER_ACCOUNTS = "useraccounts"  # Not being used at all
     POLICIES_BY_ID = "certificatepolicies/%s"
     CERTIFICATE_REQUESTS = "certificaterequests"
     CERTIFICATE_STATUS = CERTIFICATE_REQUESTS + "/%s"
-    CERTIFICATE_RETRIEVE = CERTIFICATE_REQUESTS + "/%s/certificate"
+    CERTIFICATE_RETRIEVE = "certificates/%s/contents"
     CERTIFICATE_SEARCH = "certificatesearch"
-    MANAGED_CERTIFICATES = "managedcertificates"
-    MANAGED_CERTIFICATE_BY_ID = MANAGED_CERTIFICATES + "/%s"
-    TEMPLATE_BY_ID = "certificateissuingtemplates/%s"
+    CERTIFICATE_TEMPLATE_BY_ID = "applications/%s/certificateissuingtemplates/%s"
+    APP_DETAILS_BY_NAME = "applications/name/%s"
+    CERTIFICATE_BY_ID = "certificates/%s"
 
 
 class CondorChainOptions:
+    def __init__(self):
+        pass
+
     ROOT_FIRST = "ROOT_FIRST"
     ROOT_LAST = "EE_FIRST"
 
@@ -63,10 +68,26 @@ TOKEN_HEADER_NAME = "tppl-api-key"  # nosec
 
 class CertificateStatusResponse:
     def __init__(self, d):
-        self.status = d.get('status')
+        self.status = d.get('status') or d.get("certificateStatus")
         self.subject = d.get('subjectDN') or d.get('subjectCN')[0]
-        self.zoneId = d.get('zoneId')
-        self.manage_id = d.get('managedCertificateId')
+        self.applicationId = d.get('applicationId')
+        self.citId = d.get('certificateIssuingTemplateId')
+        self.certificateIds = d.get('certificateIds') or [d.get('id')]
+        self.csrId = d.get('certificateRequestId')
+
+
+def _parse_zone(zone):
+    if not zone:
+        log.error("Invalid Zone. It is empty")
+        raise ClientBadData("You need to specify a zone")
+    segments = zone.split("\\")
+    if len(segments) < 2 or len(segments) > 2:
+        log.error("Invalid zone. Incorrect format")
+        raise ClientBadData("Invalid Zone. The zone format is incorrect")
+
+    app_name = urlparse.quote(segments[0])
+    cit_alias = urlparse.quote(segments[1])
+    return app_name, cit_alias
 
 
 class CloudConnection(CommonConnection):
@@ -93,7 +114,9 @@ class CloudConnection(CommonConnection):
     def _post(self, url, data=None):
         if isinstance(data, dict):
             r = requests.post(self._base_url + url, json=data,
-                              headers={TOKEN_HEADER_NAME: self._token, "cache-control": "no-cache", "Accept": MIME_JSON},
+                              headers={TOKEN_HEADER_NAME: self._token,
+                                       "cache-control": "no-cache",
+                                       "Accept": MIME_JSON},
                               **self._http_request_kwargs
                               )
         else:
@@ -111,7 +134,7 @@ class CloudConnection(CommonConnection):
             u += "/"
         if not u.endswith("v1/"):
             u += "v1/"
-        if not re.match(r"^https://[a-z\d]+[-a-z\d.]+[a-z\d][:\d]*/v1/$", u):
+        if not re.match(r"^https://[a-z\d]+[-a-z\d.]+[a-z\d][:\d]*/outagedetection/v1/$", u):
             raise ClientBadData
         self._base_url = u
 
@@ -139,7 +162,7 @@ class CloudConnection(CommonConnection):
             raise ServerUnexptedBehavior
 
     @staticmethod
-    def _parse_policy_responce_to_object(d):
+    def _parse_policy_response_to_object(d):
         policy = Policy(
             d["id"],
             d["companyId"],
@@ -167,69 +190,80 @@ class CloudConnection(CommonConnection):
         return policy
 
     def _get_policy_by_id(self, policy_id):
-        status, data = self._get(URLS.TEMPLATE_BY_ID % policy_id)
+        app_name, cit_alias = _parse_zone(policy_id)
+        status, data = self._get(URLS.CERTIFICATE_TEMPLATE_BY_ID % (app_name, cit_alias))
         if status != HTTPStatus.OK:
-            log.error("Invalid status during geting policy: %s for policy %s" % (status, policy_id))
+            log.error("Invalid status during getting policy: %s for policy %s" % (status, policy_id))
             raise ServerUnexptedBehavior
-        return self._parse_policy_responce_to_object(data)
+        return self._parse_policy_response_to_object(data)
 
     def auth(self):
         status, data = self._get(URLS.USER_ACCOUNTS)
         if status == HTTPStatus.OK:
             return data
 
-    def _get_zone_id_by_tag(self, tag):
+    def _get_app_details_by_name(self, app_name):
         """
-        :param str tag:
-        :rtype Zone
+        :param str app_name:
+        :rtype AppDetails
         """
-        if not tag:
-            raise ClientBadData("You need to specify zone tag")
-        status, data = self._get(URLS.ZONE_BY_TAG % tag)
+        if not app_name:
+            raise ClientBadData("You need to specify the application name")
+        status, data = self._get(URLS.APP_DETAILS_BY_NAME % app_name)
         if status == HTTPStatus.OK:
-            return data['id']
+            return AppDetails(data["id"], data["certificateIssuingTemplateAliasIdMap"])
         elif status in (HTTPStatus.BAD_REQUEST, HTTPStatus.NOT_FOUND, HTTPStatus.PRECONDITION_FAILED):
             log_errors(data)
         else:
             pass
 
     def request_cert(self, request, zone):
-        zone_id = self._get_zone_id_by_tag(zone)
+        app_name, cit_alias = _parse_zone(zone)
+        details = self._get_app_details_by_name(app_name)
+        cit_alias_decoded = urlparse.unquote(cit_alias)
+        cit_id = details.cit_alias_id_map.get(cit_alias_decoded)
         if not request.csr:
             request.build_csr()
-        status, data = self._post(URLS.CERTIFICATE_REQUESTS,
-                                  data={"certificateSigningRequest": request.csr, "zoneId": zone_id})
+
+        ip_address = get_ip_address()
+        status, data = self._post(URLS.CERTIFICATE_REQUESTS, data={
+            "certificateSigningRequest": request.csr,
+            "applicationId": details.app_id,
+            "certificateIssuingTemplateId": cit_id,
+            "apiClientInformation": {
+                "type": request.origin,
+                "identifier": ip_address
+            }
+        })
         if status == HTTPStatus.CREATED:
             request.id = data['certificateRequests'][0]['id']
+            request.cert_guid = data['certificateRequests'][0]['certificateIds'][0]
             return True
         else:
             log.error("unexpected server response %s: %s", status, data)
             raise CertificateRequestError
 
     def retrieve_cert(self, request):
-        url = URLS.CERTIFICATE_RETRIEVE % request.id
-        if request.chain_option == "first":
-            url += "?chainOrder=%s&format=PEM" % CondorChainOptions.ROOT_FIRST
-        elif request.chain_option == "last":
-            url += "?chainOrder=%s&format=PEM" % CondorChainOptions.ROOT_LAST
-        else:
-            log.error("chain option %s is not valid" % request.chain_option)
-            raise ClientBadData
-        status, data = self._get(URLS.CERTIFICATE_STATUS % request.id)
-        if status == HTTPStatus.OK or HTTPStatus.CONFLICT:
-            if data['status'] == CertStatuses.PENDING or data['status'] == CertStatuses.REQUESTED:
-                log.info("Certificate status is %s." % data['status'])
-                return None
-            elif data['status'] == CertStatuses.FAILED:
-                log.debug("Status is %s. Returning data for debug" % data['status'])
-                return "Certificate FAILED"
-            elif data['status'] == CertStatuses.ISSUED:
-                request.manage_id = data['managedCertificateId']
-                status, data = self._get(url)
-                if status == HTTPStatus.OK:
-                    return parse_pem(data, request.chain_option)
-                else:
-                    raise ServerUnexptedBehavior
+        cert_status = self._get_cert_status(request)
+        if cert_status.status == CertStatuses.PENDING or cert_status.status == CertStatuses.REQUESTED:
+            log.info("Certificate status is %s." % cert_status.status)
+            return None
+        elif cert_status.status == CertStatuses.FAILED:
+            log.debug("Status is %s. Returning data for debug" % cert_status.status)
+            return "Certificate FAILED"
+        elif cert_status.status == CertStatuses.ISSUED:
+            url = URLS.CERTIFICATE_RETRIEVE % cert_status.certificateIds[0]
+            if request.chain_option == "first":
+                url += "?chainOrder=%s&format=PEM" % CondorChainOptions.ROOT_FIRST
+            elif request.chain_option == "last":
+                url += "?chainOrder=%s&format=PEM" % CondorChainOptions.ROOT_LAST
+            else:
+                log.error("chain option %s is not valid" % request.chain_option)
+                raise ClientBadData
+
+            status, data = self._get(url)
+            if status == HTTPStatus.OK:
+                return parse_pem(data, request.chain_option)
             else:
                 raise ServerUnexptedBehavior
         else:
@@ -240,38 +274,53 @@ class CloudConnection(CommonConnection):
         raise NotImplementedError
 
     def renew_cert(self, request, reuse_key=False):
-        zone = None
-        manage_id = None
+        cert_request_id = None
         if not request.id and not request.thumbprint:
             log.error("prev_cert_id or thumbprint or manage_id must be specified for renewing certificate")
             raise ClientBadData
+
         if request.thumbprint:
-            r = self.search_by_thumbprint(request.thumbprint)
-            manage_id = r.manage_id
+            response = self.search_by_thumbprint(request.thumbprint)
+            cert_request_id = response.csrId
+
         if request.id:
-            prev_request = self._get_cert_status(CertificateRequest(cert_id=request.id))
-            manage_id = prev_request.manage_id
-            zone = prev_request.zoneId
-        if not manage_id:
-            log.error("Can`t find manage_id")
+            cert_request_id = request.id
+
+        prev_request = self._get_cert_status(CertificateRequest(cert_id=cert_request_id))
+        certificate_id = prev_request.certificateIds[0]
+        app_id = prev_request.applicationId
+        cit_id = prev_request.citId
+
+        if not certificate_id or not app_id or not cit_id:
+            log.error("Can`t find certificate_id")
             raise ClientBadData
-        status, data = self._get(URLS.MANAGED_CERTIFICATE_BY_ID % manage_id)
+
+        status, data = self._get(URLS.CERTIFICATE_BY_ID % certificate_id)
         if status == HTTPStatus.OK:
-            request.id = data['latestCertificateRequestId']
+            request.id = data['certificateRequestId']
         else:
             raise ServerUnexptedBehavior
-        if not zone:
-            prev_request = self._get_cert_status(CertificateRequest(cert_id=request.id))
-            zone = prev_request.zoneId
-        d = {"existingManagedCertificateId": manage_id, "zoneId": zone}
+
+        ip_address = get_ip_address()
+        d = {"existingCertificateId": certificate_id,
+             "applicationId": app_id,
+             "certificateIssuingTemplateId": cit_id,
+             "apiClientInformation": {
+                 "type": request.origin,
+                 "identifier": ip_address
+             }}
+
         if reuse_key:
             if request.csr:
                 d["certificateSigningRequest"] = request.csr
                 d["reuseCSR"] = False
             else:
-                d["reuseCSR"] = True
+                log.error("Certificate renew by reusing the CSR is not supported right now."
+                          "\nSet [reuse_key] to False or just remove it")
+                raise VenafiError
+                # d["reuseCSR"] = True
         else:
-            c = data['certificates'][0]
+            c = data
             if c.get("subjectCN"):
                 request.common_name = c['subjectCN'][0]
             if c.get("subjectC"):
@@ -304,18 +353,22 @@ class CloudConnection(CommonConnection):
         """
         thumbprint = re.sub(r'[^\dabcdefABCDEF]', "", thumbprint)
         thumbprint = thumbprint.upper()
-        status, data = self._post(URLS.CERTIFICATE_SEARCH, data={"expression": {"operands": [
-            {"field": "fingerprint", "operator": "MATCH", "value": thumbprint}]}})
+        status, data = self._post(URLS.CERTIFICATE_SEARCH, data={
+            "expression": {
+                "operands": [{"field": "fingerprint",
+                              "operator": "MATCH",
+                              "value": thumbprint
+                              }]
+            }
+        })
         if status != HTTPStatus.OK:
             raise ServerUnexptedBehavior
         if not data.get('count'):
             return None
         return CertificateStatusResponse(data['certificates'][0])
 
-    def read_zone_conf(self, tag):
-        status, data = self._get(URLS.ZONE_BY_TAG % tag)
-        template_id = data['certificateIssuingTemplateId']
-        policy = self._get_policy_by_id(template_id)
+    def read_zone_conf(self, zone):
+        policy = self._get_policy_by_id(zone)
         z = ZoneConfig(
             organization=CertField(""),
             organizational_unit=CertField(""),
