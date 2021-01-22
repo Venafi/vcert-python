@@ -32,20 +32,50 @@ If installation fails collecting dependancies, make sure your python setuptools 
 ## Usage example
 
 For code samples of programmatic use, please review the files in [/examples](/examples).
+- For Trust Protection Platform, the `zone` format is the DN of a policy with or without the "\VED\Policy\" prefix (e.g. "\VED\Policy\Certificates\VCert" or simply "Certificates\VCert")
+- For Venafi Cloud, the `zone` format is the name of an OutagePREDICT Application and the API Alias of an Issuing Template assigned to it delimited by a single backslash character (e.g. "My Application\My CIT")
 
 ## Prerequisites for using with Trust Protection Platform
 
-1. A user account that has been granted WebSDK Access
-2. A folder (zone) where the user has been granted the following permissions: View, Read, Write, Create, Revoke (for the revoke action), and Private Key Read (for the pickup action when CSR is service generated)
+1. A user account that has an authentication token with "certificate:manage,revoke" scope (i.e.
+access to the "Venafi VCert SDK" API Application as of 20.1) or has been granted WebSDK Access
+2. A folder (zone) where the user has been granted the following permissions: View, Read, Write,
+Create, Revoke (for the revoke action), and Private Key Read (for the pickup action when CSR is
+service generated)
 3. Policy applied to the folder which specifies:
     1. CA Template that Trust Protection Platform will use to enroll certificate requests submitted by VCert
     2. Subject DN values for Organizational Unit (OU), Organization (O), City (L), State (ST) and Country (C)
     3. Management Type not locked or locked to 'Enrollment'
-    4. Certificate Signing Request (CSR) Generation unlocked or not locked to 'Service Generated CSR'.
+    4. Certificate Signing Request (CSR) Generation not locked or locked to 'Service Generated CSR'
     5. Generate Key/CSR on Application not locked or locked to 'No'
     6. (Recommended) Disable Automatic Renewal set to 'Yes'
     7. (Recommended) Key Bit Strength set to 2048 or higher
     8. (Recommended) Domain Whitelisting policy appropriately assigned
+
+The requirement for the CA Template to be assigned by policy follows a long standing Venafi best
+practice which also met our design objective to keep the certificate request process simple for
+VCert users. If you require the ability to specify the CA Template with the request you can use the
+TPP REST APIs but please be advised this goes against Venafi recommendations.
+
+## Prerequisites for using with Venafi Cloud
+
+1. The Venafi Cloud REST API is accessible at https://api.venafi.cloud from the system where VCert
+will be executed.
+2. You have successfully registered for a Venafi Cloud account, have been granted at least the
+OutagePREDICT "Resource Owner" role, and know your API key.
+3. A CA Account and Issuing Template exist and have been configured with:
+    1. Recommended Settings values for:
+        1. Organizational Unit (OU)
+        2. Organization (O)
+        3. City/Locality (L)
+        4. State/Province (ST)
+        5. Country (C)
+    2. Issuing Rules that:
+        1. (Recommended) Limits Common Name and Subject Alternative Name to domains that are allowed by your organization
+        2. (Recommended) Restricts the Key Length to 2048 or higher
+        3. (Recommended) Does not allow Private Key Reuse
+4. An OutagePREDICT Application exists where you are among the owners, and you know the Application Name.
+5. An Issuing Template is assigned to the Application, and you know its API Alias.
 
 ## Contributing to VCert
 
