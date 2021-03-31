@@ -1,0 +1,59 @@
+---
+name: ''
+owners:
+  - amoo
+users:
+  - rvela
+  - marco
+userAccess: some data here
+approvers:
+  - ricardo
+  - luis
+policy:
+  domains:
+    - venafi.com
+    - kwan.com
+    - yaml.com
+  wildcardAllowed: true
+  maxValidDays: 120
+  certificateAuthority: Digicert
+  subject:
+    orgs:
+      - venafi_yaml
+    orgUnits:
+      - DevOps_yaml
+    localities:
+      - Merida
+    states:
+      - Yucatan
+    countries:
+      - US
+  keyPair:
+    keyTypes:
+      - RSA
+    rsaKeySizes:
+      - 3072
+    ellipticCurves:
+      - P384
+    generationType: '1'
+    reuseAllowed: false
+  subjectAltNames:
+    dnsAllowed: false
+    ipAllowed: false
+    emailAllowed: false
+    uriAllowed: false
+    upnAllowed: false
+defaults:
+  domain: venafi.com
+  subject:
+    org: venafi.com
+    orgUnits:
+      - DevOps
+    locality: Merida
+    state: Yucatan
+    country: Mexico
+  keyPair:
+    keyType: RSA
+    rsaKeySize: 0
+    ellipticCurve: ''
+    generationType: ''

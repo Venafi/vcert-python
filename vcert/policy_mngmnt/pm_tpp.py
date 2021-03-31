@@ -1,5 +1,5 @@
 #
-# Copyright 2019 Venafi, Inc.
+# Copyright 2021 Venafi, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,37 +15,8 @@
 #
 
 
-class VenafiError(Exception):
+def get_policy_specification():
     pass
 
-
-class VenafiConnectionError(VenafiError):
-    pass
-
-
-class ServerUnexptedBehavior(VenafiError):
-    pass
-
-
-class BadData(VenafiError):
-    pass
-
-
-class ClientBadData(BadData):
-    pass
-
-
-class CertificateRequestError(ServerUnexptedBehavior):
-    pass
-
-
-class CertificateRenewError(ServerUnexptedBehavior):
-    pass
-
-
-class AuthenticationError(VenafiError):
-    pass
-
-
-class VenafiParsingError(VenafiError):
+def set_policy():
     pass

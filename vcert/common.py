@@ -534,7 +534,7 @@ class AppDetails:
     def __init__(self, app_id=None, cit_map=None):
         """
         :param str app_id:
-        :param dict cit_ids:
+        :param dict cit_map:
         """
         self.app_id = app_id
         self.cit_alias_id_map = cit_map
@@ -589,6 +589,21 @@ class CommonConnection:
 
     def import_cert(self, request):
         raise NotImplementedError
+
+    def get_policy_specification(self, policy_name):
+        """
+        :param str policy_name:
+        :rtype PolicySpecification:
+        """
+        raise NotImplementedError
+
+    def set_policy(self, policy_name, policy_spec):
+        """
+        :param str policy_name:
+        :param PolicySpecification policy_spec:
+        :rtype str:
+        """
+        pass
 
     @staticmethod
     def process_server_response(r):

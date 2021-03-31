@@ -448,6 +448,12 @@ class TPPTokenConnection(CommonConnection):
             raise ServerUnexptedBehavior("Server returns %d status on revoking access token" % status)
         return status, resp_data
 
+    def get_policy_specification(self, policy_name):
+        pass
+
+    def set_policy(self):
+        pass
+
     def _update_auth(self, token_info):
         if isinstance(token_info, TokenInfo):
             self._auth.access_token = token_info.access_token
