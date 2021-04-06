@@ -21,11 +21,12 @@ import logging as log
 import requests
 import six.moves.urllib.parse as urlparse
 from .common import (ZoneConfig, CertificateRequest, CommonConnection, Policy, get_ip_address, log_errors, MIME_JSON,
-                     MIME_TEXT, MIME_ANY, CertField, KeyType, AppDetails)
+                     MIME_TEXT, MIME_ANY, CertField, KeyType, AppDetails, RecommendedSettings)
 from .pem import parse_pem
 from .errors import (VenafiConnectionError, ServerUnexptedBehavior, ClientBadData, CertificateRequestError,
                      CertificateRenewError, VenafiError)
 from .http import HTTPStatus
+from .policy.pm_cloud import build_policy_spec
 
 
 class CertStatuses:
@@ -83,7 +84,7 @@ def _parse_zone(zone):
     segments = zone.split("\\")
     if len(segments) < 2 or len(segments) > 2:
         log.error("Invalid zone. Incorrect format")
-        raise ClientBadData("Invalid Zone. The zone format is incorrect")
+        raise ClientBadData("Invalid Zone [%s]. The zone format is incorrect", zone)
 
     app_name = urlparse.quote(segments[0])
     cit_alias = urlparse.quote(segments[1])
@@ -177,7 +178,15 @@ class CloudConnection(CommonConnection):
             d["subjectCValues"],
             d["sanRegexes"],
             [],
-            d['keyReuse']
+            d['keyReuse'],
+            d['certificateAuthority'],
+            d['certificateAuthorityAccountId'],
+            d['certificateAuthorityProductOptionId'],
+            d['priority'],
+            d['modificationDate'],
+            d['status'],
+            d['reason'],
+            d['validityPeriod']
         )
         for kt in d.get('keyTypes', []):
             key_type = kt['keyType'].lower()
@@ -187,13 +196,42 @@ class CloudConnection(CommonConnection):
             else:
                 log.error("Unknow key type: %s" % kt['keyType'])
                 raise ServerUnexptedBehavior
+
+        rs = CloudConnection._parse_recommended_settings_to_object(d)
+        if rs:
+            policy.recommended_settings = rs
+
         return policy
 
-    def _get_policy_by_id(self, policy_id):
-        app_name, cit_alias = _parse_zone(policy_id)
+    @staticmethod
+    def _parse_recommended_settings_to_object(d):
+        if 'recommendedSettings' in d:
+            rs = d["recommendedSettings"]
+            settings = RecommendedSettings(
+                rs["subjectOValue"],
+                rs["subjectOUValue"],
+                rs["subjectLValue"],
+                rs["subjectSTValue"],
+                rs["subjectCValue"],
+                None,
+                rs["keyReuse"]
+            )
+            if 'key' in rs:
+                kt = KeyType(rs['key']['type'], rs['key']['length'])
+                settings.keyType = kt
+
+            return settings
+
+    def _get_template_by_id(self, zone):
+        """
+        Returns the Certificate Issuing Template details
+
+        :rtype: Policy
+        """
+        app_name, cit_alias = _parse_zone(zone)
         status, data = self._get(URLS.CERTIFICATE_TEMPLATE_BY_ID % (app_name, cit_alias))
         if status != HTTPStatus.OK:
-            log.error("Invalid status during getting policy: %s for policy %s" % (status, policy_id))
+            log.error("Invalid status %s while retrieving policy [%s]" % (status, zone))
             raise ServerUnexptedBehavior
         return self._parse_policy_response_to_object(data)
 
@@ -368,7 +406,7 @@ class CloudConnection(CommonConnection):
         return CertificateStatusResponse(data['certificates'][0])
 
     def read_zone_conf(self, zone):
-        policy = self._get_policy_by_id(zone)
+        policy = self._get_template_by_id(zone)
         z = ZoneConfig(
             organization=CertField(""),
             organizational_unit=CertField(""),
@@ -383,3 +421,14 @@ class CloudConnection(CommonConnection):
     def import_cert(self, request):
         # not supported in Cloud
         raise NotImplementedError
+
+    def get_policy_specification(self, zone):
+        cit = self._get_template_by_id(zone)
+        if not cit:
+            raise VenafiError('Certificate issuing template not found for zone [%s]', zone)
+
+        ps = build_policy_spec(cit)
+        return ps
+
+    def set_policy(self, zone, policy_spec):
+        pass

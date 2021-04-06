@@ -14,46 +14,48 @@
 # limitations under the License.
 #
 
-import json
 import logging as log
 
+from ruamel.yaml import YAML
+
 from vcert.errors import VenafiParsingError
-from vcert.policy_mngmnt.policy_spec import PolicySpecification
-from vcert.policy_mngmnt.parser.utils import parse_data, load_file
+from vcert.parser.utils import parse_data, load_file
 
 
-def parse_json_file(json_file_path):
+def parse_yaml_file(yaml_file_path):
     """
-    :param str json_file_path: the path to the json file to be parsed
+    :param str yaml_file_path: The path of the yaml file to be parsed
     :rtype PolicySpecification:
     """
-    if not json_file_path:
-        log.error('File path is empty')
+    if not yaml_file_path:
+        log.error('Yaml file path is empty')
 
-    json_str = load_file(json_file_path)
+    yaml_str = load_file(yaml_file_path)
 
-    return parse_json_str(json_str)
+    return parse_yaml(yaml_str)
 
 
-def parse_json_str(json_str):
+def parse_yaml(yaml_string):
     """
-    :param str json_str:
+    Parse the yaml string into a Policy Specification object
+
+    :param str yaml_string: the Policy Configuration data in yaml format
     :rtype PolicySpecification:
     """
-    if not json_str:
-        log.error('Json string is empty')
+    if not yaml_string:
+        log.error('yaml string is empty')
         raise VenafiParsingError
 
-    data = json.loads(json_str)
-    policy_spec = parse_data(data)
+    yaml = YAML(typ='unsafe')
+    data = yaml.load(yaml_string)
+    policy = parse_data(data)
 
-    return policy_spec
+    return policy
 
 
-def to_json(policy_spec):
+def to_yaml(policy_spec):
     """
     :param PolicySpecification policy_spec:
     :rtype str:
     """
-
     pass

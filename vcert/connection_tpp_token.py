@@ -27,13 +27,14 @@ from cryptography.hazmat.backends import default_backend
 from cryptography import x509
 from cryptography.x509 import SignatureAlgorithmOID as AlgOID
 
+from .connection_tpp_abstract import AbstractTPPConnection, URLS
 from .http import HTTPStatus
 
 import requests
 
 from .common import MIME_JSON, TokenInfo, Authentication, CommonConnection, KeyType, Policy, ZoneConfig, CertField
 from .errors import (ClientBadData, ServerUnexptedBehavior, AuthenticationError, CertificateRequestError,
-                     CertificateRenewError)
+                     CertificateRenewError, VenafiError)
 from .pem import parse_pem
 
 HEADER_AUTHORIZATION = "Authorization"  # type: str
@@ -43,27 +44,7 @@ KEY_REFRESH_TOKEN = "refresh_token"  # type: str  # nosec
 KEY_EXPIRATION_DATE = "expiration_date"  # type: str
 
 
-class URLS:
-    API_TOKEN_URL = "vedauth/"  # type: str  # nosec
-    API_BASE_URL = "vedsdk/"  # type: str  # nosec
-
-    AUTHORIZE_TOKEN = API_TOKEN_URL + "authorize/oauth"  # type: str
-    REFRESH_TOKEN = API_TOKEN_URL + "authorize/token"  # type: str
-    REVOKE_TOKEN = API_TOKEN_URL + "revoke/token"  # type: str
-
-    AUTHORIZE = API_BASE_URL + "authorize/"
-    CERTIFICATE_REQUESTS = API_BASE_URL + "certificates/request"
-    CERTIFICATE_RETRIEVE = API_BASE_URL + "certificates/retrieve"
-    FIND_POLICY = API_BASE_URL + "config/findpolicy"
-    CERTIFICATE_REVOKE = API_BASE_URL + "certificates/revoke"
-    CERTIFICATE_RENEW = API_BASE_URL + "certificates/renew"
-    CERTIFICATE_SEARCH = API_BASE_URL + "certificates/"
-    CERTIFICATE_IMPORT = API_BASE_URL + "certificates/import"
-    ZONE_CONFIG = API_BASE_URL + "certificates/checkpolicy"
-    CONFIG_READ_DN = API_BASE_URL + "Config/ReadDn"
-
-
-class TPPTokenConnection(CommonConnection):
+class TPPTokenConnection(AbstractTPPConnection):
     def __init__(self, url, user=None, password=None, access_token=None, refresh_token=None, http_request_kwargs=None):
         """
         :param str url:
@@ -342,6 +323,7 @@ class TPPTokenConnection(CommonConnection):
             key_type = KeyType(KeyType.ECDSA, data["Policy"]["KeyPair"]["EllipticCurve"]["Value"])
         else:
             key_type = None
+
         z = ZoneConfig(
             organization=CertField(s['Organization']['Value'], locked=s['Organization']['Locked']),
             organizational_unit=CertField(ou, locked=s['OrganizationalUnit']['Locked']),
@@ -385,15 +367,6 @@ class TPPTokenConnection(CommonConnection):
         if not data['Certificates']:
             raise ClientBadData("Certificate not found by thumbprint")
         return data['Certificates'][0]['DN']
-
-    def _read_config_dn(self, dn, attribute_name):
-        status, data = self._post(URLS.CONFIG_READ_DN, {
-            "ObjectDN": dn,
-            "AttributeName": attribute_name,
-        })
-        if status != HTTPStatus.OK:
-            raise ServerUnexptedBehavior("")
-        return data
 
     def _get_certificate_details(self, cert_guid):
         status, data = self._get(URLS.CERTIFICATE_SEARCH + cert_guid)
@@ -447,12 +420,6 @@ class TPPTokenConnection(CommonConnection):
         if status != HTTPStatus.OK:
             raise ServerUnexptedBehavior("Server returns %d status on revoking access token" % status)
         return status, resp_data
-
-    def get_policy_specification(self, policy_name):
-        pass
-
-    def set_policy(self):
-        pass
 
     def _update_auth(self, token_info):
         if isinstance(token_info, TokenInfo):

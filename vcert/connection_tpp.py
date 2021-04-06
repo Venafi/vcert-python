@@ -28,34 +28,17 @@ from cryptography import x509
 from cryptography.x509 import SignatureAlgorithmOID as AlgOID
 
 from .common import CommonConnection, MIME_JSON, CertField, ZoneConfig, Policy, KeyType
+from .connection_tpp_abstract import AbstractTPPConnection, URLS
 from .pem import parse_pem
 from .errors import (ServerUnexptedBehavior, ClientBadData, CertificateRequestError, AuthenticationError,
                      CertificateRenewError)
 from .http import HTTPStatus
 
 
-class URLS:
-    def __init__(self):
-        pass
-
-    API_BASE_URL = ""
-
-    AUTHORIZE = "authorize/"
-    CERTIFICATE_REQUESTS = "certificates/request"
-    CERTIFICATE_RETRIEVE = "certificates/retrieve"
-    FIND_POLICY = "config/findpolicy"
-    CERTIFICATE_REVOKE = "certificates/revoke"
-    CERTIFICATE_RENEW = "certificates/renew"
-    CERTIFICATE_SEARCH = "certificates/"
-    CERTIFICATE_IMPORT = "certificates/import"
-    ZONE_CONFIG = "certificates/checkpolicy"
-    CONFIG_READ_DN = "Config/ReadDn"
-
-
 TOKEN_HEADER_NAME = "x-venafi-api-key"  # nosec
 
 
-class TPPConnection(CommonConnection):
+class TPPConnection(AbstractTPPConnection):
     def __init__(self, user, password, url, http_request_kwargs=None):
         """
         :param str user:

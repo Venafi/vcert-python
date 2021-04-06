@@ -151,7 +151,9 @@ class Policy:
     def __init__(self, policy_id=None, company_id=None, name=None, system_generated=None,
                  creation_date=None, subject_cn_regexes=None, subject_o_regexes=None,
                  subject_ou_regexes=None, subject_st_regexes=None, subject_l_regexes=None, subject_c_regexes=None,
-                 san_regexes=None, key_types=None, key_reuse=None):
+                 san_regexes=None, key_types=None, key_reuse=None, cert_authority=None, cert_authority_account_id=None,
+                 cert_authority_product_option_id=None, priority=None, modification_date=None, status=None, reason=None,
+                 validity_period=None, recommended_settings=None):
         """
         :param str policy_id:
         :param str company_id:
@@ -167,6 +169,15 @@ class Policy:
         :param list[str] san_regexes:
         :param list[KeyType] key_types:
         :param bool key_reuse:
+        :param str cert_authority:
+        :param str cert_authority_account_id:
+        :param str cert_authority_product_option_id:
+        :param int priority:
+        :param str modification_date:
+        :param str status:
+        :param str reason:
+        :param str validity_period:
+        :param RecommendedSettings recommended_settings:
         """
         self.id = policy_id
         self.company_id = company_id
@@ -183,6 +194,16 @@ class Policy:
         self.key_types = key_types
         self.key_reuse = key_reuse
 
+        self.cert_authority = cert_authority
+        self.cert_authority_account_id = cert_authority_account_id
+        self.cert_authority_product_option_id = cert_authority_product_option_id
+        self.priority = priority
+        self.modification_date = modification_date
+        self.status = status
+        self.reason = reason
+        self.validity_period = validity_period
+        self.recommended_settings = recommended_settings
+
     def __repr__(self):
         return "Policy:\n" + "\n".join(["  %s: %s" % (k, v) for k, v in (
             ("Id", self.id),
@@ -193,6 +214,27 @@ class Policy:
 
     def __str__(self):
         return self.name
+
+
+class RecommendedSettings:
+    def __init__(self, subject_o_value=None, subject_ou_value=None, subject_l_value=None, subject_st_value=None,
+                 subject_c_value=None, key_type=None, key_reuse=None):
+        """
+        :param str subject_o_value:
+        :param str subject_ou_value:
+        :param str subject_l_value:
+        :param str subject_st_value:
+        :param str subject_c_value:
+        :param KeyType key_type:
+        :param bool key_reuse:
+        """
+        self.subjectOValue = subject_o_value
+        self.subjectOUValue = subject_ou_value
+        self.subjectLValue = subject_l_value
+        self.subjectSTValue = subject_st_value
+        self.subjectCValue = subject_c_value
+        self.keyType = key_type
+        self.keyReuse = key_reuse
 
 
 class CertificateRequest:
@@ -513,7 +555,7 @@ class RevocationRequest:
 
 
 CLIENT_ID = "vcert-sdk"  # type: str
-SCOPE = "certificate:manage,revoke"  # type: str
+SCOPE = "certificate:manage,revoke;configuration:manage"  # type: str
 
 
 class Authentication:
@@ -551,19 +593,20 @@ class CommonConnection:
 
     def request_cert(self, request, zone):
         """
-        Making request to certificate. It will generate CSR from data if CSR not specified,
-        generate key if required and send to server for signing. Set request.id for retrieving certificate.
+        Making request to certificate. It will generate CSR from data if CSR not specified, generate key if required and send to server for signing. Set request.id for retrieving certificate.
+
         :param CertificateRequest request: Certificate in PEM format
         :param str zone: Venafi zone tag name
-        :rtype bool : Success
+        :rtype: bool
         """
         raise NotImplementedError
 
     def retrieve_cert(self, request):
         """
         Get signed certificate from server by request.id
+
         :param CertificateRequest request:
-        :rtype Certificate
+        :rtype: Certificate
         """
         raise NotImplementedError
 
@@ -583,27 +626,27 @@ class CommonConnection:
     def read_zone_conf(self, tag):
         """
         :param str tag:
-        :rtype ZoneConfig
+        :rtype: ZoneConfig
         """
         raise NotImplementedError
 
     def import_cert(self, request):
         raise NotImplementedError
 
-    def get_policy_specification(self, policy_name):
+    def get_policy_specification(self, zone):
         """
-        :param str policy_name:
-        :rtype PolicySpecification:
+        :param str zone:
+        :rtype: PolicySpecification
         """
         raise NotImplementedError
 
-    def set_policy(self, policy_name, policy_spec):
+    def set_policy(self, zone, policy_spec):
         """
-        :param str policy_name:
+        :param str zone:
         :param PolicySpecification policy_spec:
-        :rtype str:
+        :rtype: str
         """
-        pass
+        raise NotImplementedError
 
     @staticmethod
     def process_server_response(r):

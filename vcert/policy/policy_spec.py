@@ -16,7 +16,7 @@
 
 
 class PolicySpecification:
-    def __init__(self, owners, users, user_access, approvers, policy, defaults):
+    def __init__(self, owners=None, users=None, user_access=None, approvers=None, policy=None, defaults=None):
         """
         :param list[str] owners:
         :param list[str] users:
@@ -34,12 +34,13 @@ class PolicySpecification:
 
 
 class Policy:
-    def __init__(self, domains, wildcard_allowed, max_valid_days, ca, subject, key_pair, subject_alt_names):
+    def __init__(self, domains=None, wildcard_allowed=None, max_valid_days=None, cert_auth=None, subject=None,
+                 key_pair=None, subject_alt_names=None):
         """
         :param list[str] domains:
         :param bool wildcard_allowed:
         :param int max_valid_days:
-        :param str ca:
+        :param str cert_auth:
         :param Subject subject:
         :param KeyPair key_pair:
         :param SubjectAltNames subject_alt_names:
@@ -47,14 +48,14 @@ class Policy:
         self.domains = domains
         self.wildcard_allowed = wildcard_allowed
         self.max_valid_days = max_valid_days
-        self.ca = ca
+        self.certificate_authority = cert_auth
         self.subject = subject
         self.key_pair = key_pair
         self.subject_alt_names = subject_alt_names
 
 
 class Subject:
-    def __init__(self, orgs, org_units, localities, states, countries):
+    def __init__(self, orgs=None, org_units=None, localities=None, states=None, countries=None):
         """
         :param list[str] orgs:
         :param list[str] org_units:
@@ -62,7 +63,7 @@ class Subject:
         :param list[str] states:
         :param list[str] countries:
         """
-        self.orgs = orgs
+        self.organizations = orgs
         self.org_units = org_units
         self.localities = localities
         self.states = states
@@ -70,23 +71,24 @@ class Subject:
 
 
 class KeyPair:
-    def __init__(self, key_types, rsa_key_sizes, elliptic_curves, generation_type, reuse_allowed):
+    def __init__(self, key_types=None, rsa_key_sizes=None, elliptic_curves=None, service_generated=None,
+                 reuse_allowed=None):
         """
         :param list[str] key_types:
         :param list[int] rsa_key_sizes:
         :param list[str] elliptic_curves:
-        :param str generation_type:
+        :param bool service_generated:
         :param bool reuse_allowed:
         """
         self.key_types = key_types
         self.rsa_key_sizes = rsa_key_sizes
         self.elliptic_curves = elliptic_curves
-        self.generation_type = generation_type
+        self.service_generated = service_generated
         self.reuse_allowed = reuse_allowed
 
 
 class SubjectAltNames:
-    def __init__(self, dns_allowed, ip_allowed, email_allowed, uri_allowed, upn_allowed):
+    def __init__(self, dns_allowed=None, ip_allowed=None, email_allowed=None, uri_allowed=None, upn_allowed=None):
         """
         :param bool dns_allowed:
         :param bool ip_allowed:
@@ -102,7 +104,7 @@ class SubjectAltNames:
 
 
 class Defaults:
-    def __init__(self, d_domain, d_subject, d_key_pair):
+    def __init__(self, d_domain=None, d_subject=None, d_key_pair=None):
         """
         :param str d_domain:
         :param DefaultSubject d_subject:
@@ -114,7 +116,7 @@ class Defaults:
 
 
 class DefaultSubject:
-    def __init__(self, org, org_units, locality, state, country):
+    def __init__(self, org=None, org_units=None, locality=None, state=None, country=None):
         """
         :param str org:
         :param list[str] org_units:
@@ -122,7 +124,7 @@ class DefaultSubject:
         :param str state:
         :param str country:
         """
-        self.org = org
+        self.organization = org
         self.org_units = org_units
         self.locality = locality
         self.state = state
@@ -130,14 +132,14 @@ class DefaultSubject:
 
 
 class DefaultKeyPair:
-    def __init__(self, key_type, rsa_key_size, elliptic_curve, generation_type):
+    def __init__(self, key_type=None, rsa_key_size=None, elliptic_curve=None, service_generated=None):
         """
         :param str key_type:
         :param int rsa_key_size:
         :param str elliptic_curve:
-        :param str generation_type:
+        :param bool service_generated:
         """
-        self.key_type = ""
-        self.rsa_key_size = ""
-        self.elliptic_curve = ""
-        self.generation_type = ""
+        self.key_type = key_type
+        self.rsa_key_size = rsa_key_size
+        self.elliptic_curve = elliptic_curve
+        self.service_generated = service_generated

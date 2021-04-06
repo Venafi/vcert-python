@@ -29,6 +29,7 @@ TPPURL = environ.get('TPP_URL')
 CLOUDURL = environ.get('CLOUD_URL')
 RANDOM_DOMAIN = environ.get("RANDOM_DOMAIN")
 TPP_TOKEN_URL = environ.get("TPP_TOKEN_URL")
+TPP_ACCESS_TOKEN = environ.get("TPP_ACCESS_TOKEN")
 
 if not isinstance(RANDOM_DOMAIN, text_type):
     RANDOM_DOMAIN = RANDOM_DOMAIN.decode()

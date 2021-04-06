@@ -22,7 +22,7 @@
     "certificateAuthority": "Digicert",
     "subject": {
       "orgs": [
-        "venafi"
+        "venafi.com"
       ],
       "orgUnits": [
         "DevOps"
@@ -47,7 +47,7 @@
       "ellipticCurves": [
         "P384"
       ],
-      "generationType": "1",
+      "serviceGenerated": false,
       "reuseAllowed": false
     },
     "subjectAltNames": {
@@ -67,13 +67,13 @@
       ],
       "locality": "Merida",
       "state": "Yucatan",
-      "country": "Mexico"
+      "country": "MX"
     },
     "keyPair": {
       "keyType": "RSA",
       "rsaKeySize": 0,
       "ellipticCurve": "",
-      "generationType": ""
+      "serviceGenerated": false
     }
   }
 }
