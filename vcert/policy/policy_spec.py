@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from vcert.policy import DEFAULT_CA
 
 
 class PolicySpecification:
@@ -48,7 +49,7 @@ class Policy:
         self.domains = domains
         self.wildcard_allowed = wildcard_allowed
         self.max_valid_days = max_valid_days
-        self.certificate_authority = cert_auth
+        self.certificate_authority = cert_auth if cert_auth else DEFAULT_CA
         self.subject = subject
         self.key_pair = key_pair
         self.subject_alt_names = subject_alt_names
@@ -63,7 +64,7 @@ class Subject:
         :param list[str] states:
         :param list[str] countries:
         """
-        self.organizations = orgs
+        self.orgs = orgs
         self.org_units = org_units
         self.localities = localities
         self.states = states
@@ -124,7 +125,7 @@ class DefaultSubject:
         :param str state:
         :param str country:
         """
-        self.organization = org
+        self.org = org
         self.org_units = org_units
         self.locality = locality
         self.state = state

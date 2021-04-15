@@ -124,7 +124,7 @@ def parse_policy_spec(policy_spec):
     s_data = dict()
     if subject:
         s_data = {
-            FIELD_ORGS: subject.organizations,
+            FIELD_ORGS: subject.orgs,
             FIELD_ORG_UNITS: subject.org_units,
             FIELD_LOCALITIES: subject.localities,
             FIELD_STATES: subject.states,
@@ -154,7 +154,7 @@ def parse_policy_spec(policy_spec):
     ds_data = dict()
     if d_subject:
         ds_data = {
-            FIELD_DEFAULT_ORG: d_subject.organization,
+            FIELD_DEFAULT_ORG: d_subject.org,
             FIELD_DEFAULT_ORG_UNITS: d_subject.org_units,
             FIELD_DEFAULT_LOCALITY: d_subject.locality,
             FIELD_DEFAULT_STATE: d_subject.state,

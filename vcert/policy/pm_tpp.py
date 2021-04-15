@@ -76,10 +76,10 @@ class TPPPolicy:
         if self.org:
             if self.org.locked:
                 create_subject = True
-                s.organizations = [self.org.value]
+                s.orgs = [self.org.value]
             else:
                 create_default_subject = True
-                ds.organization = self.org.value
+                ds.org = self.org.value
 
         # Most likely org units value will always be a list , even when only one value exists.
         # So, no list created for the var.
@@ -212,10 +212,10 @@ class TPPPolicy:
         if policy and policy.certificate_authority:
             tpp_policy.cert_authority = policy.certificate_authority
 
-        if policy and subject and len(subject.organizations) > 0 and subject.organizations[0]:
-            tpp_policy.org = CertField(subject.organizations[0], True)
-        elif defaults and d_subject and d_subject.organization:
-            tpp_policy.org = CertField(d_subject.organization, False)
+        if policy and subject and len(subject.orgs) > 0 and subject.orgs[0]:
+            tpp_policy.org = CertField(subject.orgs[0], True)
+        elif defaults and d_subject and d_subject.org:
+            tpp_policy.org = CertField(d_subject.org, False)
 
         if policy and subject and len(subject.org_units) > 0 and subject.org_units[0]:
             tpp_policy.org_unit = CertField(subject.org_units[0], True)
@@ -371,7 +371,7 @@ def validate_policy_subject(policy_spec):
         raise VenafiError('Subject structure is empty')
 
     s = policy_spec.policy.subject
-    if len(s.organizations) > 1:
+    if len(s.orgs) > 1:
         raise VenafiError(too_many_error_msg, 'organizations')
     if len(s.org_units) > 1:
         raise VenafiError(too_many_error_msg, 'organizational units')
@@ -434,9 +434,9 @@ def validate_default_subject(policy_spec):
 
     s = policy_spec.policy.subject
 
-    if s.organizations and s.organizations[0] and ds.organization:
-        if s.organizations[0] != ds.organization:
-            raise VenafiError(no_match_error_msg % ('organizations', ds.organization, s.organizations[0]))
+    if s.orgs and s.orgs[0] and ds.org:
+        if s.orgs[0] != ds.org:
+            raise VenafiError(no_match_error_msg % ('organizations', ds.org, s.orgs[0]))
 
     if s.org_units and s.org_units[0] and len(ds.org_units) > 0 and ds.org_units[0]:
         if s.org_units[0] != ds.org_units[0]:
@@ -459,7 +459,8 @@ def validate_default_key_pair_with_policy_subject(policy_spec):
     """
     :param PolicySpecification policy_spec:
     """
-    if not policy_spec.defaults or not policy_spec.defaults.key_pair or not policy_spec.policy or not policy_spec.policy.key_pair:
+    if not policy_spec.defaults or not policy_spec.defaults.key_pair or not policy_spec.policy \
+            or not policy_spec.policy.key_pair:
         return
 
     kp = policy_spec.policy.key_pair

@@ -148,6 +148,8 @@ class TokenInfo:
 
 
 class Policy:
+    # This is the Certificate Issuing Template.
+    # It is used by both TPP and Cloud implementations, hence the name was adapted to something more generic.
     def __init__(self, policy_id=None, company_id=None, name=None, system_generated=None,
                  creation_date=None, subject_cn_regexes=None, subject_o_regexes=None,
                  subject_ou_regexes=None, subject_st_regexes=None, subject_l_regexes=None, subject_c_regexes=None,
@@ -573,13 +575,29 @@ class Authentication:
 
 
 class AppDetails:
-    def __init__(self, app_id=None, cit_map=None):
+    def __init__(self, app_id=None, cit_map=None, company_id=None, name=None, description=None,
+                 owner_ids_and_types=None, fq_dns=None, internal_fq_dns=None, external_ip_ranges=None,
+                 internal_ip_ranges=None, internal_ports=None, fully_qualified_domain_names=None, ip_ranges=None,
+                 ports=None, org_unit_id=None):
         """
         :param str app_id:
         :param dict cit_map:
         """
         self.app_id = app_id
         self.cit_alias_id_map = cit_map
+        self.company_id = company_id
+        self.name = name
+        self.description = description
+        self.owner_ids_and_types = owner_ids_and_types
+        self.fq_dns = fq_dns
+        self.internal_fq_dns = internal_fq_dns
+        self.external_ip_ranges = external_ip_ranges
+        self.internal_ip_ranges = internal_ip_ranges
+        self.internal_ports = internal_ports
+        self.fully_qualified_domain_names = fully_qualified_domain_names
+        self.ip_ranges = ip_ranges
+        self.ports = ports
+        self.org_unit_id = org_unit_id
 
 
 class CommonConnection:

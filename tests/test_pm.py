@@ -71,10 +71,10 @@ class TestCloudPolicyManagement(unittest.TestCase):
         super(TestCloudPolicyManagement, self).__init__(*args, **kwargs)
 
     def test_read_policy_spec(self):
-        ps = self.cloud_conn.get_policy_specification(self.cloud_zone)
-        pprint(ps)
+        ps = self.cloud_conn.get_policy_specification("vcert-amoo-0004\\vcert-policy-creator-31")
+        json_parser.to_json_file(ps, "test_cloud_pm.json")
 
     def test_create_policy_spec(self):
-        # ps = json_parser.parse_json_file(POLICY_SPEC_JSON)
-        # self.cloud_conn.set_policy("")
+        ps = json_parser.parse_json_file(POLICY_SPEC_JSON)
+        self.cloud_conn.set_policy("rvela-test")
         pass
