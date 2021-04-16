@@ -1,13 +1,15 @@
 #!/usr/bin/env python
 
-import pathlib
+import os
 from setuptools import setup
 
 # The directory containing this file
-HERE = pathlib.Path(__file__).parent
+base_dir = os.path.dirname(__file__)
 
 # The text of the README file
-README = (HERE / "README.md").read_text()
+with open(os.path.join(base_dir, "README.md")) as f:
+    long_description = f.read()
+# README = (HERE / "README.md").read_text()
 
 setup(name='vcert',
       version='0.10.0',
@@ -17,9 +19,9 @@ setup(name='vcert',
                         'enum34;python_version<"3.4"', 'ipaddress;python_version<"3.3"',
                         'cryptography<=3.3.2', 'future;python_version<"3"', 'ruamel.yaml<0.17'],
       description='Python client library for Venafi Trust Protection Platform and Venafi Cloud.',
-      long_description=README,
+      long_description=long_description,
       long_description_content_type="text/markdown",
-      author='Denis Subbotin',
+      author='Venafi, Inc.',
       author_email='opensource@venafi.com',
       license='ASL',
       classifiers=[
