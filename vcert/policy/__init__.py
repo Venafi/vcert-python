@@ -23,6 +23,7 @@ POLICY_ATTRIBUTE_CLASS = "X509 Certificate"
 ALLOW_ALL = ".*"
 DEFAULT_CA = "BUILTIN\\Built-In CA\\Default Product"
 DEFAULT_MAX_VALID_DAYS = 365
+DEFAULT_HASH_ALGORITHM = 'SHA256'
 
 
 class CommonPA:
@@ -52,6 +53,7 @@ class RPA(CommonPA):
     TPP_CSR_GENERATION = 'CsrGeneration'
     TPP_ALLOWED_PRIVATE_KEY_REUSE = 'PrivateKeyReuseAllowed'  # "Allow Private Key Reuse"
     TPP_WANT_RENEWAL = "Want Renewal"
+    TPP_MANAGEMENT_TYPE = "ManagementType"
 
     TPP_DNS_ALLOWED = "SubjAltNameDnsAllowed"
     TPP_EMAIL_ALLOWED = "SubjAltNameEmailAllowed"
@@ -76,6 +78,7 @@ class SPA(CommonPA):
     TPP_PROHIBITED_SAN_TYPES = "Prohibited SAN Types"
     TPP_ALLOWED_PRIVATE_KEY_REUSE = "Allow Private Key Reuse"
     TPP_WANT_RENEWAL = "Want Renewal"
+    TPP_MANAGEMENT_TYPE = "Management Type"
 
     TPP_DNS = "DNS"
     TPP_EMAIL = "Email"

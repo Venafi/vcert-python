@@ -96,6 +96,10 @@ class AbstractTPPConnection(CommonConnection):
         if RPA.TPP_CERT_AUTHORITY in p:
             tpp_policy.cert_authority = p[RPA.TPP_CERT_AUTHORITY][value]
 
+        # Management Type
+        if RPA.TPP_MANAGEMENT_TYPE in p:
+            tpp_policy.management_type = p[RPA.TPP_MANAGEMENT_TYPE][value]
+
         if not ('Subject' in p):
             raise VenafiError("Subject structure not found in response data for [%s] policy", policy_name)
         subject = p['Subject']
@@ -226,9 +230,14 @@ class AbstractTPPConnection(CommonConnection):
         if tpp_policy.key_algo:
             self._set_policy_attr(name, SPA.TPP_KEY_ALGORITHM, [tpp_policy.key_algo.value], tpp_policy.key_algo.locked)
         if tpp_policy.key_bit_str:
-            self._set_policy_attr(name, SPA.TPP_KEY_BIT_STR, [tpp_policy.key_bit_str.value], tpp_policy.key_bit_str.locked)
+            self._set_policy_attr(name, SPA.TPP_KEY_BIT_STR, [tpp_policy.key_bit_str.value],
+                                  tpp_policy.key_bit_str.locked)
         if tpp_policy.elliptic_curve:
-            self._set_policy_attr(name, SPA.TPP_ELLIPTIC_CURVE, [tpp_policy.elliptic_curve.value], tpp_policy.elliptic_curve.locked)
+            self._set_policy_attr(name, SPA.TPP_ELLIPTIC_CURVE, [tpp_policy.elliptic_curve.value],
+                                  tpp_policy.elliptic_curve.locked)
+        if tpp_policy.management_type:
+            self._set_policy_attr(name,SPA.TPP_MANAGEMENT_TYPE, tpp_policy.management_type.value,
+                                  tpp_policy.management_type.locked)
 
         if tpp_policy.wildcards_allowed is not None:
             int_val = get_int_value(not tpp_policy.wildcards_allowed)

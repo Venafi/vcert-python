@@ -82,7 +82,7 @@ def parse_data(data):
                                         sans[FIELD_UPN_ALLOWED])
 
     policy = Policy(p[FIELD_DOMAINS], p[FIELD_WILDCARD_ALLOWED], p[FIELD_MAX_VALID_DAYS],
-                    p[FIELD_CERTIFICATE_AUTHORITY], subject, key_pair, subject_alt_names)
+                    p[FIELD_CERTIFICATE_AUTHORITY], subject, key_pair, subject_alt_names, p[FIELD_AUTOINSTALLED])
 
     if data[FIELD_DEFAULTS]:
         defaults_data = data[FIELD_DEFAULTS]
@@ -101,7 +101,7 @@ def parse_data(data):
                                               dkp[FIELD_DEFAULT_RSA_KEY_SIZE],
                                               dkp[FIELD_DEFAULT_ELLIPTIC_CURVE],
                                               dkp[FIELD_DEFAULT_SERVICE_GENERATED])
-        defaults = Defaults(domain, default_subject, default_key_pair)
+        defaults = Defaults(domain, default_subject, default_key_pair, p[FIELD_DEFAULT_AUTOINSTALLED])
 
     owners = data[FIELD_OWNERS]
     users = data[FIELD_USERS]

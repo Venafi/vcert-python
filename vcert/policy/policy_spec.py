@@ -36,7 +36,7 @@ class PolicySpecification:
 
 class Policy:
     def __init__(self, domains=None, wildcard_allowed=None, max_valid_days=None, cert_auth=None, subject=None,
-                 key_pair=None, subject_alt_names=None):
+                 key_pair=None, subject_alt_names=None, autoinstalled=None):
         """
         :param list[str] domains:
         :param bool wildcard_allowed:
@@ -45,6 +45,7 @@ class Policy:
         :param Subject subject:
         :param KeyPair key_pair:
         :param SubjectAltNames subject_alt_names:
+        :param bool autoinstalled:
         """
         self.domains = domains
         self.wildcard_allowed = wildcard_allowed
@@ -53,6 +54,7 @@ class Policy:
         self.subject = subject
         self.key_pair = key_pair
         self.subject_alt_names = subject_alt_names
+        self.autoinstalled = autoinstalled
 
 
 class Subject:
@@ -105,15 +107,17 @@ class SubjectAltNames:
 
 
 class Defaults:
-    def __init__(self, d_domain=None, d_subject=None, d_key_pair=None):
+    def __init__(self, d_domain=None, d_subject=None, d_key_pair=None, autoinstalled=None):
         """
         :param str d_domain:
         :param DefaultSubject d_subject:
         :param DefaultKeyPair d_key_pair:
+        :param bool autoinstalled:
         """
         self.domain = d_domain
         self.subject = d_subject
         self.key_pair = d_key_pair
+        self.autoinstalled = autoinstalled
 
 
 class DefaultSubject:

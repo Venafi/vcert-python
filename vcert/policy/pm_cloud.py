@@ -15,12 +15,16 @@
 #
 from vcert.common import Policy as Cit, AppDetails
 from vcert.errors import VenafiError
-from vcert.policy import RPA, ALLOW_ALL, DEFAULT_CA, DEFAULT_MAX_VALID_DAYS
+from vcert.policy import RPA, ALLOW_ALL, DEFAULT_CA, DEFAULT_MAX_VALID_DAYS, DEFAULT_HASH_ALGORITHM
 from vcert.policy.policy_spec import Policy, Subject, KeyPair, DefaultSubject, DefaultKeyPair, PolicySpecification, \
     Defaults
 
 supported_rsa_key_sizes = [1024, 2048, 4096]
-
+CA_DIGIGERT = 'DIGICERT'
+CA_ENTRUST = 'ENTRUST'
+REQUESTER_NAME = "Venafi Cloud Service"
+REQUESTER_EMAIL = "no-reply@venafi.cloud"
+REQUESTER_PHONE = "801-555-0123"
 
 def build_policy_spec(cit):
     """
@@ -261,9 +265,10 @@ def member_of(values, collection):
     return True if all(x in values for x in collection) else False
 
 
-def get_ca_details(ca_name):
+def get_ca_info(ca_name):
     """
     :param str ca_name:
+    :rtype: CertificateAuthorityInfo
     """
     data = ca_name.split("\\")
     if len(data) < 3:
@@ -272,9 +277,10 @@ def get_ca_details(ca_name):
     return CertificateAuthorityInfo(data[0], data[1], data[2])
 
 
-def build_cit_request(ps):
+def build_cit_request(ps, ca_details):
     """
     :param PolicySpecification ps:
+    :param CertificateAuthorityDetails ca_details:
     :rtype: dict
     """
     request = dict()
@@ -284,9 +290,10 @@ def build_cit_request(ps):
     else:
         ca_str = DEFAULT_CA
 
-    cert_auth = get_ca_details(ca_str)
+    cert_auth = get_ca_info(ca_str)
 
     request['certificateAuthority'] = cert_auth.ca_type
+    request['certificateAuthorityProductOptionId'] = ca_details.product_option_id
 
     if ps.policy and ps.policy.max_valid_days:
         validity = ps.policy.max_valid_days
@@ -298,6 +305,21 @@ def build_cit_request(ps):
         'productName': cert_auth.vendor_name,
         'validityPeriod': ("P%dD", validity)
     }
+
+    if cert_auth.ca_type == CA_DIGIGERT:
+        product['hashAlgorithm'] = DEFAULT_HASH_ALGORITHM
+        product['autoRenew'] = False
+        product['organizationId'] = ca_details.organization_id
+    elif cert_auth.ca_type == CA_ENTRUST:
+        tracking_data = {
+            'certificateAuthority': CA_ENTRUST,
+            'requesterName': REQUESTER_NAME,
+            'requesterEmail': REQUESTER_EMAIL,
+            'requesterPhone': REQUESTER_PHONE
+        }
+        request['trackingData'] = tracking_data
+        pass
+
     request['product'] = product
 
     if ps.policy and len(ps.policy.domains) > 0:
@@ -450,6 +472,16 @@ class CertificateAuthorityInfo:
         self.vendor_name = vendor_name
 
 
+class CertificateAuthorityDetails:
+    def __init__(self, product_option_id=None, organization_id=None):
+        """
+        :param str product_option_id:
+        :param int organization_id:
+        """
+        self.product_option_id = product_option_id
+        self.organization_id = organization_id
+
+
 class AccountDetails:
     def __init__(self, account, product_option):
         """
@@ -461,23 +493,41 @@ class AccountDetails:
 
 
 class Account:
-    def __init__(self, id, key):
+    def __init__(self, account_id, key):
         """
-        :param str id:
+        :param str account_id:
         :param str key:
         """
-        self.id = id
+        self.id = account_id
         self.key = key
 
 
 class ProductOption:
-    def __init__(self, name, id):
+    def __init__(self, name, product_id, details=None):
         """
         :param str name:
-        :param str id:
+        :param str product_id:
+        :param ProductDetails details:
         """
         self.product_name = name
-        self.id = id
+        self.product_id = product_id
+        self.details = details
+
+
+class ProductDetails:
+    def __init__(self, product_template=None):
+        """
+        :param ProductTemplate product_template:
+        """
+        self.product_template = product_template
+
+
+class ProductTemplate:
+    def __init__(self, organization_id):
+        """
+        :param int organization_id:
+        """
+        self.organization_id = organization_id
 
 
 class UserDetails:
@@ -597,3 +647,16 @@ def build_apikey(data):
         validity_start_date=data['validityStartDate'] if 'validityStartDate' in data else None,
         validity_end_date=data['validityEndDate'] if 'validityEndDate' in data else None,
     )
+
+
+def build_product_option(data):
+    """
+    :param dict data:
+    """
+    d = 'productDetails'
+    t = 'productTemplate'
+    if d in data and t in data[d]:
+        p_template = ProductTemplate(data[d][t]['organizationId'])
+        p_details = ProductDetails(p_template)
+        p_option = ProductOption(data['productName'], data['id'], p_details)
+        return p_option

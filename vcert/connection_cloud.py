@@ -28,8 +28,9 @@ from .pem import parse_pem
 from .errors import (VenafiConnectionError, ServerUnexptedBehavior, ClientBadData, CertificateRequestError,
                      CertificateRenewError, VenafiError)
 from .http import HTTPStatus
-from .policy.pm_cloud import build_policy_spec, validate_policy_spec, get_ca_details, Account, ProductOption, \
-    AccountDetails, build_cit_request, build_user, UserDetails, build_company, build_apikey, build_app_update_request
+from .policy.pm_cloud import build_policy_spec, validate_policy_spec, Account, ProductOption, \
+    AccountDetails, build_cit_request, build_user, UserDetails, build_company, build_apikey, build_app_update_request, \
+    get_ca_info, CertificateAuthorityDetails, build_product_option
 
 
 class CertStatuses:
@@ -481,17 +482,17 @@ class CloudConnection(CommonConnection):
     def set_policy(self, zone, policy_spec):
         validate_policy_spec(policy_spec)
         app_name, cit_alias = _parse_zone(zone)
+
         if not policy_spec.policy.cert_authority:
             raise VenafiError('Certificate Authority is required')
 
-        ca_prod_option_id = self._get_ca_product_option_id(policy_spec.policy.cert_authority)
-        if not ca_prod_option_id:
+        ca_details = self._get_ca_details(policy_spec.policy.cert_authority)
+        if not ca_details:
             raise VenafiError('CA [%s] not found in Venafi Cloud', policy_spec.policy.cert_authority)
 
         # CA valid. Create request dictionary
-        request = build_cit_request(policy_spec)
+        request = build_cit_request(policy_spec, ca_details)
         request['name'] = cit_alias
-        request['certificateAuthorityProductOptionId'] = ca_prod_option_id
         cit_data = self._get_cit(cit_alias)
         resp_cit_data = None
         if cit_data:
@@ -540,7 +541,7 @@ class CloudConnection(CommonConnection):
             if status != HTTPStatus.CREATED:
                 raise VenafiError('Could not create application [%s].', app_name)
 
-    def _get_ca_product_option_id(self, ca_name):
+    def _get_ca_details(self, ca_name):
         """
         :param str ca_name:
         :rtype: str
@@ -550,14 +551,14 @@ class CloudConnection(CommonConnection):
             if acc.account.key == info.ca_account_key:
                 for po in acc.product_option:
                     if po.product_name == info.vendor_product_name:
-                        return po.id
+                        return CertificateAuthorityDetails(po.details.product_template.organization_id, po.product_id)
 
     def _get_accounts(self, ca_name):
         """
         :param str ca_name:
         :rtype: tuple[list[AccountDetails],CertificateAuthorityInfo]
         """
-        details = get_ca_details(ca_name)
+        details = get_ca_info(ca_name)
         ca_type = urlparse.quote(details.ca_type)
         url = URLS.CA_ACCOUNTS % ca_type
         status, data = self._get(url)
@@ -572,7 +573,7 @@ class CloudConnection(CommonConnection):
             acc = Account(d['account']['id'], d['account']['key'])
             po_list = []
             for po in d['productOptions']:
-                product = ProductOption(po['productName'], po['id'])
+                product = build_product_option(po)
                 po_list.append(product)
 
             ad = AccountDetails(acc, po_list)

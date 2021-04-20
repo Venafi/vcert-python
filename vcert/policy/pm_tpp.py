@@ -30,9 +30,8 @@ supported_key_types = ["RSA", "ECDSA"]
 supported_rsa_key_sizes = [512, 1024, 2048, 3072, 4096]
 supported_elliptic_curves = ["P256", "P384", "P521"]
 user_generated_csr = 'UserProvided'
-
-# var CloudRsaKeySize = [1024, 2048, 4096]
-
+mt_provisioning = "Provisioning"
+mt_enrollment = "Enrollment"
 
 class TPPPolicy:
     def __init__(self):
@@ -52,6 +51,7 @@ class TPPPolicy:
         self.key_bit_str = None
         self.elliptic_curve = None
         self.service_generated = None
+        self.management_type = None
         # End locked Attr
 
         self.dns_allowed = None
@@ -161,6 +161,7 @@ class TPPPolicy:
         p.domains = self.domain_suffix_whitelist
         p.certificate_authority = self.cert_authority
         p.wildcard_allowed = self.wildcards_allowed
+        p.autoinstalled = self._resolve_management_type()
 
         if create_subject:
             p.subject = s
@@ -211,6 +212,13 @@ class TPPPolicy:
 
         if policy and policy.certificate_authority:
             tpp_policy.cert_authority = policy.certificate_authority
+
+        if policy and policy.autoinstalled is not None:
+            val = get_management_type(policy.autoinstalled)
+            tpp_policy.management_type = CertField(val, True)
+        elif defaults and defaults.autoinstalled is not None:
+            val = get_management_type(defaults.autoinstalled)
+            tpp_policy.management_type = CertField(val, False)
 
         if policy and subject and len(subject.orgs) > 0 and subject.orgs[0]:
             tpp_policy.org = CertField(subject.orgs[0], True)
@@ -306,6 +314,15 @@ class TPPPolicy:
 
         return prohibited_sans
 
+    def _resolve_management_type(self):
+        """
+        :rtype: bool
+        """
+        if self.management_type is mt_enrollment:
+            return False
+        elif self.management_type is mt_provisioning:
+            return True
+
 
 class SetAttrResponse:
     def __init__(self, result, error):
@@ -359,6 +376,16 @@ def validate_policy_spec(policy_spec):
     validate_default_subject(policy_spec)
     validate_default_key_pair_with_policy_subject(policy_spec)
     validate_default_key_pair(policy_spec)
+
+    d = policy_spec.defaults
+    p = policy_spec.policy
+
+    if not d or not p:
+        return
+
+    if p.autoinstalled is not None:
+        if p.autoinstalled != d.autoinstalled:
+            raise VenafiError(no_match_error_msg %('autoinstalled', d.autoinstalled, p.autoinstalled))
 
     return True
 
@@ -513,3 +540,16 @@ def member_of(user_values, supported_values):
     :rtype: bool
     """
     return all(x in supported_values for x in user_values)
+
+
+def get_management_type(autoinstalled):
+    """
+    :param bool autoinstalled:
+    :rtype: str
+    """
+    if autoinstalled is None:
+        return
+    elif autoinstalled is True:
+        return mt_provisioning
+    elif autoinstalled is False:
+        return mt_enrollment
