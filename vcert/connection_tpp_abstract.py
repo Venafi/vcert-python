@@ -49,6 +49,7 @@ class URLS:
     POLICY_IS_VALID = API_BASE_URL + "config/isvalid"
     POLICY_CREATE = API_BASE_URL + "config/create"
     POLICY_SET_ATTRIBUTE = API_BASE_URL + "config/writepolicy"
+    POLICY_CLEAR_ATTRIBUTE = API_BASE_URL + "config/clearpolicyattribute"
 
     def __init__(self):
         pass
@@ -188,7 +189,8 @@ class AbstractTPPConnection(CommonConnection):
         tpp_policy.name = name
 
         create_policy = False
-        if not self._policy_exists(name):
+        policy_exists = self._policy_exists(name)
+        if not policy_exists:
             log.info("Policy [%s] does not exist, validating parent existence", name)
             parent_name = self._get_policy_parent(name)
             if self._policy_exists(parent_name) or parent_name == ROOT_PATH:
@@ -213,6 +215,12 @@ class AbstractTPPConnection(CommonConnection):
             self._set_policy_attr(name, SPA.TPP_CONTACT, tpp_policy.contact, True)
         if tpp_policy.approver:
             self._set_policy_attr(name, SPA.TPP_APPROVER, tpp_policy.approver, True)
+
+        # Reset all values for existing policy before setting the new ones.
+        # This way, values that do not get updated will be inherited from parent.
+        if policy_exists:
+            self._reset_policy(name)
+
         if tpp_policy.domain_suffix_whitelist:
             self._set_policy_attr(name, SPA.TPP_DOMAIN_SUFFIX_WHITELIST, tpp_policy.domain_suffix_whitelist, True)
         if tpp_policy.cert_authority:
@@ -283,7 +291,7 @@ class AbstractTPPConnection(CommonConnection):
         :param str attr_name: The name of the attribute to be set
         :param any attr_values: The values assigned to the attr_name
         :param bool locked: Whether the attribute should be policy locked
-        :rtype: tuple[str, str]
+        :rtype: tuple[str, SetAttrResponse]
         """
         data = {
             'Locked': locked,
@@ -297,16 +305,68 @@ class AbstractTPPConnection(CommonConnection):
         if status != HTTPStatus.OK:
             raise ServerUnexptedBehavior('Got status %s from server', status)
 
-        err = ""
-        if 'Error' in response:
-            err = response['Error']
-
-        response = SetAttrResponse(response['Result'], err)
+        response = self._parse_attr_response(response)
 
         if response.error:
             raise VenafiError('Error while setting attribute [%s] in policy [%s]' % (attr_name, zone))
 
         return status, response
+
+    def _reset_policy_attr(self, zone, attr_name):
+        """
+        :param str zone:
+        :param str attr_name:
+        :rtype: tuple[str, SetAttrResponse]
+        """
+        data = {
+            'ObjectDN': zone,
+            'Class':  POLICY_ATTR_CLASS,
+            'AttributeName': attr_name,
+        }
+
+        status, response = self._post(URLS.POLICY_CLEAR_ATTRIBUTE, data=data)
+        if status != HTTPStatus.OK:
+            raise ServerUnexptedBehavior('Got status %s from server', status)
+
+        response = self._parse_attr_response(response)
+
+        if response.error:
+            raise VenafiError('Error while setting attribute [%s] in policy [%s]' % (attr_name, zone))
+
+        return status, response
+
+    def _reset_policy(self, zone):
+        self._reset_policy_attr(zone, SPA.TPP_DOMAIN_SUFFIX_WHITELIST)
+        self._reset_policy_attr(zone, SPA.TPP_PROHIBIT_WILDCARD)
+        self._reset_policy_attr(zone, SPA.TPP_CERT_AUTHORITY)
+        self._reset_policy_attr(zone, SPA.TPP_ORGANIZATION)
+        self._reset_policy_attr(zone, SPA.TPP_ORG_UNIT)
+        self._reset_policy_attr(zone, SPA.TPP_CITY)
+        self._reset_policy_attr(zone, SPA.TPP_STATE)
+        self._reset_policy_attr(zone, SPA.TPP_COUNTRY)
+        self._reset_policy_attr(zone, SPA.TPP_KEY_ALGORITHM)
+        self._reset_policy_attr(zone, SPA.TPP_KEY_BIT_STR)
+        self._reset_policy_attr(zone, SPA.TPP_ELLIPTIC_CURVE)
+        self._reset_policy_attr(zone, SPA.TPP_MANUAL_CSR)
+        self._reset_policy_attr(zone, SPA.TPP_PROHIBITED_SAN_TYPES)
+        self._reset_policy_attr(zone, SPA.TPP_ALLOWED_PRIVATE_KEY_REUSE)
+        self._reset_policy_attr(zone, SPA.TPP_WANT_RENEWAL)
+        self._reset_policy_attr(zone, SPA.TPP_MANAGEMENT_TYPE)
+
+    @staticmethod
+    def _parse_attr_response(response):
+        """
+        :param dict response:
+        :rtype: SetAttrResponse
+        """
+        if not response:
+            raise VenafiError('Response is empty')
+
+        err = response['Error'] if 'Error' in response else None
+        result = response['Result'] if 'Result' in response else None
+
+        return SetAttrResponse(result, err)
+
 
     @staticmethod
     def _normalize_zone(zone):

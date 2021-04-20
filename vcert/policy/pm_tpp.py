@@ -325,7 +325,7 @@ class TPPPolicy:
 
 
 class SetAttrResponse:
-    def __init__(self, result, error):
+    def __init__(self, result=None, error=None):
         """
         :param int result:
         :param str error:
