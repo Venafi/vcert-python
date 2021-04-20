@@ -28,9 +28,9 @@ from .pem import parse_pem
 from .errors import (VenafiConnectionError, ServerUnexptedBehavior, ClientBadData, CertificateRequestError,
                      CertificateRenewError, VenafiError)
 from .http import HTTPStatus
-from .policy.pm_cloud import build_policy_spec, validate_policy_spec, Account, ProductOption, \
+from .policy.pm_cloud import build_policy_spec, validate_policy_spec, \
     AccountDetails, build_cit_request, build_user, UserDetails, build_company, build_apikey, build_app_update_request, \
-    get_ca_info, CertificateAuthorityDetails, build_product_option
+    get_ca_info, CertificateAuthorityDetails, CertificateAuthorityInfo, build_account_details
 
 
 class CertStatuses:
@@ -62,6 +62,7 @@ class URLS:
     APP_DETAILS_BY_NAME = API_BASE_PATH + APPLICATIONS + "/name/%s"
     CERTIFICATE_BY_ID = API_BASE_PATH + "certificates/%s"
     CA_ACCOUNTS = API_VERSION + "certificateauthorities/%s/accounts"
+    CA_ACCOUNT_DETAILS = CA_ACCOUNTS + "/%s"
     ISSUING_TEMPLATES = API_VERSION + "certificateissuingtemplates"
     ISSUING_TEMPLATES_UPDATE = ISSUING_TEMPLATES + "/%s"
     USER_ACCOUNTS = API_VERSION + "useraccounts"
@@ -468,7 +469,11 @@ class CloudConnection(CommonConnection):
         if not cit:
             raise VenafiError('Certificate issuing template not found for zone [%s]', zone)
 
-        ps = build_policy_spec(cit)
+        info = self._get_ca_info(cit.cert_authority, cit.cert_authority_account_id, cit.cert_authority_product_option_id)
+        if not info:
+            raise VenafiError('Certificate Authority info not found.')
+
+        ps = build_policy_spec(cit, info)
         return ps
 
     def _policy_exists(self, zone):
@@ -570,13 +575,7 @@ class CloudConnection(CommonConnection):
 
         acc_list = []
         for d in data['accounts']:
-            acc = Account(d['account']['id'], d['account']['key'])
-            po_list = []
-            for po in d['productOptions']:
-                product = build_product_option(po)
-                po_list.append(product)
-
-            ad = AccountDetails(acc, po_list)
+            ad = build_account_details(d)
             acc_list.append(ad)
 
         return acc_list, details
@@ -609,3 +608,24 @@ class CloudConnection(CommonConnection):
         apikey = build_apikey(data['apiKey']) if 'apiKey' in data else None
 
         return UserDetails(user, company, apikey)
+
+    def _get_ca_info(self, name, account_id, product_option_id):
+        """
+        :param str name:
+        :param str account_id:
+        :param str product_option_id:
+        :rtype: CertificateAuthorityInfo
+        """
+        ca_name = urlparse.quote(name)
+        url = URLS.CA_ACCOUNT_DETAILS % (ca_name, account_id)
+        status, data = self._get(url)
+        if status != HTTPStatus.OK:
+            raise ServerUnexptedBehavior
+
+        account_details = build_account_details(data)
+        info = CertificateAuthorityInfo(account_details.account.certificate_authority, account_details.account.key)
+        for po in account_details.product_options:
+            if po.product_id == product_option_id:
+                info.vendor_name = po.product_name
+
+        return info

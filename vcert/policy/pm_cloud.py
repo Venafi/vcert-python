@@ -26,9 +26,11 @@ REQUESTER_NAME = "Venafi Cloud Service"
 REQUESTER_EMAIL = "no-reply@venafi.cloud"
 REQUESTER_PHONE = "801-555-0123"
 
-def build_policy_spec(cit):
+
+def build_policy_spec(cit, ca_info):
     """
     :param Cit cit:
+    :param CertificateAuthorityInfo ca_info:
     :rtype: PolicySpecification
     """
     if not cit:
@@ -37,12 +39,17 @@ def build_policy_spec(cit):
     ps = PolicySpecification()
     p = Policy()
     p.domains = cit.SubjectCRegexes if len(cit.SubjectCRegexes) > 0 else None
-    p.certificate_authority = cit.cert_authority_account_id if cit.cert_authority_account_id else None
+    p.wildcard_allowed = is_wildcard_allowed(cit.SubjectCNRegexes)
     if cit.validity_period:
         # getting days in format P#D
         days = cit.validity_period[1:len(cit.validity_period)-1]
         int_value = int(days)
         p.max_valid_days = int_value
+
+    if ca_info:
+        template = '%s\\%s\\%s'
+        ca = template % (ca_info.ca_type, ca_info.ca_account_key, ca_info.vendor_name)
+        p.certificate_authority = ca
 
     s = Subject()
     create_subject = False
@@ -323,7 +330,7 @@ def build_cit_request(ps, ca_details):
     request['product'] = product
 
     if ps.policy and len(ps.policy.domains) > 0:
-        regex_value = convert_to_regex(ps.policy.domains)
+        regex_value = convert_to_regex(ps.policy.domains, ps.policy.wildcard_allowed)
         request['subjectCNRegexes'] = regex_value
         if ps.policy.subject_alt_names and ps.policy.subject_alt_names.dns_allowed is not None:
             if ps.policy.subject_alt_names.dns_allowed:
@@ -415,19 +422,33 @@ def build_cit_request(ps, ca_details):
 
 def convert_to_regex(domains, wildcard_allowed):
     """
-    :param dict[str] domains:
+    :param list[str] domains:
     :param bool wildcard_allowed:
     :rtype: dict
     """
-    list = []
+    regex_list = []
     for d in domains:
         current = d.replace('.', '\\.')
         if wildcard_allowed:
             current = "[*a-z]{1}[a-z0-9.-]*\\." + current
         else:
             current = "[a-z]{1}[a-z0-9.-]*\\." + current
-        list.append(current)
-    return list
+        regex_list.append(current)
+    return regex_list
+
+
+def is_wildcard_allowed(san_regexes):
+    """
+    :param list[str] san_regexes:
+    :rtype: bool
+    """
+    if not san_regexes:
+        return False
+    for val in san_regexes:
+        if not val.startswith('[*a'):
+            return False
+
+    return True
 
 
 def build_app_update_request(app_details, cit_data):
@@ -461,7 +482,7 @@ def build_app_update_request(app_details, cit_data):
 
 
 class CertificateAuthorityInfo:
-    def __init__(self, ca_type, ca_acc_key, vendor_name):
+    def __init__(self, ca_type=None, ca_acc_key=None, vendor_name=None):
         """
         :param str ca_type:
         :param str ca_acc_key:
@@ -483,23 +504,24 @@ class CertificateAuthorityDetails:
 
 
 class AccountDetails:
-    def __init__(self, account, product_option):
+    def __init__(self, account, product_options):
         """
         :param Account account:
-        :param list[ProductOption] product_option:
+        :param list[ProductOption] product_options:
         """
         self.account = account
-        self.product_option = product_option
+        self.product_options = product_options
 
 
 class Account:
-    def __init__(self, account_id, key):
+    def __init__(self, account_id, key, certificate_authority):
         """
         :param str account_id:
         :param str key:
         """
         self.id = account_id
         self.key = key
+        self.certificate_authority = certificate_authority
 
 
 class ProductOption:
@@ -649,9 +671,29 @@ def build_apikey(data):
     )
 
 
+def build_account_details(data):
+    """
+    :param dict data:
+    :rtype: AccountDetails
+    """
+    a = 'account'
+    if not data or a not in data:
+        return
+
+    account = Account(data[a]['id'], data[a]['key'], data[a]['certificateAuthority'])
+    po_list = []
+    for po in data['productOptions']:
+        product = build_product_option(po)
+        po_list.append(product)
+
+    ad = AccountDetails(account, po_list)
+    return ad
+
+
 def build_product_option(data):
     """
     :param dict data:
+    :rtype: ProductOption
     """
     d = 'productDetails'
     t = 'productTemplate'
