@@ -76,5 +76,5 @@ class TestCloudPolicyManagement(unittest.TestCase):
 
     def test_create_policy_spec(self):
         ps = json_parser.parse_json_file(POLICY_SPEC_JSON)
-        self.cloud_conn.set_policy("rvela-test")
+        self.cloud_conn.set_policy("amoo\\vcert-rvela", ps)
         pass

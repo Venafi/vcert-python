@@ -27,6 +27,7 @@ from six import string_types, binary_type
 
 from .errors import VenafiConnectionError, ServerUnexptedBehavior, BadData, ClientBadData
 from .http import HTTPStatus
+from .policy.policy_spec import PolicySpecification
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
@@ -688,7 +689,7 @@ class CommonConnection:
             return r.status_code, r.text
         # content-type in response is  application/json; charset=utf-8
         elif content_type.startswith(MIME_JSON):
-            log.debug(r.content.decode())
+            # log.debug(r.content.decode())
             return r.status_code, r.json()
         elif content_type.startswith(MIME_CSV):
             log.debug(r.content.decode())

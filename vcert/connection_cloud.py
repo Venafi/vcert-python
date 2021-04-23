@@ -58,7 +58,7 @@ class URLS:
     CERTIFICATE_SEARCH = API_BASE_PATH + "certificatesearch"
     APPLICATIONS = "applications"
     APP_BY_ID = API_BASE_PATH + APPLICATIONS + "/%s"
-    CERTIFICATE_TEMPLATE_BY_ID = API_BASE_PATH + APP_BY_ID + "/certificateissuingtemplates/%s"
+    CERTIFICATE_TEMPLATE_BY_ID = APP_BY_ID + "/certificateissuingtemplates/%s"
     APP_DETAILS_BY_NAME = API_BASE_PATH + APPLICATIONS + "/name/%s"
     CERTIFICATE_BY_ID = API_BASE_PATH + "certificates/%s"
     CA_ACCOUNTS = API_VERSION + "certificateauthorities/%s/accounts"
@@ -158,9 +158,9 @@ class CloudConnection(CommonConnection):
             u = "https://" + u
         if not u.endswith("/"):
             u += "/"
-        if not u.endswith("v1/"):
-            u += "v1/"
-        if not re.match(r"^https://[a-z\d]+[-a-z\d.]+[a-z\d][:\d]*/v1/$", u):
+        # if not u.endswith("v1/"):
+        #     u += "v1/"
+        if not re.match(r"^https://[a-z\d]+[-a-z\d.]+[a-z\d][:\d]*/$", u):
             raise ClientBadData
         self._base_url = u
 
@@ -258,7 +258,7 @@ class CloudConnection(CommonConnection):
         status, data = self._get(URLS.CERTIFICATE_TEMPLATE_BY_ID % (app_name, cit_alias))
         if status != HTTPStatus.OK:
             log.error("Invalid status %s while retrieving policy [%s]" % (status, zone))
-            raise ServerUnexptedBehavior
+            return None
         return self._parse_policy_response_to_object(data)
 
     def auth(self):
@@ -481,19 +481,22 @@ class CloudConnection(CommonConnection):
         :param str zone:
         :rtype: bool
         """
-        cit = self._get_template_by_id(zone)
+        try:
+            cit = self._get_template_by_id(zone)
+        except VenafiConnectionError:
+            cit = None
         return False if cit is None else True
 
     def set_policy(self, zone, policy_spec):
         validate_policy_spec(policy_spec)
         app_name, cit_alias = _parse_zone(zone)
 
-        if not policy_spec.policy.cert_authority:
+        if not policy_spec.policy.certificate_authority:
             raise VenafiError('Certificate Authority is required')
 
-        ca_details = self._get_ca_details(policy_spec.policy.cert_authority)
+        ca_details = self._get_ca_details(policy_spec.policy.certificate_authority)
         if not ca_details:
-            raise VenafiError('CA [%s] not found in Venafi Cloud', policy_spec.policy.cert_authority)
+            raise VenafiError('CA [%s] not found in Venafi Cloud', policy_spec.policy.certificate_authority)
 
         # CA valid. Create request dictionary
         request = build_cit_request(policy_spec, ca_details)
@@ -554,9 +557,9 @@ class CloudConnection(CommonConnection):
         accounts, info = self._get_accounts(ca_name)
         for acc in accounts:
             if acc.account.key == info.ca_account_key:
-                for po in acc.product_option:
-                    if po.product_name == info.vendor_product_name:
-                        return CertificateAuthorityDetails(po.details.product_template.organization_id, po.product_id)
+                for po in acc.product_options:
+                    if po.product_name == info.vendor_name:
+                        return CertificateAuthorityDetails(po.product_id, po.details.product_template.organization_id,)
 
     def _get_accounts(self, ca_name):
         """

@@ -161,7 +161,7 @@ def validate_policy_spec(policy_spec):
         if p.subject_alt_names:
             sans = get_sans(policy_spec.policy.subject_alt_names)
             if len(sans) > 0:
-                for k, v in sans:
+                for k, v in sans.items():
                     if v is True:
                         raise VenafiError('Subject Alt name [%s] is not allowed by Venafi Cloud', k)
 
@@ -239,9 +239,9 @@ def get_invalid_cloud_rsa_key_size_value(rsa_keys):
 def get_sans(names):
     """
     :param SubjectAltNames names:
-    :rtype: dict
+    :rtype: dict[str, bool]
     """
-    sans = dict
+    sans = dict()
     if names.dns_allowed is not None:
         sans[RPA.TPP_DNS_ALLOWED] = names.dns_allowed
     if names.ip_allowed is not None:
@@ -267,15 +267,15 @@ def is_valid_policy_value(policy_values, default_value):
     return True if default_value in policy_values else False
 
 
-def member_of(values, collection):
+def member_of(sub_list, collection):
     """
-    :param list[str] values:
+    :param list[str] sub_list:
     :param list[str] collection:
     :rtype: bool
     """
-    if len(values) == 1 and values[0] == ALLOW_ALL:
+    if len(sub_list) == 1 and sub_list[0] == ALLOW_ALL:
         return True
-    return True if all(x in values for x in collection) else False
+    return True if all(x in collection for x in sub_list) else False
 
 
 def get_ca_info(ca_name):
@@ -316,7 +316,7 @@ def build_cit_request(ps, ca_details):
     product = {
         'certificateAuthority': cert_auth.ca_type,
         'productName': cert_auth.vendor_name,
-        'validityPeriod': ("P%dD", validity)
+        'validityPeriod': "P%sD" % validity
     }
 
     if cert_auth.ca_type == CA_DIGIGERT:
@@ -341,8 +341,8 @@ def build_cit_request(ps, ca_details):
         if ps.policy.subject_alt_names and ps.policy.subject_alt_names.dns_allowed is not None:
             if ps.policy.subject_alt_names.dns_allowed:
                 request['sanRegexes'] = regex_value
-            else:
-                request['sanRegexes'] = None
+            # else:
+            #     request['sanRegexes'] = None
         else:
             request['sanRegexes'] = regex_value
     else:
@@ -704,7 +704,8 @@ def build_product_option(data):
     d = 'productDetails'
     t = 'productTemplate'
     if d in data and t in data[d]:
-        p_template = ProductTemplate(data[d][t]['organizationId'])
+        org_id = data[d][t]['organizationId'] if 'organizationId' in data[d][t] else None
+        p_template = ProductTemplate(org_id)
         p_details = ProductDetails(p_template)
         p_option = ProductOption(data['productName'], data['id'], p_details)
         return p_option
