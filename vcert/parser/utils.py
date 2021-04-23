@@ -49,64 +49,85 @@ def parse_data(data):
         log.error('Data dictionary is empty')
         raise VenafiParsingError
 
-    if not data[FIELD_POLICY]:
-        log.error('Data structure does not have a %s field' % FIELD_POLICY)
-        raise VenafiParsingError
+    policy = Policy()
+    subject = Subject()
+    key_pair = KeyPair()
+    subject_alt_names = SubjectAltNames()
 
-    p = data[FIELD_POLICY]
+    if FIELD_POLICY in data:
+        p = data[FIELD_POLICY]
+        policy.domains = p[FIELD_DOMAINS] if FIELD_DOMAINS in p else None
+        policy.wildcard_allowed = p[FIELD_WILDCARD_ALLOWED] if FIELD_WILDCARD_ALLOWED in p else None
+        policy.max_valid_days = p[FIELD_MAX_VALID_DAYS] if FIELD_MAX_VALID_DAYS in p else None
+        policy.certificate_authority = p[FIELD_CERTIFICATE_AUTHORITY] if FIELD_CERTIFICATE_AUTHORITY in p else None
+        policy.autoinstalled = p[FIELD_AUTOINSTALLED] if FIELD_AUTOINSTALLED in p else None
 
-    s = p[FIELD_SUBJECT]
-    if not s:
-        log.error("Policy structure does not have a %s field" % FIELD_SUBJECT)
-        raise VenafiParsingError
+        if FIELD_SUBJECT in p:
+            s = p[FIELD_SUBJECT]
+            subject.orgs = s[FIELD_ORGS] if FIELD_ORGS in s else None
+            subject.org_units = s[FIELD_ORG_UNITS] if FIELD_ORG_UNITS in s else None
+            subject.localities = s[FIELD_LOCALITIES] if FIELD_LOCALITIES in s else None
+            subject.states = s[FIELD_STATES] if FIELD_STATES in s else None
+            subject.countries = s[FIELD_COUNTRIES] if FIELD_COUNTRIES in s else None
 
-    subject = Subject(s[FIELD_ORGS], s[FIELD_ORG_UNITS], s[FIELD_LOCALITIES],
-                      s[FIELD_STATES], s[FIELD_COUNTRIES])
+        if FIELD_KEY_PAIR in p:
+            kp = p[FIELD_KEY_PAIR]
+            key_pair.key_types = kp[FIELD_KEY_TYPES] if FIELD_KEY_TYPES in kp else None
+            key_pair.rsa_key_sizes = kp[FIELD_RSA_KEY_SIZES] if FIELD_RSA_KEY_SIZES in kp else None
+            key_pair.elliptic_curves = kp[FIELD_ELLIPTIC_CURVES] if FIELD_ELLIPTIC_CURVES in kp else None
+            key_pair.service_generated = kp[FIELD_SERVICE_GENERATED] if FIELD_SERVICE_GENERATED in kp else None
+            key_pair.reuse_allowed = kp[FIELD_REUSE_ALLOWED] if FIELD_REUSE_ALLOWED in kp else None
 
-    kp = p[FIELD_KEY_PAIR]
-    if not kp:
-        log.error("Policy structure does not have a %s field" % FIELD_KEY_PAIR)
-        raise VenafiParsingError
+        if FIELD_SUBJECT_ALT_NAMES in p:
+            sans = p[FIELD_SUBJECT_ALT_NAMES]
+            subject_alt_names.dns_allowed = sans[FIELD_DNS_ALLOWED] if FIELD_DNS_ALLOWED in sans else None
+            subject_alt_names.email_allowed = sans[FIELD_EMAIL_ALLOWED] if FIELD_EMAIL_ALLOWED in sans else None
+            subject_alt_names.ip_allowed = sans[FIELD_IP_ALLOWED] if FIELD_IP_ALLOWED in sans else None
+            subject_alt_names.upn_allowed = sans[FIELD_UPN_ALLOWED] if FIELD_UPN_ALLOWED in sans else None
+            subject_alt_names.uri_allowed = sans[FIELD_URI_ALLOWED] if FIELD_URI_ALLOWED in sans else None
 
-    key_pair = KeyPair(kp[FIELD_KEY_TYPES], kp[FIELD_RSA_KEY_SIZES],
-                       kp[FIELD_ELLIPTIC_CURVES], kp[FIELD_SERVICE_GENERATED],
-                       kp[FIELD_REUSE_ALLOWED])
+    policy.subject = subject
+    policy.key_pair = key_pair
+    policy.subject_alt_names = subject_alt_names
 
-    sans = p[FIELD_SUBJECT_ALT_NAMES]
-    if not sans:
-        log.error("Policy structure does not have a %s field" % FIELD_SUBJECT_ALT_NAMES)
-        raise VenafiParsingError
+    defaults = Defaults()
+    default_subject = DefaultSubject()
+    default_key_pair = DefaultKeyPair()
 
-    subject_alt_names = SubjectAltNames(sans[FIELD_DNS_ALLOWED], sans[FIELD_IP_ALLOWED],
-                                        sans[FIELD_EMAIL_ALLOWED], sans[FIELD_URI_ALLOWED],
-                                        sans[FIELD_UPN_ALLOWED])
+    if FIELD_DEFAULTS in data:
+        d = data[FIELD_DEFAULTS]
+        defaults.domain = d[FIELD_DEFAULT_DOMAIN] if FIELD_DEFAULT_DOMAIN in d else None
+        defaults.autoinstalled = d[FIELD_DEFAULT_AUTOINSTALLED] if FIELD_DEFAULT_AUTOINSTALLED in d else None
 
-    policy = Policy(p[FIELD_DOMAINS], p[FIELD_WILDCARD_ALLOWED], p[FIELD_MAX_VALID_DAYS],
-                    p[FIELD_CERTIFICATE_AUTHORITY], subject, key_pair, subject_alt_names, p[FIELD_AUTOINSTALLED])
+        if FIELD_DEFAULT_SUBJECT in d:
+            ds = d[FIELD_DEFAULT_SUBJECT]
+            default_subject.org = ds[FIELD_DEFAULT_ORG] if FIELD_DEFAULT_ORG in ds else None
+            default_subject.org_units = ds[FIELD_DEFAULT_ORG_UNITS] if FIELD_DEFAULT_ORG_UNITS in ds else None
+            default_subject.locality = ds[FIELD_DEFAULT_LOCALITY] if FIELD_DEFAULT_LOCALITY in ds else None
+            default_subject.state = ds[FIELD_DEFAULT_STATE] if FIELD_DEFAULT_STATE in ds else None
+            default_subject.country = ds[FIELD_DEFAULT_COUNTRY] if FIELD_DEFAULT_COUNTRY in ds else None
 
-    if data[FIELD_DEFAULTS]:
-        defaults_data = data[FIELD_DEFAULTS]
-        domain = defaults_data[FIELD_DEFAULT_DOMAIN]
-
-        ds = defaults_data[FIELD_DEFAULT_SUBJECT]
-        if ds:
-            default_subject = DefaultSubject(ds[FIELD_DEFAULT_ORG],
-                                             ds[FIELD_DEFAULT_ORG_UNITS],
-                                             ds[FIELD_DEFAULT_LOCALITY],
-                                             ds[FIELD_DEFAULT_STATE],
-                                             ds[FIELD_DEFAULT_COUNTRY])
-        dkp = defaults_data[FIELD_DEFAULT_KEY_PAIR]
-        if dkp:
+        if FIELD_DEFAULT_KEY_PAIR in d:
+            dkp = d[FIELD_DEFAULT_KEY_PAIR]
             default_key_pair = DefaultKeyPair(dkp[FIELD_DEFAULT_KEY_TYPE],
                                               dkp[FIELD_DEFAULT_RSA_KEY_SIZE],
                                               dkp[FIELD_DEFAULT_ELLIPTIC_CURVE],
                                               dkp[FIELD_DEFAULT_SERVICE_GENERATED])
-        defaults = Defaults(domain, default_subject, default_key_pair, p[FIELD_DEFAULT_AUTOINSTALLED])
+            default_key_pair.key_type = dkp[FIELD_DEFAULT_KEY_TYPE] if FIELD_DEFAULT_KEY_TYPE in dkp else None
+            default_key_pair.rsa_key_size = \
+                dkp[FIELD_DEFAULT_RSA_KEY_SIZE] if FIELD_DEFAULT_RSA_KEY_SIZE in dkp else None
+            default_key_pair.elliptic_curve = \
+                dkp[FIELD_DEFAULT_ELLIPTIC_CURVE] if FIELD_DEFAULT_ELLIPTIC_CURVE in dkp else None
+            default_key_pair.service_generated = \
+                dkp[FIELD_DEFAULT_SERVICE_GENERATED] if FIELD_DEFAULT_SERVICE_GENERATED in dkp else None
 
-    owners = data[FIELD_OWNERS]
-    users = data[FIELD_USERS]
-    user_access = data[FIELD_USER_ACCESS]
-    approvers = data[FIELD_APPROVERS]
+    defaults.subject = default_subject
+    defaults.key_pair = default_key_pair
+
+    owners = data[FIELD_OWNERS] if FIELD_OWNERS in data else None
+    users = data[FIELD_USERS] if FIELD_USERS in data else None
+    user_access = data[FIELD_USER_ACCESS] if FIELD_USER_ACCESS in data else None
+    approvers = data[FIELD_APPROVERS] if FIELD_APPROVERS in data else None
 
     policy_spec = PolicySpecification(owners, users, user_access, approvers, policy, defaults)
 

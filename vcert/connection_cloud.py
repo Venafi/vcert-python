@@ -160,7 +160,7 @@ class CloudConnection(CommonConnection):
             u += "/"
         if not u.endswith("v1/"):
             u += "v1/"
-        if not re.match(r"^https://[a-z\d]+[-a-z\d.]+[a-z\d][:\d]*/outagedetection/v1/$", u):
+        if not re.match(r"^https://[a-z\d]+[-a-z\d.]+[a-z\d][:\d]*/v1/$", u):
             raise ClientBadData
         self._base_url = u
 
@@ -549,7 +549,7 @@ class CloudConnection(CommonConnection):
     def _get_ca_details(self, ca_name):
         """
         :param str ca_name:
-        :rtype: str
+        :rtype: CertificateAuthorityDetails
         """
         accounts, info = self._get_accounts(ca_name)
         for acc in accounts:

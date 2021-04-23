@@ -24,7 +24,7 @@ FIELD_DOMAINS = 'domains'
 FIELD_WILDCARD_ALLOWED = 'wildcardAllowed'
 FIELD_MAX_VALID_DAYS = 'maxValidDays'
 FIELD_CERTIFICATE_AUTHORITY = 'certificateAuthority'
-FIELD_AUTOINSTALLED = "autoinstalled"
+FIELD_AUTOINSTALLED = "autoInstalled"
 
 FIELD_SUBJECT = 'subject'
 FIELD_ORGS = 'orgs'

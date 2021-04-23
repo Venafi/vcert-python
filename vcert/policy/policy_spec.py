@@ -91,19 +91,19 @@ class KeyPair:
 
 
 class SubjectAltNames:
-    def __init__(self, dns_allowed=None, ip_allowed=None, email_allowed=None, uri_allowed=None, upn_allowed=None):
+    def __init__(self, dns_allowed=None, email_allowed=None, ip_allowed=None, upn_allowed=None, uri_allowed=None,):
         """
         :param bool dns_allowed:
-        :param bool ip_allowed:
         :param bool email_allowed:
-        :param bool uri_allowed:
+        :param bool ip_allowed:
         :param bool upn_allowed:
+        :param bool uri_allowed:
         """
         self.dns_allowed = dns_allowed
-        self.ip_allowed = ip_allowed
         self.email_allowed = email_allowed
-        self.uri_allowed = uri_allowed
+        self.ip_allowed = ip_allowed
         self.upn_allowed = upn_allowed
+        self.uri_allowed = uri_allowed
 
 
 class Defaults:

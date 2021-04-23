@@ -31,6 +31,7 @@ def parse_json_file(json_file_path):
     if not json_file_path:
         log.error('File path is empty')
 
+    log.info('Loading Policy Specification from %s', json_file_path)
     json_str = load_file(json_file_path)
 
     return parse_json_str(json_str)

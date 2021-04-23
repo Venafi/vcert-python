@@ -17,7 +17,7 @@ from vcert.common import Policy as Cit, AppDetails
 from vcert.errors import VenafiError
 from vcert.policy import RPA, ALLOW_ALL, DEFAULT_CA, DEFAULT_MAX_VALID_DAYS, DEFAULT_HASH_ALGORITHM
 from vcert.policy.policy_spec import Policy, Subject, KeyPair, DefaultSubject, DefaultKeyPair, PolicySpecification, \
-    Defaults
+    Defaults, SubjectAltNames
 
 supported_rsa_key_sizes = [1024, 2048, 4096]
 CA_DIGIGERT = 'DIGICERT'
@@ -87,6 +87,12 @@ def build_policy_spec(cit, ca_info):
 
     kp.reuse_allowed = cit.key_reuse
     p.key_pair = kp if create_kp else None
+
+    sans = SubjectAltNames(False, False, False, False, False)
+    if cit.SANRegexes:
+        sans.dns_allowed = True
+    p.subject_alt_names = sans
+
     ps.policy = p
 
     rs = cit.recommended_settings
