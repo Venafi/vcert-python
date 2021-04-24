@@ -161,7 +161,7 @@ class TPPPolicy:
         p.domains = self.domain_suffix_whitelist
         p.certificate_authority = self.cert_authority
         p.wildcard_allowed = self.wildcards_allowed
-        p.autoinstalled = self._resolve_management_type()
+        p.auto_installed = self._resolve_management_type()
 
         if create_subject:
             p.subject = s
@@ -201,8 +201,8 @@ class TPPPolicy:
         policy = ps.policy
         defaults = ps.defaults
 
-        subject = policy.subject
-        d_subject = defaults.subject
+        subject = policy.subject if policy else None
+        d_subject = defaults.subject if defaults else None
 
         if policy:
             tpp_policy.domain_suffix_whitelist = policy.domains
@@ -213,11 +213,11 @@ class TPPPolicy:
         if policy and policy.certificate_authority:
             tpp_policy.cert_authority = policy.certificate_authority
 
-        if policy and policy.autoinstalled is not None:
-            val = get_management_type(policy.autoinstalled)
+        if policy and policy.auto_installed is not None:
+            val = get_management_type(policy.auto_installed)
             tpp_policy.management_type = CertField(val, True)
-        elif defaults and defaults.autoinstalled is not None:
-            val = get_management_type(defaults.autoinstalled)
+        elif defaults and defaults.auto_installed is not None:
+            val = get_management_type(defaults.auto_installed)
             tpp_policy.management_type = CertField(val, False)
 
         if policy and subject and len(subject.orgs) > 0 and subject.orgs[0]:
@@ -245,8 +245,8 @@ class TPPPolicy:
         elif defaults and d_subject and d_subject.country:
             tpp_policy.country = CertField(d_subject.country, False)
 
-        kp = policy.key_pair
-        d_kp = defaults.key_pair
+        kp = policy.key_pair if policy else None
+        d_kp = defaults.key_pair if defaults else None
 
         if policy and kp and len(kp.key_types) > 0 and kp.key_types[0]:
             tpp_policy.key_algo = CertField(kp.key_types[0], True)
@@ -318,9 +318,9 @@ class TPPPolicy:
         """
         :rtype: bool
         """
-        if self.management_type is mt_enrollment:
+        if self.management_type == mt_enrollment:
             return False
-        elif self.management_type is mt_provisioning:
+        elif self.management_type == mt_provisioning:
             return True
 
 
@@ -383,9 +383,9 @@ def validate_policy_spec(policy_spec):
     if not d or not p:
         return
 
-    if p.autoinstalled is not None:
-        if p.autoinstalled != d.autoinstalled:
-            raise VenafiError(no_match_error_msg %('autoinstalled', d.autoinstalled, p.autoinstalled))
+    if p.auto_installed is not None:
+        if p.auto_installed != d.auto_installed:
+            raise VenafiError(no_match_error_msg % ('autoinstalled', d.auto_installed, p.auto_installed))
 
     return True
 

@@ -244,7 +244,7 @@ class AbstractTPPConnection(CommonConnection):
             self._set_policy_attr(name, SPA.TPP_ELLIPTIC_CURVE, [tpp_policy.elliptic_curve.value],
                                   tpp_policy.elliptic_curve.locked)
         if tpp_policy.management_type:
-            self._set_policy_attr(name,SPA.TPP_MANAGEMENT_TYPE, tpp_policy.management_type.value,
+            self._set_policy_attr(name, SPA.TPP_MANAGEMENT_TYPE, [tpp_policy.management_type.value],
                                   tpp_policy.management_type.locked)
 
         if tpp_policy.wildcards_allowed is not None:
@@ -264,7 +264,7 @@ class AbstractTPPConnection(CommonConnection):
         if len(prohibited_sans) > 0:
             self._set_policy_attr(name, SPA.TPP_PROHIBITED_SAN_TYPES, prohibited_sans, False)
 
-        return self.get_policy_specification(name)
+        return
 
     def _policy_exists(self, zone):
         """

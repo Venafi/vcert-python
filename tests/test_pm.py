@@ -20,8 +20,10 @@ from pprint import pprint
 
 from tests import TPP_TOKEN_URL, USER, PASSWORD, TOKEN, CLOUDURL, TPP_ACCESS_TOKEN
 from vcert import TPPTokenConnection, CloudConnection
-from vcert.parser import json_parser
-from vcert.parser.yaml_parser import parse_yaml_file
+from vcert.parser import json_parser, yaml_parser
+from vcert.parser.utils import parse_policy_spec
+from vcert.policy.policy_spec import Policy, Subject, KeyPair, SubjectAltNames, Defaults, DefaultSubject, \
+    DefaultKeyPair, PolicySpecification
 
 POLICY_SPEC_JSON = './assets/policy_specification.json'
 POLICY_SPEC_YAML = './assets/policy_specification.yaml'
@@ -42,7 +44,7 @@ class TestPolicySpecificationParsing(unittest.TestCase):
         pass
 
     def test_yaml_12_parsing(self):
-        data = parse_yaml_file(POLICY_SPEC_YAML)
+        data = yaml_parser.parse_yaml_file(POLICY_SPEC_YAML)
         pprint(data.__dict__)
 
 
@@ -53,15 +55,33 @@ class TestTPPTokenPolicyManagement(unittest.TestCase):
                                            http_request_kwargs={"verify": "/tmp/chain.pem"})
         super(TestTPPTokenPolicyManagement, self).__init__(*args, **kwargs)
 
-    def test_read_policy_spec(self):
+    def test_read_policy(self):
         ps = self.tpp_conn.get_policy_specification(self.tpp_zone)
-        json_parser.to_json_file(ps, "test_tpp_pm.json")
-        # pprint(data)
+        data = parse_policy_spec(ps)
+        pprint(data)
 
-    def test_create_policy(self):
+    def test_create_policy_from_json(self):
         ps = json_parser.parse_json_file(POLICY_SPEC_JSON)
-        created_ps = self.tpp_conn.set_policy("Amoo\\rvela", ps)
-        pprint(created_ps)
+        self._create_policy_tpp(policy_spec=ps)
+
+    def test_create_policy_yaml(self):
+        ps = yaml_parser.parse_yaml_file(POLICY_SPEC_YAML)
+        self._create_policy_tpp(policy_spec=ps)
+
+    def test_create_policy_full(self):
+        self._create_policy_tpp(policy=get_policy_obj(), defaults=get_defaults_obj())
+
+    def test_create_policy_empty(self):
+        self._create_policy_tpp()
+
+    def test_create_policy_no_policy(self):
+        self._create_policy_tpp(defaults=get_defaults_obj())
+
+    def test_create_policy_no_defaults(self):
+        self._create_policy_tpp(policy=get_policy_obj())
+
+    def _create_policy_tpp(self, policy_spec=None, policy=None, defaults=None):
+        create_policy(self.tpp_conn, self.tpp_zone, policy_spec, policy, defaults)
 
 
 class TestCloudPolicyManagement(unittest.TestCase):
@@ -70,11 +90,88 @@ class TestCloudPolicyManagement(unittest.TestCase):
         self.cloud_conn = CloudConnection(token=TOKEN, url=CLOUDURL)
         super(TestCloudPolicyManagement, self).__init__(*args, **kwargs)
 
-    def test_read_policy_spec(self):
+    def test_read_policy(self):
         ps = self.cloud_conn.get_policy_specification("vcert-amoo-0004\\vcert-policy-creator-31")
         json_parser.to_json_file(ps, "test_cloud_pm.json")
 
-    def test_create_policy_spec(self):
+    def test_create_policy_from_json(self):
         ps = json_parser.parse_json_file(POLICY_SPEC_JSON)
-        self.cloud_conn.set_policy("amoo\\vcert-rvela", ps)
-        pass
+        self._create_policy_cloud(policy_spec=ps)
+
+    def test_create_policy_yaml(self):
+        ps = yaml_parser.parse_yaml_file(POLICY_SPEC_YAML)
+        self._create_policy_cloud(policy_spec=ps)
+
+    def test_create_policy_full(self):
+        self._create_policy_cloud(policy=get_policy_obj(), defaults=get_defaults_obj())
+
+    def test_create_policy_empty(self):
+        self._create_policy_cloud()
+
+    def test_create_policy_no_policy(self):
+        self._create_policy_cloud(defaults=get_defaults_obj())
+
+    def test_create_policy_no_defaults(self):
+        self._create_policy_cloud(policy=get_policy_obj())
+
+    def _create_policy_cloud(self, policy_spec=None, policy=None, defaults=None):
+        create_policy(self.cloud_conn, self.cloud_zone, policy_spec, policy, defaults)
+
+
+def create_policy(connector, zone, policy_spec=None, policy=None, defaults=None):
+    if not policy_spec:
+        policy_spec = PolicySpecification()
+    if policy:
+        policy_spec.policy = policy
+    if defaults:
+        policy_spec.defaults = defaults
+
+    connector.set_policy(zone, policy_spec)
+    resp = connector.get_policy_specification(zone)
+    data = parse_policy_spec(resp)
+    pprint(data)
+
+
+def get_policy_obj():
+    policy = Policy(
+        subject=Subject(
+            orgs=['Treat or Trick, Inc.'],
+            #            org_units = ['Customer Support', 'Professional Services'],
+            org_units=['Customer Support'],
+            localities=['Richland'],
+            states=['Washington'],
+            countries=['US']),
+        key_pair=KeyPair(
+            key_types=['RSA'],
+            rsa_key_sizes=[4096],
+            elliptic_curves=['P521'],
+            reuse_allowed=True),
+        subject_alt_names=SubjectAltNames(
+            dns_allowed=True,
+            ip_allowed=True,
+            email_allowed=False,
+            uri_allowed=False,
+            upn_allowed=False),
+        cert_auth='\\VED\\Policy\\Certificate Authorities\\Microsoft CA\\QA Venafi CA - Server 2 Years',
+        domains=['treatortrick.com', 'ryantreat.com', 'supertreat.xyz'],
+        wildcard_allowed=True,
+        auto_installed=False)
+
+    return policy
+
+
+def get_defaults_obj():
+    defaults = Defaults(
+        d_subject=DefaultSubject(
+            org='Treat or Trick, Inc.',
+            #            org_units = ['Customer Support', 'Professional Services'],
+            org_units=['Customer Support'],
+            locality='Richland',
+            state='Washington',
+            country='US'),
+        d_key_pair=DefaultKeyPair(
+            key_type='RSA',
+            rsa_key_size=4096,
+            elliptic_curve='P521'),
+        auto_installed=False)
+    return defaults

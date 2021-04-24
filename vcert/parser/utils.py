@@ -60,7 +60,7 @@ def parse_data(data):
         policy.wildcard_allowed = p[FIELD_WILDCARD_ALLOWED] if FIELD_WILDCARD_ALLOWED in p else None
         policy.max_valid_days = p[FIELD_MAX_VALID_DAYS] if FIELD_MAX_VALID_DAYS in p else None
         policy.certificate_authority = p[FIELD_CERTIFICATE_AUTHORITY] if FIELD_CERTIFICATE_AUTHORITY in p else None
-        policy.autoinstalled = p[FIELD_AUTOINSTALLED] if FIELD_AUTOINSTALLED in p else None
+        policy.auto_installed = p[FIELD_AUTOINSTALLED] if FIELD_AUTOINSTALLED in p else None
 
         if FIELD_SUBJECT in p:
             s = p[FIELD_SUBJECT]
@@ -97,7 +97,7 @@ def parse_data(data):
     if FIELD_DEFAULTS in data:
         d = data[FIELD_DEFAULTS]
         defaults.domain = d[FIELD_DEFAULT_DOMAIN] if FIELD_DEFAULT_DOMAIN in d else None
-        defaults.autoinstalled = d[FIELD_DEFAULT_AUTOINSTALLED] if FIELD_DEFAULT_AUTOINSTALLED in d else None
+        defaults.auto_installed = d[FIELD_DEFAULT_AUTOINSTALLED] if FIELD_DEFAULT_AUTOINSTALLED in d else None
 
         if FIELD_DEFAULT_SUBJECT in d:
             ds = d[FIELD_DEFAULT_SUBJECT]
@@ -211,22 +211,27 @@ def parse_policy_spec(policy_spec):
             FIELD_DEFAULT_KEY_PAIR: dkp_data
         }
     }
-    new_data = delete_empty_values(data)
+    new_data = _remove_empty_values(data)
     return new_data
 
 
-def delete_empty_values(data):
+def _remove_empty_values(data):
     """
     Deletes entries whose value is None/empty or equivalent
 
     :param dict data:
     :rtype: dict
     """
+    copy = dict()
     for k, v in data.items():
-        if v is None:
-            del data[k]
-        elif (isinstance(v, dict) or isinstance(v, list)) and len(v) == 0:
-            del data[k]
-        elif isinstance(v, dict):
-            delete_empty_values(v)
-    return data
+        if isinstance(v, dict):
+            inner_dict = _remove_empty_values(v)
+            if len(inner_dict) > 0:
+                copy[k] = inner_dict
+        elif isinstance(v, list):
+            if v is not None and len(v) > 0:
+                copy[k] = v
+        elif v is not None:
+            copy[k] = v
+
+    return copy
