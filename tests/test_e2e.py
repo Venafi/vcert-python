@@ -18,8 +18,9 @@
 from __future__ import absolute_import, division, generators, unicode_literals, print_function, nested_scopes, \
     with_statement
 
-from . import random_word, TOKEN, CLOUDURL, USER, TPPURL, PASSWORD, TPP_TOKEN_URL, RANDOM_DOMAIN
-from .assets import *
+from common import random_word, TOKEN, CLOUDURL, PASSWORD, USER, TPPURL, TPP_TOKEN_URL, RANDOM_DOMAIN
+from assets import TEST_KEY_ECDSA, TEST_KEY_RSA_4096, TEST_KEY_RSA_2048_ENCRYPTED, POLICY_CLOUD1, EXAMPLE_CSR, \
+    EXAMPLE_CHAIN, POLICY_TPP1
 from vcert import CloudConnection, CertificateRequest, TPPConnection, FakeConnection, ZoneConfig, RevocationRequest, \
     TPPTokenConnection
 from vcert.common import CertField, KeyType, CustomField

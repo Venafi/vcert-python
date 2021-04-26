@@ -18,15 +18,15 @@ import unittest
 from os import environ
 from pprint import pprint
 
-from tests import TPP_TOKEN_URL, USER, PASSWORD, TOKEN, CLOUDURL, TPP_ACCESS_TOKEN
+from common import TPP_TOKEN_URL, USER, PASSWORD, TOKEN, CLOUDURL, TPP_ACCESS_TOKEN
 from vcert import TPPTokenConnection, CloudConnection
 from vcert.parser import json_parser, yaml_parser
 from vcert.parser.utils import parse_policy_spec
 from vcert.policy.policy_spec import Policy, Subject, KeyPair, SubjectAltNames, Defaults, DefaultSubject, \
     DefaultKeyPair, PolicySpecification
 
-POLICY_SPEC_JSON = './assets/policy_specification.json'
-POLICY_SPEC_YAML = './assets/policy_specification.yaml'
+POLICY_SPEC_JSON = './resources/policy_specification.json'
+POLICY_SPEC_YAML = './resources/policy_specification.yaml'
 
 
 class TestPolicySpecificationParsing(unittest.TestCase):
@@ -130,6 +130,7 @@ def create_policy(connector, zone, policy_spec=None, policy=None, defaults=None)
     resp = connector.get_policy_specification(zone)
     data = parse_policy_spec(resp)
     pprint(data)
+    return resp
 
 
 def get_policy_obj():

@@ -211,6 +211,8 @@ def validate_policy_spec(policy_spec):
                 if dkp.service_generated != kp.service_generated:
                     raise VenafiError(
                         default_error_msg % ('Service Generated', dkp.service_generated, kp.service_generated))
+    else:
+        policy_spec.policy = Policy()
 
     # validate default values when policy is not defined
     if policy_spec.defaults and policy_spec.defaults.key_pair:
@@ -331,7 +333,6 @@ def build_cit_request(ps, ca_details):
             'requesterPhone': REQUESTER_PHONE
         }
         request['trackingData'] = tracking_data
-        pass
 
     request['product'] = product
 

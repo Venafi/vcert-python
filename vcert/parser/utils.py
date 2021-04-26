@@ -141,55 +141,75 @@ def parse_policy_spec(policy_spec):
     :param PolicySpecification policy_spec:
     :rtype: dict
     """
-    subject = policy_spec.policy.subject
     s_data = dict()
-    if subject:
-        s_data = {
-            FIELD_ORGS: subject.orgs,
-            FIELD_ORG_UNITS: subject.org_units,
-            FIELD_LOCALITIES: subject.localities,
-            FIELD_STATES: subject.states,
-            FIELD_COUNTRIES: subject.countries
-        }
-    key_pair = policy_spec.policy.key_pair
     kp_data = dict()
-    if key_pair:
-        kp_data = {
-            FIELD_KEY_TYPES: key_pair.key_types,
-            FIELD_RSA_KEY_SIZES: key_pair.rsa_key_sizes,
-            FIELD_ELLIPTIC_CURVES: key_pair.elliptic_curves,
-            FIELD_SERVICE_GENERATED: key_pair.service_generated,
-            FIELD_REUSE_ALLOWED: key_pair.reuse_allowed
-        }
-    sans = policy_spec.policy.subject_alt_names
     sans_data = dict()
-    if sans:
-        sans_data = {
-            FIELD_DNS_ALLOWED: sans.dns_allowed,
-            FIELD_EMAIL_ALLOWED: sans.email_allowed,
-            FIELD_IP_ALLOWED: sans.ip_allowed,
-            FIELD_UPN_ALLOWED: sans.upn_allowed,
-            FIELD_URI_ALLOWED: sans.uri_allowed
-        }
-    d_subject = policy_spec.defaults.subject
+    p_domains = None
+    p_wildcard_allowed = None
+    p_max_valid_days = None
+    p_cert_authority = None
+
+    if policy_spec.policy:
+        p_domains = policy_spec.policy.domains
+        p_wildcard_allowed = policy_spec.policy.wildcard_allowed
+        p_max_valid_days = policy_spec.policy.max_valid_days
+        p_cert_authority = policy_spec.policy.certificate_authority
+
+        subject = policy_spec.policy.subject
+        if subject:
+            s_data = {
+                FIELD_ORGS: subject.orgs,
+                FIELD_ORG_UNITS: subject.org_units,
+                FIELD_LOCALITIES: subject.localities,
+                FIELD_STATES: subject.states,
+                FIELD_COUNTRIES: subject.countries
+            }
+
+        key_pair = policy_spec.policy.key_pair
+        if key_pair:
+            kp_data = {
+                FIELD_KEY_TYPES: key_pair.key_types,
+                FIELD_RSA_KEY_SIZES: key_pair.rsa_key_sizes,
+                FIELD_ELLIPTIC_CURVES: key_pair.elliptic_curves,
+                FIELD_SERVICE_GENERATED: key_pair.service_generated,
+                FIELD_REUSE_ALLOWED: key_pair.reuse_allowed
+            }
+
+        sans = policy_spec.policy.subject_alt_names
+        if sans:
+            sans_data = {
+                FIELD_DNS_ALLOWED: sans.dns_allowed,
+                FIELD_EMAIL_ALLOWED: sans.email_allowed,
+                FIELD_IP_ALLOWED: sans.ip_allowed,
+                FIELD_UPN_ALLOWED: sans.upn_allowed,
+                FIELD_URI_ALLOWED: sans.uri_allowed
+            }
+
     ds_data = dict()
-    if d_subject:
-        ds_data = {
-            FIELD_DEFAULT_ORG: d_subject.org,
-            FIELD_DEFAULT_ORG_UNITS: d_subject.org_units,
-            FIELD_DEFAULT_LOCALITY: d_subject.locality,
-            FIELD_DEFAULT_STATE: d_subject.state,
-            FIELD_DEFAULT_COUNTRY: d_subject.country
-        }
-    d_key_pair = policy_spec.defaults.key_pair
     dkp_data = dict()
-    if d_key_pair:
-        dkp_data = {
-            FIELD_DEFAULT_KEY_TYPE: d_key_pair.key_type,
-            FIELD_DEFAULT_RSA_KEY_SIZE: d_key_pair.rsa_key_size,
-            FIELD_DEFAULT_ELLIPTIC_CURVE: d_key_pair.elliptic_curve,
-            FIELD_DEFAULT_SERVICE_GENERATED: d_key_pair.service_generated
-        }
+    d_domain = None
+
+    if policy_spec.defaults:
+        d_domain = policy_spec.defaults.domain
+
+        d_subject = policy_spec.defaults.subject
+        if d_subject:
+            ds_data = {
+                FIELD_DEFAULT_ORG: d_subject.org,
+                FIELD_DEFAULT_ORG_UNITS: d_subject.org_units,
+                FIELD_DEFAULT_LOCALITY: d_subject.locality,
+                FIELD_DEFAULT_STATE: d_subject.state,
+                FIELD_DEFAULT_COUNTRY: d_subject.country
+            }
+
+        d_key_pair = policy_spec.defaults.key_pair
+        if d_key_pair:
+            dkp_data = {
+                FIELD_DEFAULT_KEY_TYPE: d_key_pair.key_type,
+                FIELD_DEFAULT_RSA_KEY_SIZE: d_key_pair.rsa_key_size,
+                FIELD_DEFAULT_ELLIPTIC_CURVE: d_key_pair.elliptic_curve,
+                FIELD_DEFAULT_SERVICE_GENERATED: d_key_pair.service_generated
+            }
 
     data = {
         FIELD_OWNERS: policy_spec.owners,
@@ -197,16 +217,16 @@ def parse_policy_spec(policy_spec):
         FIELD_USER_ACCESS: policy_spec.user_access,
         FIELD_APPROVERS: policy_spec.approvers,
         FIELD_POLICY: {
-            FIELD_DOMAINS: policy_spec.policy.domains,
-            FIELD_WILDCARD_ALLOWED: policy_spec.policy.wildcard_allowed,
-            FIELD_MAX_VALID_DAYS: policy_spec.policy.max_valid_days,
-            FIELD_CERTIFICATE_AUTHORITY: policy_spec.policy.certificate_authority,
+            FIELD_DOMAINS: p_domains,
+            FIELD_WILDCARD_ALLOWED: p_wildcard_allowed,
+            FIELD_MAX_VALID_DAYS: p_max_valid_days,
+            FIELD_CERTIFICATE_AUTHORITY: p_cert_authority,
             FIELD_SUBJECT: s_data,
             FIELD_KEY_PAIR: kp_data,
             FIELD_SUBJECT_ALT_NAMES: sans_data
         },
         FIELD_DEFAULTS: {
-            FIELD_DEFAULT_DOMAIN: policy_spec.defaults.domain,
+            FIELD_DEFAULT_DOMAIN: d_domain,
             FIELD_DEFAULT_SUBJECT: ds_data,
             FIELD_DEFAULT_KEY_PAIR: dkp_data
         }

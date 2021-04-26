@@ -674,8 +674,7 @@ class CommonConnection:
                 log_errors(r.json())
             except:
                 log_errors(r.content)
-            raise VenafiConnectionError("Server status: %s\n Response: %s" %
-                                        (r.status_code, r.request.url))
+            raise VenafiConnectionError("Server status: %s\nResponse: %s" % (r.status_code, r.request.url))
 
         content_type = r.headers.get("content-type")
         # Content-type not present, return status and reason (if any)

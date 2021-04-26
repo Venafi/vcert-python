@@ -56,10 +56,10 @@ class URLS:
     CERTIFICATE_STATUS = API_BASE_PATH + CERTIFICATE_REQUESTS + "/%s"
     CERTIFICATE_RETRIEVE = API_BASE_PATH + "certificates/%s/contents"
     CERTIFICATE_SEARCH = API_BASE_PATH + "certificatesearch"
-    APPLICATIONS = "applications"
-    APP_BY_ID = API_BASE_PATH + APPLICATIONS + "/%s"
+    APPLICATIONS = API_BASE_PATH + "applications"
+    APP_BY_ID = APPLICATIONS + "/%s"
     CERTIFICATE_TEMPLATE_BY_ID = APP_BY_ID + "/certificateissuingtemplates/%s"
-    APP_DETAILS_BY_NAME = API_BASE_PATH + APPLICATIONS + "/name/%s"
+    APP_DETAILS_BY_NAME = APPLICATIONS + "/name/%s"
     CERTIFICATE_BY_ID = API_BASE_PATH + "certificates/%s"
     CA_ACCOUNTS = API_VERSION + "certificateauthorities/%s/accounts"
     CA_ACCOUNT_DETAILS = CA_ACCOUNTS + "/%s"
@@ -98,8 +98,8 @@ def _parse_zone(zone):
         log.error("Invalid zone. Incorrect format")
         raise ClientBadData("Invalid Zone [%s]. The zone format is incorrect", zone)
 
-    app_name = urlparse.quote(segments[0])
-    cit_alias = urlparse.quote(segments[1])
+    app_name = segments[0]
+    cit_alias = segments[1]
     return app_name, cit_alias
 
 
@@ -255,7 +255,7 @@ class CloudConnection(CommonConnection):
         :rtype: Policy
         """
         app_name, cit_alias = _parse_zone(zone)
-        status, data = self._get(URLS.CERTIFICATE_TEMPLATE_BY_ID % (app_name, cit_alias))
+        status, data = self._get(URLS.CERTIFICATE_TEMPLATE_BY_ID % (urlparse.quote(app_name), urlparse.quote(cit_alias)))
         if status != HTTPStatus.OK:
             log.error("Invalid status %s while retrieving policy [%s]" % (status, zone))
             return None
@@ -273,7 +273,11 @@ class CloudConnection(CommonConnection):
         """
         if not app_name:
             raise ClientBadData("You need to specify the application name")
-        status, data = self._get(URLS.APP_DETAILS_BY_NAME % app_name)
+        try:
+            status, data = self._get(URLS.APP_DETAILS_BY_NAME % urlparse.quote(app_name))
+        except VenafiConnectionError:
+            return None
+
         if status == HTTPStatus.OK:
             return AppDetails(data['id'] if 'id' in data else None,
                               data['certificateIssuingTemplateAliasIdMap'] if 'certificateIssuingTemplateAliasIdMap'
@@ -294,14 +298,11 @@ class CloudConnection(CommonConnection):
                               )
         elif status in (HTTPStatus.BAD_REQUEST, HTTPStatus.NOT_FOUND, HTTPStatus.PRECONDITION_FAILED):
             log_errors(data)
-        else:
-            pass
 
     def request_cert(self, request, zone):
         app_name, cit_alias = _parse_zone(zone)
-        details = self._get_app_details_by_name(app_name)
-        cit_alias_decoded = urlparse.unquote(cit_alias)
-        cit_id = details.cit_alias_id_map.get(cit_alias_decoded)
+        details = self._get_app_details_by_name(urlparse.quote(app_name))
+        cit_id = details.cit_alias_id_map.get(cit_alias)
         if not request.csr:
             request.build_csr()
 
@@ -511,7 +512,7 @@ class CloudConnection(CommonConnection):
         else:
             # Issuing Template does not exist. Create one
             status, resp_cit_data = self._post(URLS.ISSUING_TEMPLATES, request)
-            if status != HTTPStatus.OK:
+            if status != HTTPStatus.CREATED:
                 raise VenafiError('Failed to create issuing template for zone [%s]', zone)
 
         # Validate Application existence in Venafi Cloud.

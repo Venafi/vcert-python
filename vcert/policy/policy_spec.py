@@ -26,10 +26,10 @@ class PolicySpecification:
         :param Policy policy:
         :param Defaults defaults:
         """
-        self.owners = owners
-        self.users = users
+        self.owners = owners if owners else []
+        self.users = users if users else []
         self.user_access = user_access
-        self.approvers = approvers
+        self.approvers = approvers if approvers else []
         self.policy = policy
         self.defaults = defaults
 
@@ -47,7 +47,7 @@ class Policy:
         :param SubjectAltNames subject_alt_names:
         :param bool auto_installed:
         """
-        self.domains = domains
+        self.domains = domains if domains else []
         self.wildcard_allowed = wildcard_allowed
         self.max_valid_days = max_valid_days
         self.certificate_authority = cert_auth if cert_auth else DEFAULT_CA
@@ -66,11 +66,11 @@ class Subject:
         :param list[str] states:
         :param list[str] countries:
         """
-        self.orgs = orgs
-        self.org_units = org_units
-        self.localities = localities
-        self.states = states
-        self.countries = countries
+        self.orgs = orgs if orgs else []
+        self.org_units = org_units if org_units else []
+        self.localities = localities if localities else []
+        self.states = states if states else []
+        self.countries = countries if countries else []
 
 
 class KeyPair:
@@ -83,9 +83,9 @@ class KeyPair:
         :param bool service_generated:
         :param bool reuse_allowed:
         """
-        self.key_types = key_types
-        self.rsa_key_sizes = rsa_key_sizes
-        self.elliptic_curves = elliptic_curves
+        self.key_types = key_types if key_types else []
+        self.rsa_key_sizes = rsa_key_sizes if rsa_key_sizes else []
+        self.elliptic_curves = elliptic_curves if elliptic_curves else []
         self.service_generated = service_generated
         self.reuse_allowed = reuse_allowed
 
@@ -130,7 +130,7 @@ class DefaultSubject:
         :param str country:
         """
         self.org = org
-        self.org_units = org_units
+        self.org_units = org_units if org_units else []
         self.locality = locality
         self.state = state
         self.country = country
