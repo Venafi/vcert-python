@@ -652,7 +652,7 @@ class CommonConnection:
     def import_cert(self, request):
         raise NotImplementedError
 
-    def get_policy_specification(self, zone):
+    def get_policy(self, zone):
         """
         :param str zone:
         :rtype: PolicySpecification

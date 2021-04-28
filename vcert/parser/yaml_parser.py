@@ -22,7 +22,7 @@ from vcert.errors import VenafiParsingError
 from vcert.parser.utils import parse_data, load_file
 
 
-def parse_yaml_file(yaml_file_path):
+def unmarshal_file(yaml_file_path):
     """
     :param str yaml_file_path: The path of the yaml file to be parsed
     :rtype PolicySpecification:
@@ -32,10 +32,10 @@ def parse_yaml_file(yaml_file_path):
 
     yaml_str = load_file(yaml_file_path)
 
-    return parse_yaml(yaml_str)
+    return unmarshal(yaml_str)
 
 
-def parse_yaml(yaml_string):
+def unmarshal(yaml_string):
     """
     Parse the yaml string into a Policy Specification object
 
@@ -53,7 +53,7 @@ def parse_yaml(yaml_string):
     return policy
 
 
-def to_yaml(policy_spec):
+def marshal(policy_spec):
     """
     :param PolicySpecification policy_spec:
     :rtype str:

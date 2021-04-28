@@ -465,7 +465,7 @@ class CloudConnection(CommonConnection):
         # not supported in Cloud
         raise NotImplementedError
 
-    def get_policy_specification(self, zone):
+    def get_policy(self, zone):
         cit = self._get_template_by_id(zone)
         if not cit:
             raise VenafiError('Certificate issuing template not found for zone [%s]', zone)

@@ -58,16 +58,16 @@ def main():
     # Specify ordering certificates in chain. Root can be "first" or "last". By default its last. You also can
     # specify "ignore" to ignore chain (supported only for Platform).
     # To set Custom Fields for the certificate, specify an array of CustomField objects as name-value pairs
-    #request.custom_fields = [
+    # request.custom_fields = [
     #    CustomField(name="Cost Center", value="ABC123"),
     #    CustomField(name="Environment", value="Production"),
     #    CustomField(name="Environment", value="Staging")
-    #]
+    # ]
 
     # configure key type, RSA example
     request.key_type = KeyType(KeyType.RSA, 2048)
     # or set it to ECDSA
-    #request.key_type = KeyType(KeyType.ECDSA, "p521")
+    # request.key_type = KeyType(KeyType.ECDSA, "p521")
     # Update certificate request from zone
     zone_config = conn.read_zone_conf(zone)
     request.update_from_zone_config(zone_config)

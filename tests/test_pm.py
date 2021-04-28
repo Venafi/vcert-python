@@ -37,14 +37,14 @@ class TestPolicySpecificationParsing(unittest.TestCase):
         super(TestPolicySpecificationParsing, self).__init__(*args, **kwargs)
 
     def test_json_parsing(self):
-        data = json_parser.parse_json_file(POLICY_SPEC_JSON)
+        data = json_parser.unmarshal_file(POLICY_SPEC_JSON)
         pprint(data.__dict__)
 
     def test_yaml_11_parsing(self):
         pass
 
     def test_yaml_12_parsing(self):
-        data = yaml_parser.parse_yaml_file(POLICY_SPEC_YAML)
+        data = yaml_parser.unmarshal_file(POLICY_SPEC_YAML)
         pprint(data.__dict__)
 
 
@@ -56,29 +56,29 @@ class TestTPPTokenPolicyManagement(unittest.TestCase):
         super(TestTPPTokenPolicyManagement, self).__init__(*args, **kwargs)
 
     def test_read_policy(self):
-        ps = self.tpp_conn.get_policy_specification(self.tpp_zone)
+        ps = self.tpp_conn.get_policy(self.tpp_zone)
         data = parse_policy_spec(ps)
         pprint(data)
 
     def test_create_policy_from_json(self):
-        ps = json_parser.parse_json_file(POLICY_SPEC_JSON)
+        ps = json_parser.unmarshal_file(POLICY_SPEC_JSON)
         self._create_policy_tpp(policy_spec=ps)
 
     def test_create_policy_yaml(self):
-        ps = yaml_parser.parse_yaml_file(POLICY_SPEC_YAML)
+        ps = yaml_parser.unmarshal_file(POLICY_SPEC_YAML)
         self._create_policy_tpp(policy_spec=ps)
 
     def test_create_policy_full(self):
-        self._create_policy_tpp(policy=get_policy_obj(), defaults=get_defaults_obj())
+        self._create_policy_tpp(policy=_get_policy_obj(set_tpp_ca=True), defaults=_get_defaults_obj())
 
     def test_create_policy_empty(self):
         self._create_policy_tpp()
 
     def test_create_policy_no_policy(self):
-        self._create_policy_tpp(defaults=get_defaults_obj())
+        self._create_policy_tpp(defaults=_get_defaults_obj())
 
     def test_create_policy_no_defaults(self):
-        self._create_policy_tpp(policy=get_policy_obj())
+        self._create_policy_tpp(policy=_get_policy_obj(set_tpp_ca=True))
 
     def _create_policy_tpp(self, policy_spec=None, policy=None, defaults=None):
         create_policy(self.tpp_conn, self.tpp_zone, policy_spec, policy, defaults)
@@ -91,28 +91,28 @@ class TestCloudPolicyManagement(unittest.TestCase):
         super(TestCloudPolicyManagement, self).__init__(*args, **kwargs)
 
     def test_read_policy(self):
-        ps = self.cloud_conn.get_policy_specification("vcert-amoo-0004\\vcert-policy-creator-31")
-        json_parser.to_json_file(ps, "test_cloud_pm.json")
+        ps = self.cloud_conn.get_policy("vcert-amoo-0004\\vcert-policy-creator-31")
+        json_parser.marshal(ps, "test_cloud_pm.json")
 
     def test_create_policy_from_json(self):
-        ps = json_parser.parse_json_file(POLICY_SPEC_JSON)
+        ps = json_parser.unmarshal_file(POLICY_SPEC_JSON)
         self._create_policy_cloud(policy_spec=ps)
 
     def test_create_policy_yaml(self):
-        ps = yaml_parser.parse_yaml_file(POLICY_SPEC_YAML)
+        ps = yaml_parser.unmarshal_file(POLICY_SPEC_YAML)
         self._create_policy_cloud(policy_spec=ps)
 
     def test_create_policy_full(self):
-        self._create_policy_cloud(policy=get_policy_obj(), defaults=get_defaults_obj())
+        self._create_policy_cloud(policy=_get_policy_obj(), defaults=_get_defaults_obj())
 
     def test_create_policy_empty(self):
         self._create_policy_cloud()
 
     def test_create_policy_no_policy(self):
-        self._create_policy_cloud(defaults=get_defaults_obj())
+        self._create_policy_cloud(defaults=_get_defaults_obj())
 
     def test_create_policy_no_defaults(self):
-        self._create_policy_cloud(policy=get_policy_obj())
+        self._create_policy_cloud(policy=_get_policy_obj())
 
     def _create_policy_cloud(self, policy_spec=None, policy=None, defaults=None):
         create_policy(self.cloud_conn, self.cloud_zone, policy_spec, policy, defaults)
@@ -127,21 +127,23 @@ def create_policy(connector, zone, policy_spec=None, policy=None, defaults=None)
         policy_spec.defaults = defaults
 
     connector.set_policy(zone, policy_spec)
-    resp = connector.get_policy_specification(zone)
+    resp = connector.get_policy(zone)
     data = parse_policy_spec(resp)
     pprint(data)
     return resp
 
 
-def get_policy_obj():
+DEFAULT_CA_TPP = '\\VED\\Policy\\Certificate Authorities\\Microsoft CA\\QA Venafi CA - Server 2 Years'
+
+
+def _get_policy_obj(set_tpp_ca=False):
     policy = Policy(
         subject=Subject(
             orgs=['Treat or Trick, Inc.'],
-            #            org_units = ['Customer Support', 'Professional Services'],
-            org_units=['Customer Support'],
+            org_units=['Customer Support', 'Professional Services'],
             localities=['Richland'],
             states=['Washington'],
-            countries=['US']),
+            countries=['USA']),
         key_pair=KeyPair(
             key_types=['RSA'],
             rsa_key_sizes=[4096],
@@ -149,11 +151,11 @@ def get_policy_obj():
             reuse_allowed=True),
         subject_alt_names=SubjectAltNames(
             dns_allowed=True,
-            ip_allowed=True,
+            ip_allowed=False,
             email_allowed=False,
             uri_allowed=False,
             upn_allowed=False),
-        cert_auth='\\VED\\Policy\\Certificate Authorities\\Microsoft CA\\QA Venafi CA - Server 2 Years',
+        cert_auth=DEFAULT_CA_TPP if set_tpp_ca else None,
         domains=['treatortrick.com', 'ryantreat.com', 'supertreat.xyz'],
         wildcard_allowed=True,
         auto_installed=False)
@@ -161,12 +163,11 @@ def get_policy_obj():
     return policy
 
 
-def get_defaults_obj():
+def _get_defaults_obj():
     defaults = Defaults(
         d_subject=DefaultSubject(
             org='Treat or Trick, Inc.',
-            #            org_units = ['Customer Support', 'Professional Services'],
-            org_units=['Customer Support'],
+            org_units=['Customer Support', 'Professional Services'],
             locality='Richland',
             state='Washington',
             country='US'),

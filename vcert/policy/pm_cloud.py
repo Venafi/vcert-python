@@ -150,20 +150,20 @@ def validate_policy_spec(policy_spec):
                 raise VenafiError('Key Type values exceeded. Only one Key Type is allowed by Venafi Cloud')
 
             if policy_spec.policy.key_pair.key_types[0] != 'RSA':
-                raise VenafiError('Key Type [%s] is not supported by Venafi Cloud', p.key_pair.key_types[0])
+                raise VenafiError('Key Type [%s] is not supported by Venafi Cloud' % p.key_pair.key_types[0])
 
             if len(policy_spec.policy.key_pair.rsa_key_sizes) > 0:
                 invalid_value = get_invalid_cloud_rsa_key_size_value(policy_spec.policy.key_pair.rsa_key_sizes)
                 if invalid_value:
-                    raise VenafiError('The Key Size [%d] is not supported by Venafi Cloud', invalid_value)
+                    raise VenafiError('The Key Size [%d] is not supported by Venafi Cloud' % invalid_value)
 
         # validate subject CN and SAN regexes
         if p.subject_alt_names:
             sans = get_sans(policy_spec.policy.subject_alt_names)
             if len(sans) > 0:
                 for k, v in sans.items():
-                    if v is True:
-                        raise VenafiError('Subject Alt name [%s] is not allowed by Venafi Cloud', k)
+                    if v is True and not (k == RPA.TPP_DNS_ALLOWED):
+                        raise VenafiError('Subject Alt name [%s] is not allowed by Venafi Cloud' % k)
 
         # validate default subject values against policy values
         if policy_spec.defaults and policy_spec.defaults.subject and policy_spec.policy.subject:
@@ -219,12 +219,12 @@ def validate_policy_spec(policy_spec):
         dkp = policy_spec.defaults.key_pair
 
         if dkp.key_type and dkp.key_type != "RSA":
-            raise VenafiError('Default Key Type [%s] is not supported by Venafi Cloud', dkp.key_type)
+            raise VenafiError('Default Key Type [%s] is not supported by Venafi Cloud' % dkp.key_type)
 
         if dkp.rsa_key_size:
             invalid_value = get_invalid_cloud_rsa_key_size_value([dkp.rsa_key_size])
             if invalid_value:
-                raise VenafiError('Default Key Size [%d] is not supported by Venafi Cloud', invalid_value)
+                raise VenafiError('Default Key Size [%d] is not supported by Venafi Cloud' % invalid_value)
 
 
 def get_invalid_cloud_rsa_key_size_value(rsa_keys):
@@ -287,7 +287,7 @@ def get_ca_info(ca_name):
     """
     data = ca_name.split("\\")
     if len(data) < 3:
-        raise VenafiError('Certificate Authority name invalid [%s]', ca_name)
+        raise VenafiError('Certificate Authority name invalid [%s]' % ca_name)
 
     return CertificateAuthorityInfo(data[0], data[1], data[2])
 
@@ -342,8 +342,6 @@ def build_cit_request(ps, ca_details):
         if ps.policy.subject_alt_names and ps.policy.subject_alt_names.dns_allowed is not None:
             if ps.policy.subject_alt_names.dns_allowed:
                 request['sanRegexes'] = regex_value
-            # else:
-            #     request['sanRegexes'] = None
         else:
             request['sanRegexes'] = regex_value
     else:

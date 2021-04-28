@@ -57,7 +57,7 @@ class URLS:
 
 class AbstractTPPConnection(CommonConnection):
 
-    def get_policy_specification(self, zone):
+    def get_policy(self, zone):
         # get policy spec from name
         policy_name = self._normalize_zone(zone)
         exists = self._policy_exists(policy_name)
