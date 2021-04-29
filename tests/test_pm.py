@@ -29,23 +29,27 @@ POLICY_SPEC_JSON = './resources/policy_specification.json'
 POLICY_SPEC_YAML = './resources/policy_specification.yaml'
 
 
-class TestPolicySpecificationParsing(unittest.TestCase):
+class TestParsers(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         self.tpp_zone = environ['TPP_ZONE']
         self.tpp_conn = TPPTokenConnection(url=TPP_TOKEN_URL, user=USER, password=PASSWORD,
                                            http_request_kwargs={"verify": "/tmp/chain.pem"})
-        super(TestPolicySpecificationParsing, self).__init__(*args, **kwargs)
+        super(TestParsers, self).__init__(*args, **kwargs)
 
     def test_json_parsing(self):
-        data = json_parser.unmarshal_file(POLICY_SPEC_JSON)
+        data = json_parser.parse_file(POLICY_SPEC_JSON)
         pprint(data.__dict__)
 
     def test_yaml_11_parsing(self):
         pass
 
     def test_yaml_12_parsing(self):
-        data = yaml_parser.unmarshal_file(POLICY_SPEC_YAML)
+        data = yaml_parser.parse_file(POLICY_SPEC_YAML)
         pprint(data.__dict__)
+
+    def test_yaml_serialization(self):
+        ps = PolicySpecification(policy=_get_policy_obj(set_tpp_ca=True), defaults=_get_defaults_obj())
+        yaml_parser.serialize(ps, 'test_serialize.yaml')
 
 
 class TestTPPTokenPolicyManagement(unittest.TestCase):
@@ -61,11 +65,11 @@ class TestTPPTokenPolicyManagement(unittest.TestCase):
         pprint(data)
 
     def test_create_policy_from_json(self):
-        ps = json_parser.unmarshal_file(POLICY_SPEC_JSON)
+        ps = json_parser.parse_file(POLICY_SPEC_JSON)
         self._create_policy_tpp(policy_spec=ps)
 
     def test_create_policy_yaml(self):
-        ps = yaml_parser.unmarshal_file(POLICY_SPEC_YAML)
+        ps = yaml_parser.parse_file(POLICY_SPEC_YAML)
         self._create_policy_tpp(policy_spec=ps)
 
     def test_create_policy_full(self):
@@ -92,14 +96,14 @@ class TestCloudPolicyManagement(unittest.TestCase):
 
     def test_read_policy(self):
         ps = self.cloud_conn.get_policy("vcert-amoo-0004\\vcert-policy-creator-31")
-        json_parser.marshal(ps, "test_cloud_pm.json")
+        json_parser.serialize(ps, "test_cloud_pm.json")
 
     def test_create_policy_from_json(self):
-        ps = json_parser.unmarshal_file(POLICY_SPEC_JSON)
+        ps = json_parser.parse_file(POLICY_SPEC_JSON)
         self._create_policy_cloud(policy_spec=ps)
 
     def test_create_policy_yaml(self):
-        ps = yaml_parser.unmarshal_file(POLICY_SPEC_YAML)
+        ps = yaml_parser.parse_file(POLICY_SPEC_YAML)
         self._create_policy_cloud(policy_spec=ps)
 
     def test_create_policy_full(self):
@@ -143,7 +147,7 @@ def _get_policy_obj(set_tpp_ca=False):
             org_units=['Customer Support', 'Professional Services'],
             localities=['Richland'],
             states=['Washington'],
-            countries=['USA']),
+            countries=['US']),
         key_pair=KeyPair(
             key_types=['RSA'],
             rsa_key_sizes=[4096],

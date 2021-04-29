@@ -15,14 +15,15 @@
 #
 
 import logging as log
+import os
 
 from ruamel.yaml import YAML
 
 from vcert.errors import VenafiParsingError
-from vcert.parser.utils import parse_data, load_file
+from vcert.parser.utils import parse_data, load_file, parse_policy_spec
 
 
-def unmarshal_file(yaml_file_path):
+def parse_file(yaml_file_path):
     """
     :param str yaml_file_path: The path of the yaml file to be parsed
     :rtype PolicySpecification:
@@ -32,10 +33,10 @@ def unmarshal_file(yaml_file_path):
 
     yaml_str = load_file(yaml_file_path)
 
-    return unmarshal(yaml_str)
+    return parse(yaml_str)
 
 
-def unmarshal(yaml_string):
+def parse(yaml_string):
     """
     Parse the yaml string into a Policy Specification object
 
@@ -53,9 +54,18 @@ def unmarshal(yaml_string):
     return policy
 
 
-def marshal(policy_spec):
+def serialize(policy_spec, file_path):
     """
+    Serializes the policy_spec object into the specified file_path
+
     :param PolicySpecification policy_spec:
-    :rtype str:
+    :param str file_path:
     """
-    pass
+    if not file_path:
+        log.error('File path is empty')
+    abs_path = os.path.abspath(file_path)
+    data = parse_policy_spec(policy_spec)
+    f = open(abs_path, 'w')
+    yaml = YAML(typ='unsafe')
+    yaml.dump(data, f)
+    f.close()

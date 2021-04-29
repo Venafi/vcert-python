@@ -23,7 +23,7 @@ from vcert.parser.utils import load_file, parse_data, parse_policy_spec
 from vcert.policy.policy_spec import PolicySpecification
 
 
-def unmarshal_file(json_file_path):
+def parse_file(json_file_path):
     """
     :param str json_file_path: the path to the json file to be parsed
     :rtype PolicySpecification:
@@ -34,10 +34,10 @@ def unmarshal_file(json_file_path):
     log.info('Loading Policy Specification from %s', json_file_path)
     json_str = load_file(json_file_path)
 
-    return unmarshal(json_str)
+    return parse(json_str)
 
 
-def unmarshal(json_str):
+def parse(json_str):
     """
     :param str json_str:
     :rtype PolicySpecification:
@@ -52,7 +52,7 @@ def unmarshal(json_str):
     return policy_spec
 
 
-def marshal(policy_spec, file_path):
+def serialize(policy_spec, file_path):
     """
     Serializes the policy_spec object into the specified file_path
 
@@ -61,7 +61,6 @@ def marshal(policy_spec, file_path):
     """
     if not file_path:
         log.error('File path is empty')
-
     abs_path = os.path.abspath(file_path)
     data = parse_policy_spec(policy_spec)
     f = open(abs_path, 'w')

@@ -447,23 +447,18 @@ def validate_default_subject(policy_spec):
     """
     if not policy_spec.defaults or not policy_spec.defaults.subject:
         return
-
-    ds = policy_spec.defaults.subject
-
-    if len(ds.org_units) > 1:
-        raise VenafiError(too_many_error_msg % 'org units')
-
     if not policy_spec.policy or not policy_spec.policy.subject:
         return
 
     s = policy_spec.policy.subject
+    ds = policy_spec.defaults.subject
 
     if s.orgs and s.orgs[0] and ds.org:
         if s.orgs[0] != ds.org:
             raise VenafiError(no_match_error_msg % ('organizations', ds.org, s.orgs[0]))
 
-    if s.org_units and s.org_units[0] and len(ds.org_units) > 0 and ds.org_units[0]:
-        if s.org_units[0] != ds.org_units[0]:
+    if s.org_units and len(s.org_units) > 0 and ds.org_units and len(ds.org_units) > 0:
+        if not member_of(ds.org_units, s.org_units):
             raise VenafiError(no_match_error_msg % ('orgUnits', ds.org_units[0], s.org_units[0]))
 
     if s.localities and s.localities[0] and ds.locality:
@@ -527,13 +522,15 @@ def validate_default_key_pair(policy_spec):
                                                    dkp.elliptic_curve))
 
 
-def member_of(user_values, supported_values):
+def member_of(sub_list, collection):
     """
-    :param list user_values: The values to test membership of
-    :param list supported_values: The member values
+    Tests that all the elements of the sublist are present in the collection
+
+    :param list collection: The tested values
+    :param list sub_list: The member values
     :rtype: bool
     """
-    return all(x in supported_values for x in user_values)
+    return all(x in collection for x in sub_list)
 
 
 def get_management_type(autoinstalled):

@@ -271,13 +271,15 @@ def is_valid_policy_value(policy_values, default_value):
 
 def member_of(sub_list, collection):
     """
+    Tests that all the elements of the sublist are present in the collection
+
     :param list[str] sub_list:
     :param list[str] collection:
     :rtype: bool
     """
     if len(sub_list) == 1 and sub_list[0] == ALLOW_ALL:
         return True
-    return True if all(x in collection for x in sub_list) else False
+    return all(x in collection for x in sub_list)
 
 
 def get_ca_info(ca_name):
