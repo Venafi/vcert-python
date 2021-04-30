@@ -39,8 +39,8 @@ def main():
     # Define policy specification object to create a new policy
     ps = PolicySpecification()
     # Alternatively, the parser utilities can be used to read a json/yaml file into a PolicySpecification object
-    # ps = json_parser.unmarshal_file('path/to/file.json')
-    # ps = yaml_parser.unmarshal_file('path/to/file.yaml')
+    # ps = json_parser.parse_file('path/to/file.json')
+    # ps = yaml_parser.parse_file('path/to/file.yaml')
 
     # All of the following values can be omitted to create a Policy with inherited (TPP) or recommended (Cloud) settings
     ps.users = ["Ryan", 'Amy']
@@ -101,5 +101,5 @@ def main():
     # Print the transformed data
     pprint(data)
     # Alternatively the parser utilities can be used to serialize the PolicySpecification object to a json/yaml file
-    # json_parser.marshal(response, 'path/to/file.json')
-    # yaml_parser.marshal(response, 'path/to/file.yaml')
+    # json_parser.serialize(response, 'path/to/file.json')
+    # yaml_parser.serialize(response, 'path/to/file.yaml')
