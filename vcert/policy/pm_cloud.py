@@ -20,7 +20,7 @@ from vcert.policy.policy_spec import Policy, Subject, KeyPair, DefaultSubject, D
     Defaults, SubjectAltNames
 
 supported_rsa_key_sizes = [1024, 2048, 4096]
-CA_DIGIGERT = 'DIGICERT'
+CA_DIGICERT = 'DIGICERT'
 CA_ENTRUST = 'ENTRUST'
 REQUESTER_NAME = "Venafi Cloud Service"
 REQUESTER_EMAIL = "no-reply@venafi.cloud"
@@ -323,7 +323,7 @@ def build_cit_request(ps, ca_details):
         'validityPeriod': "P%sD" % validity
     }
 
-    if cert_auth.ca_type == CA_DIGIGERT:
+    if cert_auth.ca_type == CA_DIGICERT:
         product['hashAlgorithm'] = DEFAULT_HASH_ALGORITHM
         product['autoRenew'] = False
         product['organizationId'] = ca_details.organization_id

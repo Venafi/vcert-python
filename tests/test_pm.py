@@ -22,6 +22,7 @@ from common import TPP_TOKEN_URL, USER, PASSWORD, TOKEN, CLOUDURL, TPP_ACCESS_TO
 from vcert import TPPTokenConnection, CloudConnection
 from vcert.parser import json_parser, yaml_parser
 from vcert.parser.utils import parse_policy_spec
+from vcert.policy.pm_cloud import CA_DIGICERT, CA_ENTRUST
 from vcert.policy.policy_spec import Policy, Subject, KeyPair, SubjectAltNames, Defaults, DefaultSubject, \
     DefaultKeyPair, PolicySpecification
 
@@ -40,6 +41,10 @@ class TestParsers(unittest.TestCase):
         data = json_parser.parse_file(POLICY_SPEC_JSON)
         pprint(data.__dict__)
 
+    def test_json_serialization(self):
+        ps = PolicySpecification(policy=_get_policy_obj(), defaults=_get_defaults_obj())
+        yaml_parser.serialize(ps, 'test_json_serialization.json')
+
     def test_yaml_11_parsing(self):
         pass
 
@@ -48,8 +53,8 @@ class TestParsers(unittest.TestCase):
         pprint(data.__dict__)
 
     def test_yaml_serialization(self):
-        ps = PolicySpecification(policy=_get_policy_obj(set_tpp_ca=True), defaults=_get_defaults_obj())
-        yaml_parser.serialize(ps, 'test_serialize.yaml')
+        ps = PolicySpecification(policy=_get_policy_obj(), defaults=_get_defaults_obj())
+        yaml_parser.serialize(ps, 'test_yaml_serialization.yaml')
 
 
 class TestTPPTokenPolicyManagement(unittest.TestCase):
@@ -58,11 +63,6 @@ class TestTPPTokenPolicyManagement(unittest.TestCase):
         self.tpp_conn = TPPTokenConnection(url=TPP_TOKEN_URL, access_token=TPP_ACCESS_TOKEN,
                                            http_request_kwargs={"verify": "/tmp/chain.pem"})
         super(TestTPPTokenPolicyManagement, self).__init__(*args, **kwargs)
-
-    def test_read_policy(self):
-        ps = self.tpp_conn.get_policy(self.tpp_zone)
-        data = parse_policy_spec(ps)
-        pprint(data)
 
     def test_create_policy_from_json(self):
         ps = json_parser.parse_file(POLICY_SPEC_JSON)
@@ -73,7 +73,7 @@ class TestTPPTokenPolicyManagement(unittest.TestCase):
         self._create_policy_tpp(policy_spec=ps)
 
     def test_create_policy_full(self):
-        self._create_policy_tpp(policy=_get_policy_obj(set_tpp_ca=True), defaults=_get_defaults_obj())
+        self._create_policy_tpp(policy=_get_policy_obj(ca_type=CA_TPP), defaults=_get_defaults_obj())
 
     def test_create_policy_empty(self):
         self._create_policy_tpp()
@@ -82,7 +82,7 @@ class TestTPPTokenPolicyManagement(unittest.TestCase):
         self._create_policy_tpp(defaults=_get_defaults_obj())
 
     def test_create_policy_no_defaults(self):
-        self._create_policy_tpp(policy=_get_policy_obj(set_tpp_ca=True))
+        self._create_policy_tpp(policy=_get_policy_obj(ca_type=CA_TPP))
 
     def _create_policy_tpp(self, policy_spec=None, policy=None, defaults=None):
         create_policy(self.tpp_conn, self.tpp_zone, policy_spec, policy, defaults)
@@ -93,10 +93,6 @@ class TestCloudPolicyManagement(unittest.TestCase):
         self.cloud_zone = environ['CLOUD_ZONE']
         self.cloud_conn = CloudConnection(token=TOKEN, url=CLOUDURL)
         super(TestCloudPolicyManagement, self).__init__(*args, **kwargs)
-
-    def test_read_policy(self):
-        ps = self.cloud_conn.get_policy("vcert-amoo-0004\\vcert-policy-creator-31")
-        json_parser.serialize(ps, "test_cloud_pm.json")
 
     def test_create_policy_from_json(self):
         ps = json_parser.parse_file(POLICY_SPEC_JSON)
@@ -118,6 +114,12 @@ class TestCloudPolicyManagement(unittest.TestCase):
     def test_create_policy_no_defaults(self):
         self._create_policy_cloud(policy=_get_policy_obj())
 
+    def test_create_policy_entrust(self):
+        self._create_policy_cloud(policy=_get_policy_obj(ca_type=CA_ENTRUST), defaults=_get_defaults_obj())
+
+    def test_create_policy_digicert(self):
+        self._create_policy_cloud(policy=_get_policy_obj(ca_type=CA_DIGICERT), defaults=_get_defaults_obj())
+
     def _create_policy_cloud(self, policy_spec=None, policy=None, defaults=None):
         create_policy(self.cloud_conn, self.cloud_zone, policy_spec, policy, defaults)
 
@@ -138,9 +140,10 @@ def create_policy(connector, zone, policy_spec=None, policy=None, defaults=None)
 
 
 DEFAULT_CA_TPP = '\\VED\\Policy\\Certificate Authorities\\Microsoft CA\\QA Venafi CA - Server 2 Years'
+CA_TPP = 'TPP'
 
 
-def _get_policy_obj(set_tpp_ca=False):
+def _get_policy_obj(ca_type=None):
     policy = Policy(
         subject=Subject(
             orgs=['Treat or Trick, Inc.'],
@@ -159,10 +162,20 @@ def _get_policy_obj(set_tpp_ca=False):
             email_allowed=False,
             uri_allowed=False,
             upn_allowed=False),
-        cert_auth=DEFAULT_CA_TPP if set_tpp_ca else None,
         domains=['treatortrick.com', 'ryantreat.com', 'supertreat.xyz'],
         wildcard_allowed=True,
         auto_installed=False)
+
+    ca_str = None
+    if ca_type:
+        if ca_type == CA_TPP:
+            ca_str = DEFAULT_CA_TPP
+        elif ca_type == CA_DIGICERT:
+            ca_str = CA_DIGICERT
+        elif ca_type == CA_ENTRUST:
+            ca_str = CA_ENTRUST
+    if ca_str:
+        policy.certificate_authority = ca_str
 
     return policy
 
