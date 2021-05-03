@@ -149,13 +149,13 @@ def validate_policy_spec(policy_spec):
             if len(policy_spec.policy.key_pair.key_types) > 1:
                 raise VenafiError('Key Type values exceeded. Only one Key Type is allowed by Venafi Cloud')
 
-            if policy_spec.policy.key_pair.key_types[0] != 'RSA':
+            if policy_spec.policy.key_pair.key_types and policy_spec.policy.key_pair.key_types[0] != 'RSA':
                 raise VenafiError('Key Type [%s] is not supported by Venafi Cloud' % p.key_pair.key_types[0])
 
             if len(policy_spec.policy.key_pair.rsa_key_sizes) > 0:
                 invalid_value = get_invalid_cloud_rsa_key_size_value(policy_spec.policy.key_pair.rsa_key_sizes)
                 if invalid_value:
-                    raise VenafiError('The Key Size [%d] is not supported by Venafi Cloud' % invalid_value)
+                    raise VenafiError('The Key Size [%s] is not supported by Venafi Cloud' % invalid_value)
 
         # validate subject CN and SAN regexes
         if p.subject_alt_names:
@@ -482,7 +482,21 @@ def build_app_update_request(app_details, cit_data):
     cit_map = app_details.cit_alias_id_map
     # cit_name = cit_map[cit_data['name']] if cit_data['name'] in cit_map else None
     # if not cit_name or cit_name != cit_data['id']:
-    cit_map[cit_data['name']] = cit_data['id']
+    cit_id = None
+    cit_name = None
+    if 'certificateIssuingTemplates' in cit_data:
+        cit_list = cit_data['certificateIssuingTemplates']
+        if cit_list and len(cit_list) > 0:
+            cit_id = cit_data['certificateIssuingTemplates'][0]['id']
+            cit_name = cit_data['certificateIssuingTemplates'][0]['name']
+    elif 'id' in cit_data:
+        cit_id = cit_data['id']
+        cit_name = cit_data['name']
+
+    if cit_name and cit_id:
+        cit_map[cit_name] = cit_id
+    else:
+        raise VenafiError('Error while creating Application request. CIT name or id not found.')
 
     app_request['certificateIssuingTemplateAliasIdMap'] = cit_map
     return app_request

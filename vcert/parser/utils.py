@@ -17,6 +17,7 @@
 import logging as log
 import os
 
+from policy import DEFAULT_CA
 from vcert.errors import VenafiParsingError
 from vcert.parser import *
 from vcert.policy.policy_spec import Subject, KeyPair, SubjectAltNames, Policy, DefaultSubject, DefaultKeyPair, \
@@ -44,11 +45,6 @@ def parse_data(data):
     :param dict data: The data to build the PolicySpecification structure
     :rtype PolicySpecification:
     """
-
-    if not data:
-        log.error('Data dictionary is empty')
-        raise VenafiParsingError
-
     policy = Policy()
     subject = Subject()
     key_pair = KeyPair()
@@ -56,25 +52,26 @@ def parse_data(data):
 
     if FIELD_POLICY in data:
         p = data[FIELD_POLICY]
-        policy.domains = p[FIELD_DOMAINS] if FIELD_DOMAINS in p else None
+        policy.domains = p[FIELD_DOMAINS] if FIELD_DOMAINS in p else []
         policy.wildcard_allowed = p[FIELD_WILDCARD_ALLOWED] if FIELD_WILDCARD_ALLOWED in p else None
         policy.max_valid_days = p[FIELD_MAX_VALID_DAYS] if FIELD_MAX_VALID_DAYS in p else None
-        policy.certificate_authority = p[FIELD_CERTIFICATE_AUTHORITY] if FIELD_CERTIFICATE_AUTHORITY in p else None
+        policy.certificate_authority = p[FIELD_CERTIFICATE_AUTHORITY] if FIELD_CERTIFICATE_AUTHORITY in p \
+            else DEFAULT_CA
         policy.auto_installed = p[FIELD_AUTOINSTALLED] if FIELD_AUTOINSTALLED in p else None
 
         if FIELD_SUBJECT in p:
             s = p[FIELD_SUBJECT]
-            subject.orgs = s[FIELD_ORGS] if FIELD_ORGS in s else None
-            subject.org_units = s[FIELD_ORG_UNITS] if FIELD_ORG_UNITS in s else None
-            subject.localities = s[FIELD_LOCALITIES] if FIELD_LOCALITIES in s else None
-            subject.states = s[FIELD_STATES] if FIELD_STATES in s else None
-            subject.countries = s[FIELD_COUNTRIES] if FIELD_COUNTRIES in s else None
+            subject.orgs = s[FIELD_ORGS] if FIELD_ORGS in s else []
+            subject.org_units = s[FIELD_ORG_UNITS] if FIELD_ORG_UNITS in s else []
+            subject.localities = s[FIELD_LOCALITIES] if FIELD_LOCALITIES in s else []
+            subject.states = s[FIELD_STATES] if FIELD_STATES in s else []
+            subject.countries = s[FIELD_COUNTRIES] if FIELD_COUNTRIES in s else []
 
         if FIELD_KEY_PAIR in p:
             kp = p[FIELD_KEY_PAIR]
-            key_pair.key_types = kp[FIELD_KEY_TYPES] if FIELD_KEY_TYPES in kp else None
-            key_pair.rsa_key_sizes = kp[FIELD_RSA_KEY_SIZES] if FIELD_RSA_KEY_SIZES in kp else None
-            key_pair.elliptic_curves = kp[FIELD_ELLIPTIC_CURVES] if FIELD_ELLIPTIC_CURVES in kp else None
+            key_pair.key_types = kp[FIELD_KEY_TYPES] if FIELD_KEY_TYPES in kp else []
+            key_pair.rsa_key_sizes = kp[FIELD_RSA_KEY_SIZES] if FIELD_RSA_KEY_SIZES in kp else []
+            key_pair.elliptic_curves = kp[FIELD_ELLIPTIC_CURVES] if FIELD_ELLIPTIC_CURVES in kp else []
             key_pair.service_generated = kp[FIELD_SERVICE_GENERATED] if FIELD_SERVICE_GENERATED in kp else None
             key_pair.reuse_allowed = kp[FIELD_REUSE_ALLOWED] if FIELD_REUSE_ALLOWED in kp else None
 
@@ -102,7 +99,7 @@ def parse_data(data):
         if FIELD_DEFAULT_SUBJECT in d:
             ds = d[FIELD_DEFAULT_SUBJECT]
             default_subject.org = ds[FIELD_DEFAULT_ORG] if FIELD_DEFAULT_ORG in ds else None
-            default_subject.org_units = ds[FIELD_DEFAULT_ORG_UNITS] if FIELD_DEFAULT_ORG_UNITS in ds else None
+            default_subject.org_units = ds[FIELD_DEFAULT_ORG_UNITS] if FIELD_DEFAULT_ORG_UNITS in ds else []
             default_subject.locality = ds[FIELD_DEFAULT_LOCALITY] if FIELD_DEFAULT_LOCALITY in ds else None
             default_subject.state = ds[FIELD_DEFAULT_STATE] if FIELD_DEFAULT_STATE in ds else None
             default_subject.country = ds[FIELD_DEFAULT_COUNTRY] if FIELD_DEFAULT_COUNTRY in ds else None

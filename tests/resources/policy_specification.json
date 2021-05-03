@@ -19,7 +19,6 @@
     ],
     "wildcardAllowed": true,
     "maxValidDays": 120,
-    "certificateAuthority": "Digicert",
     "subject": {
       "orgs": [
         "venafi.com"
@@ -42,7 +41,7 @@
         "RSA"
       ],
       "rsaKeySizes": [
-        3072
+        2048
       ],
       "ellipticCurves": [
         "P384"
@@ -71,7 +70,7 @@
     },
     "keyPair": {
       "keyType": "RSA",
-      "rsaKeySize": 0,
+      "rsaKeySize": 2048,
       "ellipticCurve": "",
       "serviceGenerated": false
     }
