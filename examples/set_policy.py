@@ -49,11 +49,11 @@ def main():
     ps.user_access = 'some data here'
     ps.policy = Policy(
         subject=Subject(
-            orgs=['Treat or Trick, Inc.'],
+            orgs=['OSS Venafi, Inc.'],
             org_units=['Customer Support', 'Professional Services'],
-            localities=['Richland'],
-            states=['Washington'],
-            countries=['USA']
+            localities=['Salt Lake City'],
+            states=['Utah'],
+            countries=['US']
         ),
         key_pair=KeyPair(
             key_types=['RSA'],
@@ -69,16 +69,16 @@ def main():
             upn_allowed=False
         ),
         cert_auth=None,
-        domains=['treatortrick.com', 'ryantreat.com', 'supertreat.xyz'],
+        domains=['vfidev.com', 'vfidev.net', 'venafi.example'],
         wildcard_allowed=True,
         auto_installed=False
     )
     ps.defaults = Defaults(
         d_subject=DefaultSubject(
-            org='Treat or Trick, Inc.',
+            org='OSS Venafi, Inc.',
             org_units=['Customer Support', 'Professional Services'],
-            locality='Richland',
-            state='Washington',
+            locality='Salt Lake City',
+            state='Utah',
             country='US'
         ),
         d_key_pair=DefaultKeyPair(
