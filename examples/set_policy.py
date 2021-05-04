@@ -43,10 +43,6 @@ def main():
     # ps = yaml_parser.parse_file('path/to/file.yaml')
 
     # All of the following values can be omitted to create a Policy with inherited (TPP) or recommended (Cloud) settings
-    ps.users = ["Ryan", 'Amy']
-    ps.approvers = ["Tom", "Mary"]
-    ps.owners = ['venafi']
-    ps.user_access = 'some data here'
     ps.policy = Policy(
         subject=Subject(
             orgs=['OSS Venafi, Inc.'],

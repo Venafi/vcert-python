@@ -1,17 +1,4 @@
 {
-  "name": "",
-  "owners": [
-    "amoo"
-  ],
-  "users": [
-    "rvela",
-    "marco"
-  ],
-  "userAccess": "some data here",
-  "approvers": [
-    "ricardo",
-    "luis"
-  ],
   "policy": {
     "domains": [
       "venafi.com",
