@@ -14,6 +14,9 @@
 # limitations under the License.
 #
 
+from .policy_spec import Policy, Subject, KeyPair, SubjectAltNames, Defaults, DefaultSubject, DefaultKeyPair, \
+    PolicySpecification
+
 JSON_EXT = ".json"
 YAML_EXT = ".yaml"
 POLICY_PATH = "Policy\\"

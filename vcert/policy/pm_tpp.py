@@ -17,9 +17,8 @@ from pprint import pprint
 
 from vcert.common import CertField
 from vcert.errors import VenafiError
-from vcert.policy import SPA
-from vcert.policy.policy_spec import PolicySpecification, Policy, Subject, DefaultSubject, KeyPair, \
-    DefaultKeyPair, Defaults, SubjectAltNames
+from vcert.policy import SPA, PolicySpecification, Policy, Subject, DefaultSubject, KeyPair, DefaultKeyPair, Defaults, \
+    SubjectAltNames
 
 too_many_error_msg = "attribute [%s] has more than one value"
 unsupported_error_msg = "one or more values in attribute [%s] are not supported.\nExpected: %s\nGot: %s"
@@ -31,6 +30,7 @@ supported_elliptic_curves = ["P256", "P384", "P521"]
 user_generated_csr = 'UserProvided'
 mt_provisioning = "Provisioning"
 mt_enrollment = "Enrollment"
+
 
 class TPPPolicy:
     def __init__(self):

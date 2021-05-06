@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 import unittest
 from pprint import pprint
 
@@ -25,9 +26,9 @@ from test_env import TPP_TOKEN_URL, CLOUD_APIKEY, CLOUD_URL, TPP_ACCESS_TOKEN, T
 from vcert import TPPTokenConnection, CloudConnection
 from vcert.parser import json_parser, yaml_parser
 from vcert.parser.utils import parse_policy_spec
+from vcert.policy import Policy, Subject, KeyPair, SubjectAltNames, Defaults, DefaultSubject, DefaultKeyPair, \
+    PolicySpecification
 from vcert.policy.pm_cloud import CA_TYPE_DIGICERT, CA_TYPE_ENTRUST
-from vcert.policy.policy_spec import Policy, Subject, KeyPair, SubjectAltNames, Defaults, DefaultSubject, \
-    DefaultKeyPair, PolicySpecification
 
 POLICY_SPEC_JSON = './resources/policy_specification.json'
 POLICY_SPEC_YAML = './resources/policy_specification.yaml'

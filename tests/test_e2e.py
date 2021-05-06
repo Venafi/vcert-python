@@ -36,8 +36,7 @@ from test_env import random_word, CLOUD_APIKEY, CLOUD_URL, TPP_PASSWORD, TPP_USE
     RANDOM_DOMAIN, CLOUD_ZONE, \
     TPP_ZONE, TPP_ZONE_ECDSA
 from vcert import CloudConnection, CertificateRequest, TPPConnection, FakeConnection, ZoneConfig, RevocationRequest, \
-    TPPTokenConnection
-from vcert.common import CertField, KeyType, CustomField
+    TPPTokenConnection, CertField, KeyType, CustomField
 from vcert.errors import ClientBadData, ServerUnexptedBehavior
 from vcert.pem import parse_pem
 

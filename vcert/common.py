@@ -660,7 +660,7 @@ class CommonConnection:
         """
         :param str zone:
         :param PolicySpecification policy_spec:
-        :rtype: str
+        :rtype: None
         """
         raise NotImplementedError
 

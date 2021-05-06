@@ -539,6 +539,7 @@ class CloudConnection(CommonConnection):
             status, data = self._post(URLS.APPLICATIONS, app_req)
             if status != HTTPStatus.CREATED:
                 raise VenafiError('Could not create application [%s].', app_name)
+        return
 
     def _get_ca_details(self, ca_name):
         """
