@@ -56,7 +56,7 @@ class URLS:
 
     POLICIES_BY_ID = API_BASE_PATH + "certificatepolicies/%s"
     CERTIFICATE_REQUESTS = API_BASE_PATH + "certificaterequests"
-    CERTIFICATE_STATUS = API_BASE_PATH + CERTIFICATE_REQUESTS + "/%s"
+    CERTIFICATE_STATUS = CERTIFICATE_REQUESTS + "/%s"
     CERTIFICATE_RETRIEVE = API_BASE_PATH + "certificates/%s/contents"
     CERTIFICATE_SEARCH = API_BASE_PATH + "certificatesearch"
     APPLICATIONS = API_BASE_PATH + "applications"
@@ -304,7 +304,7 @@ class CloudConnection(CommonConnection):
 
     def request_cert(self, request, zone):
         app_name, cit_alias = _parse_zone(zone)
-        details = self._get_app_details_by_name(urlparse.quote(app_name))
+        details = self._get_app_details_by_name(app_name)
         cit_id = details.cit_alias_id_map.get(cit_alias)
         if not request.csr:
             request.build_csr()
