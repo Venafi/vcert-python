@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
+import logging as log
 import os
 import unittest
 from pprint import pprint
@@ -225,5 +227,7 @@ def _get_tpp_policy_name():
 
 def _resolve_resources_path(path):
     resources_dir = os.path.dirname(__file__)
+    log.info('Testing root folder: [%s]' % resources_dir)
     resolved_path = ('.%s' % path) if resources_dir.endswith('tests') else ('./tests%s' % path)
+    log.info('resolved path: [%s]' % resolved_path)
     return resolved_path
