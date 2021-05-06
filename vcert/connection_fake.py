@@ -17,20 +17,18 @@
 from __future__ import absolute_import, division, generators, unicode_literals, print_function, nested_scopes, \
     with_statement
 
+import datetime
 import logging as log
 import time
-
 import uuid
-from .common import (ZoneConfig, CertificateRequest, CommonConnection, Policy, log_errors, MIME_JSON, MIME_TEXT,
-                     MIME_ANY, CertField, KeyType)
-from .pem import parse_pem
 
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import serialization
 from cryptography import x509
-from cryptography.x509.oid import NameOID
+from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
-import datetime
+from cryptography.hazmat.primitives import serialization
+
+from .common import (ZoneConfig, CommonConnection, Policy, CertField, KeyType)
+from .pem import parse_pem
 
 ROOT_CA = b"""-----BEGIN CERTIFICATE-----
 MIID1TCCAr2gAwIBAgIJAIOVTvMIMD7OMA0GCSqGSIb3DQEBCwUAMIGAMQswCQYD

@@ -20,8 +20,8 @@ from vcert.policy.policy_spec import Policy, Subject, KeyPair, DefaultSubject, D
     Defaults, SubjectAltNames
 
 supported_rsa_key_sizes = [1024, 2048, 4096]
-CA_DIGICERT = 'DIGICERT'
-CA_ENTRUST = 'ENTRUST'
+CA_TYPE_DIGICERT = 'DIGICERT'
+CA_TYPE_ENTRUST = 'ENTRUST'
 REQUESTER_NAME = "Venafi Cloud Service"
 REQUESTER_EMAIL = "no-reply@venafi.cloud"
 REQUESTER_PHONE = "801-555-0123"
@@ -323,13 +323,13 @@ def build_cit_request(ps, ca_details):
         'validityPeriod': "P%sD" % validity
     }
 
-    if cert_auth.ca_type == CA_DIGICERT:
+    if cert_auth.ca_type == CA_TYPE_DIGICERT:
         product['hashAlgorithm'] = DEFAULT_HASH_ALGORITHM
         product['autoRenew'] = False
         product['organizationId'] = ca_details.organization_id
-    elif cert_auth.ca_type == CA_ENTRUST:
+    elif cert_auth.ca_type == CA_TYPE_ENTRUST:
         tracking_data = {
-            'certificateAuthority': CA_ENTRUST,
+            'certificateAuthority': CA_TYPE_ENTRUST,
             'requesterName': REQUESTER_NAME,
             'requesterEmail': REQUESTER_EMAIL,
             'requesterPhone': REQUESTER_PHONE
@@ -480,26 +480,62 @@ def build_app_update_request(app_details, cit_data):
     }
 
     cit_map = app_details.cit_alias_id_map
-    # cit_name = cit_map[cit_data['name']] if cit_data['name'] in cit_map else None
-    # if not cit_name or cit_name != cit_data['id']:
-    cit_id = None
-    cit_name = None
-    if 'certificateIssuingTemplates' in cit_data:
-        cit_list = cit_data['certificateIssuingTemplates']
-        if cit_list and len(cit_list) > 0:
-            cit_id = cit_data['certificateIssuingTemplates'][0]['id']
-            cit_name = cit_data['certificateIssuingTemplates'][0]['name']
-    elif 'id' in cit_data:
-        cit_id = cit_data['id']
-        cit_name = cit_data['name']
 
-    if cit_name and cit_id:
-        cit_map[cit_name] = cit_id
-    else:
-        raise VenafiError('Error while creating Application request. CIT name or id not found.')
+    cit_id, cit_name = get_cit_data_from_response(cit_data)
+    cit_map[cit_name] = cit_id
 
     app_request['certificateIssuingTemplateAliasIdMap'] = cit_map
     return app_request
+
+
+def build_app_create_request(app_name, user_details, cit_data):
+    """
+
+    :param str app_name:
+    :param UserDetails user_details:
+    :param dict cit_data:
+    :rtype: dict
+    """
+    owner_id = {
+        'ownerId': user_details.user.user_id,
+        'ownerType': 'USER'
+    }
+    cit_id, cit_name = get_cit_data_from_response(cit_data)
+
+    app_issuing_template = {
+        cit_name: cit_id
+    }
+
+    app_request = {
+        'ownerIdsAndTypes': [owner_id],
+        'name': app_name,
+        'certificateIssuingTemplateAliasIdMap': app_issuing_template
+    }
+    return app_request
+
+
+def get_cit_data_from_response(data):
+    """
+    Returns the issuing template id and name from the response after creation
+
+    :param dict data:
+    :rtype: (str, str)
+    """
+    cit_id = None
+    cit_name = None
+    if 'certificateIssuingTemplates' in data:
+        cit_list = data['certificateIssuingTemplates']
+        if cit_list and len(cit_list) > 0:
+            cit_id = data['certificateIssuingTemplates'][0]['id']
+            cit_name = data['certificateIssuingTemplates'][0]['name']
+    elif 'id' in data:
+        cit_id = data['id']
+        cit_name = data['name']
+
+    if cit_name and cit_id:
+        return cit_id, cit_name
+    else:
+        raise VenafiError('Error while creating Application request. CIT name or id not found.')
 
 
 class CertificateAuthorityInfo:

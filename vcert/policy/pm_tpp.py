@@ -21,7 +21,6 @@ from vcert.policy import SPA
 from vcert.policy.policy_spec import PolicySpecification, Policy, Subject, DefaultSubject, KeyPair, \
     DefaultKeyPair, Defaults, SubjectAltNames
 
-
 too_many_error_msg = "attribute [%s] has more than one value"
 unsupported_error_msg = "one or more values in attribute [%s] are not supported.\nExpected: %s\nGot: %s"
 no_match_error_msg = "default value does not mach with policy value for [%s].\nDefault: %s\nPolicy value:%s"

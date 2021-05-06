@@ -17,28 +17,25 @@
 from __future__ import absolute_import, division, generators, unicode_literals, print_function, nested_scopes, \
     with_statement
 
-import socket
-
-from builtins import bytes
-
 import datetime
 import logging as log
+import socket
+import sys
+
+import ipaddress
+from builtins import bytes
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.x509.oid import NameOID, ExtensionOID
 from six import string_types, binary_type
 
 from .errors import VenafiConnectionError, ServerUnexptedBehavior, BadData, ClientBadData
 from .http import HTTPStatus
 from .policy.policy_spec import PolicySpecification
-
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography import x509
-from cryptography.x509.oid import NameOID, ExtensionOID
-from cryptography.hazmat.primitives import hashes
-import ipaddress
-import sys
-
 
 MIME_JSON = "application/json"
 MIME_HTML = "text/html"

@@ -17,8 +17,8 @@
 import logging as log
 import os
 
-from vcert.policy import DEFAULT_CA
 from vcert.parser import *
+from vcert.policy import DEFAULT_CA
 from vcert.policy.policy_spec import Subject, KeyPair, SubjectAltNames, Policy, DefaultSubject, DefaultKeyPair, \
     Defaults, PolicySpecification
 

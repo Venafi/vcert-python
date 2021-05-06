@@ -18,25 +18,28 @@
 from __future__ import absolute_import, division, generators, unicode_literals, print_function, nested_scopes, \
     with_statement
 
-from common import random_word, TOKEN, CLOUDURL, PASSWORD, USER, TPPURL, TPP_TOKEN_URL, RANDOM_DOMAIN
+import binascii
+import json
+import logging
+import time
+import unittest
+
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.x509.oid import NameOID
+from six import string_types
+
 from assets import TEST_KEY_ECDSA, TEST_KEY_RSA_4096, TEST_KEY_RSA_2048_ENCRYPTED, POLICY_CLOUD1, EXAMPLE_CSR, \
     EXAMPLE_CHAIN, POLICY_TPP1
+from test_env import random_word, CLOUD_APIKEY, CLOUD_URL, TPP_PASSWORD, TPP_USER, TPP_URL, TPP_TOKEN_URL, \
+    RANDOM_DOMAIN, CLOUD_ZONE, \
+    TPP_ZONE, TPP_ZONE_ECDSA
 from vcert import CloudConnection, CertificateRequest, TPPConnection, FakeConnection, ZoneConfig, RevocationRequest, \
     TPPTokenConnection
 from vcert.common import CertField, KeyType, CustomField
 from vcert.errors import ClientBadData, ServerUnexptedBehavior
 from vcert.pem import parse_pem
-import logging
-import time
-from os import environ
-from six import string_types
-import unittest
-import binascii
-import json
-from cryptography import x509
-from cryptography.hazmat.backends import default_backend
-from cryptography.x509.oid import NameOID
-from cryptography.hazmat.primitives import serialization, hashes
 
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("urllib3").setLevel(logging.DEBUG)
@@ -52,8 +55,8 @@ class TestFakeMethods(unittest.TestCase):
 
 class TestCloudMethods(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        self.cloud_zone = environ['CLOUD_ZONE']
-        self.cloud_conn = CloudConnection(token=TOKEN, url=CLOUDURL)
+        self.cloud_zone = CLOUD_ZONE
+        self.cloud_conn = CloudConnection(token=CLOUD_APIKEY, url=CLOUD_URL)
         super(TestCloudMethods, self).__init__(*args, **kwargs)
 
     def test_cloud_enroll(self):
@@ -129,9 +132,9 @@ class TestCloudMethods(unittest.TestCase):
 
 class TestTPPMethods(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        self.tpp_zone = environ['TPP_ZONE']
-        self.tpp_zone_ecdsa = environ['TPP_ZONE_ECDSA']
-        self.tpp_conn = TPPConnection(USER, PASSWORD, TPPURL, http_request_kwargs={"verify": "/tmp/chain.pem"})
+        self.tpp_zone = TPP_ZONE
+        self.tpp_zone_ecdsa = TPP_ZONE_ECDSA
+        self.tpp_conn = TPPConnection(TPP_USER, TPP_PASSWORD, TPP_URL, http_request_kwargs={"verify": "/tmp/chain.pem"})
         super(TestTPPMethods, self).__init__(*args, **kwargs)
 
     def test_tpp_enroll(self):
@@ -271,9 +274,9 @@ class TestTPPMethods(unittest.TestCase):
 
 class TestTPPTokenMethods(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        self.tpp_zone = environ['TPP_ZONE']
-        self.tpp_zone_ecdsa = environ['TPP_ZONE_ECDSA']
-        self.tpp_conn = TPPTokenConnection(url=TPP_TOKEN_URL, user=USER, password=PASSWORD,
+        self.tpp_zone = TPP_ZONE
+        self.tpp_zone_ecdsa = TPP_ZONE_ECDSA
+        self.tpp_conn = TPPTokenConnection(url=TPP_TOKEN_URL, user=TPP_USER, password=TPP_PASSWORD,
                                            http_request_kwargs={"verify": "/tmp/chain.pem"})
         super(TestTPPTokenMethods, self).__init__(*args, **kwargs)
 
@@ -421,8 +424,8 @@ class TestTPPTokenMethods(unittest.TestCase):
 
 class TestTPPTokenAccess(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        self.tpp_zone = environ['TPP_ZONE']
-        self.tpp_conn = TPPTokenConnection(url=TPP_TOKEN_URL, user=USER, password=PASSWORD,
+        self.tpp_zone = TPP_ZONE
+        self.tpp_conn = TPPTokenConnection(url=TPP_TOKEN_URL, user=TPP_USER, password=TPP_PASSWORD,
                                            http_request_kwargs={"verify": "/tmp/chain.pem"})
         super(TestTPPTokenAccess, self).__init__(*args, **kwargs)
 

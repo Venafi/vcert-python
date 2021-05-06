@@ -23,17 +23,16 @@ import re
 import time
 
 import requests
-from cryptography.hazmat.backends import default_backend
 from cryptography import x509
+from cryptography.hazmat.backends import default_backend
 from cryptography.x509 import SignatureAlgorithmOID as AlgOID
 
-from .common import CommonConnection, MIME_JSON, CertField, ZoneConfig, Policy, KeyType
+from .common import MIME_JSON, CertField, ZoneConfig, Policy, KeyType
 from .connection_tpp_abstract import AbstractTPPConnection, URLS
-from .pem import parse_pem
 from .errors import (ServerUnexptedBehavior, ClientBadData, CertificateRequestError, AuthenticationError,
                      CertificateRenewError)
 from .http import HTTPStatus
-
+from .pem import parse_pem
 
 TOKEN_HEADER_NAME = "x-venafi-api-key"  # nosec
 

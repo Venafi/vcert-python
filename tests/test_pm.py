@@ -15,26 +15,27 @@
 # limitations under the License.
 #
 import unittest
-from os import environ
 from pprint import pprint
 
-from common import TPP_TOKEN_URL, USER, PASSWORD, TOKEN, CLOUDURL, TPP_ACCESS_TOKEN
+from future.backports.datetime import datetime
+
+from test_env import TPP_TOKEN_URL, CLOUD_APIKEY, CLOUD_URL, TPP_ACCESS_TOKEN, TPP_PM_ROOT, \
+    CLOUD_ENTRUST_CA_NAME, \
+    CLOUD_DIGICERT_CA_NAME, TPP_CA_NAME
 from vcert import TPPTokenConnection, CloudConnection
 from vcert.parser import json_parser, yaml_parser
 from vcert.parser.utils import parse_policy_spec
-from vcert.policy.pm_cloud import CA_DIGICERT, CA_ENTRUST
+from vcert.policy.pm_cloud import CA_TYPE_DIGICERT, CA_TYPE_ENTRUST
 from vcert.policy.policy_spec import Policy, Subject, KeyPair, SubjectAltNames, Defaults, DefaultSubject, \
     DefaultKeyPair, PolicySpecification
 
 POLICY_SPEC_JSON = './resources/policy_specification.json'
 POLICY_SPEC_YAML = './resources/policy_specification.yaml'
+CA_TYPE_TPP = 'TPP'
 
 
 class TestParsers(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        self.tpp_zone = environ['TPP_ZONE']
-        self.tpp_conn = TPPTokenConnection(url=TPP_TOKEN_URL, user=USER, password=PASSWORD,
-                                           http_request_kwargs={"verify": "/tmp/chain.pem"})
         super(TestParsers, self).__init__(*args, **kwargs)
 
     def test_json_parsing(self):
@@ -43,7 +44,7 @@ class TestParsers(unittest.TestCase):
 
     def test_json_serialization(self):
         ps = PolicySpecification(policy=_get_policy_obj(), defaults=_get_defaults_obj())
-        yaml_parser.serialize(ps, 'test_json_serialization.json')
+        json_parser.serialize(ps, 'test_json_serialization.json')
 
     def test_yaml_11_parsing(self):
         pass
@@ -57,12 +58,11 @@ class TestParsers(unittest.TestCase):
         yaml_parser.serialize(ps, 'test_yaml_serialization.yaml')
 
 
-class TestTPPTokenPolicyManagement(unittest.TestCase):
+class TestTPPPolicyManagement(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        self.tpp_zone = environ['TPP_ZONE']
         self.tpp_conn = TPPTokenConnection(url=TPP_TOKEN_URL, access_token=TPP_ACCESS_TOKEN,
                                            http_request_kwargs={"verify": "/tmp/chain.pem"})
-        super(TestTPPTokenPolicyManagement, self).__init__(*args, **kwargs)
+        super(TestTPPPolicyManagement, self).__init__(*args, **kwargs)
 
     def test_create_policy_from_json(self):
         ps = json_parser.parse_file(POLICY_SPEC_JSON)
@@ -73,7 +73,7 @@ class TestTPPTokenPolicyManagement(unittest.TestCase):
         self._create_policy_tpp(policy_spec=ps)
 
     def test_create_policy_full(self):
-        self._create_policy_tpp(policy=_get_policy_obj(ca_type=CA_TPP), defaults=_get_defaults_obj())
+        self._create_policy_tpp(policy=_get_policy_obj(ca_type=CA_TYPE_TPP), defaults=_get_defaults_obj())
 
     def test_create_policy_empty(self):
         self._create_policy_tpp()
@@ -82,16 +82,16 @@ class TestTPPTokenPolicyManagement(unittest.TestCase):
         self._create_policy_tpp(defaults=_get_defaults_obj())
 
     def test_create_policy_no_defaults(self):
-        self._create_policy_tpp(policy=_get_policy_obj(ca_type=CA_TPP))
+        self._create_policy_tpp(policy=_get_policy_obj(ca_type=CA_TYPE_TPP))
 
     def _create_policy_tpp(self, policy_spec=None, policy=None, defaults=None):
-        create_policy(self.tpp_conn, self.tpp_zone, policy_spec, policy, defaults)
+        zone = '%s\\%s' % (TPP_PM_ROOT, _get_tpp_policy_name())
+        create_policy(self.tpp_conn, zone, policy_spec, policy, defaults)
 
 
 class TestCloudPolicyManagement(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        self.cloud_zone = environ['CLOUD_ZONE']
-        self.cloud_conn = CloudConnection(token=TOKEN, url=CLOUDURL)
+        self.cloud_conn = CloudConnection(token=CLOUD_APIKEY, url=CLOUD_URL)
         super(TestCloudPolicyManagement, self).__init__(*args, **kwargs)
 
     def test_create_policy_from_json(self):
@@ -115,13 +115,18 @@ class TestCloudPolicyManagement(unittest.TestCase):
         self._create_policy_cloud(policy=_get_policy_obj())
 
     def test_create_policy_entrust(self):
-        self._create_policy_cloud(policy=_get_policy_obj(ca_type=CA_ENTRUST), defaults=_get_defaults_obj())
+        self._create_policy_cloud(policy=_get_policy_obj(ca_type=CA_TYPE_ENTRUST), defaults=_get_defaults_obj())
 
     def test_create_policy_digicert(self):
-        self._create_policy_cloud(policy=_get_policy_obj(ca_type=CA_DIGICERT), defaults=_get_defaults_obj())
+        self._create_policy_cloud(policy=_get_policy_obj(ca_type=CA_TYPE_DIGICERT), defaults=_get_defaults_obj())
 
     def _create_policy_cloud(self, policy_spec=None, policy=None, defaults=None):
-        create_policy(self.cloud_conn, self.cloud_zone, policy_spec, policy, defaults)
+        zone = self._get_random_zone()
+        create_policy(self.cloud_conn, zone, policy_spec, policy, defaults)
+
+    @staticmethod
+    def _get_random_zone():
+        return _get_app_name() + '\\' + _get_cit_name()
 
 
 def create_policy(connector, zone, policy_spec=None, policy=None, defaults=None):
@@ -139,10 +144,6 @@ def create_policy(connector, zone, policy_spec=None, policy=None, defaults=None)
     return resp
 
 
-DEFAULT_CA_TPP = '\\VED\\Policy\\Certificate Authorities\\Microsoft CA\\QA Venafi CA - Server 2 Years'
-CA_TPP = 'TPP'
-
-
 def _get_policy_obj(ca_type=None):
     policy = Policy(
         subject=Subject(
@@ -155,7 +156,7 @@ def _get_policy_obj(ca_type=None):
             key_types=['RSA'],
             rsa_key_sizes=[4096],
             elliptic_curves=['P521'],
-            reuse_allowed=True),
+            reuse_allowed=False),
         subject_alt_names=SubjectAltNames(
             dns_allowed=True,
             ip_allowed=False,
@@ -168,12 +169,12 @@ def _get_policy_obj(ca_type=None):
 
     ca_str = None
     if ca_type:
-        if ca_type == CA_TPP:
-            ca_str = DEFAULT_CA_TPP
-        elif ca_type == CA_DIGICERT:
-            ca_str = CA_DIGICERT
-        elif ca_type == CA_ENTRUST:
-            ca_str = CA_ENTRUST
+        if ca_type == CA_TYPE_TPP:
+            ca_str = TPP_CA_NAME
+        elif ca_type == CA_TYPE_DIGICERT:
+            ca_str = CLOUD_DIGICERT_CA_NAME
+        elif ca_type == CA_TYPE_ENTRUST:
+            ca_str = CLOUD_ENTRUST_CA_NAME
     if ca_str:
         policy.certificate_authority = ca_str
 
@@ -194,3 +195,21 @@ def _get_defaults_obj():
             elliptic_curve='P521'),
         auto_installed=False)
     return defaults
+
+
+def _get_timestamp():
+    return datetime.today().strftime('%Y.%m.%d-%Hh%Mm%Ss')
+
+
+def _get_app_name():
+    name = 'vcert-python-%s' % _get_timestamp()
+    return name
+
+
+def _get_cit_name():
+    cit_name = 'vcert-python-cit-%s' % _get_timestamp()
+    return cit_name
+
+
+def _get_tpp_policy_name():
+    return _get_app_name()

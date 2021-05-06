@@ -16,8 +16,8 @@
 
 from __future__ import (absolute_import, division, generators, unicode_literals, print_function, nested_scopes,
                         with_statement)
-import re
 
+import re
 
 _PEM_TYPES = [
     "CERTIFICATE",

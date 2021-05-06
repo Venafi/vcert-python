@@ -16,21 +16,24 @@
 
 from __future__ import (absolute_import, division, generators, unicode_literals, print_function, nested_scopes,
                         with_statement)
-import re
+
 import logging as log
+import re
 from pprint import pprint
 
 import requests
 import six.moves.urllib.parse as urlparse
+
 from .common import (ZoneConfig, CertificateRequest, CommonConnection, Policy, get_ip_address, log_errors, MIME_JSON,
                      MIME_TEXT, MIME_ANY, CertField, KeyType, AppDetails, RecommendedSettings)
-from .pem import parse_pem
 from .errors import (VenafiConnectionError, ServerUnexptedBehavior, ClientBadData, CertificateRequestError,
                      CertificateRenewError, VenafiError)
 from .http import HTTPStatus
+from .pem import parse_pem
 from .policy.pm_cloud import build_policy_spec, validate_policy_spec, \
     AccountDetails, build_cit_request, build_user, UserDetails, build_company, build_apikey, build_app_update_request, \
-    get_ca_info, CertificateAuthorityDetails, CertificateAuthorityInfo, build_account_details
+    get_ca_info, CertificateAuthorityDetails, CertificateAuthorityInfo, build_account_details, \
+    build_app_create_request
 
 
 class CertStatuses:
@@ -532,20 +535,7 @@ class CloudConnection(CommonConnection):
                                                                                            pprint(resp_cit_data)))
         else:
             # Application does not exist. Create one
-            owner_id = {
-                'ownerId': user_details.user.user_id,
-                'ownerType': 'USER'
-            }
-            app_issuing_template = {
-                resp_cit_data['name']: resp_cit_data['id']
-            }
-
-            app_req = {
-                'ownerIdsAndTypes': [owner_id],
-                'name': app_name,
-                'certificateIssuingTemplateAliasIdMap': app_issuing_template
-            }
-
+            app_req = build_app_create_request(app_name, user_details, resp_cit_data)
             status, data = self._post(URLS.APPLICATIONS, app_req)
             if status != HTTPStatus.CREATED:
                 raise VenafiError('Could not create application [%s].', app_name)

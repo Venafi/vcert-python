@@ -23,18 +23,16 @@ import logging as log
 import re
 import time
 
-from cryptography.hazmat.backends import default_backend
+import requests
 from cryptography import x509
+from cryptography.hazmat.backends import default_backend
 from cryptography.x509 import SignatureAlgorithmOID as AlgOID
 
+from .common import MIME_JSON, TokenInfo, Authentication, KeyType, Policy, ZoneConfig, CertField
 from .connection_tpp_abstract import AbstractTPPConnection, URLS
-from .http import HTTPStatus
-
-import requests
-
-from .common import MIME_JSON, TokenInfo, Authentication, CommonConnection, KeyType, Policy, ZoneConfig, CertField
 from .errors import (ClientBadData, ServerUnexptedBehavior, AuthenticationError, CertificateRequestError,
-                     CertificateRenewError, VenafiError)
+                     CertificateRenewError)
+from .http import HTTPStatus
 from .pem import parse_pem
 
 HEADER_AUTHORIZATION = "Authorization"  # type: str
