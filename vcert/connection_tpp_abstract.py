@@ -20,11 +20,13 @@ from pprint import pprint
 from vcert.common import CertField, CommonConnection
 from vcert.errors import VenafiError, ServerUnexptedBehavior, ClientBadData
 from vcert.http import HTTPStatus
-from vcert.policy import RPA, POLICY_CLASS, ROOT_PATH, SPA
+from vcert.policy import RPA, SPA
 from vcert.policy.pm_tpp import TPPPolicy, is_service_generated_csr, SetAttrResponse, validate_policy_spec, \
     get_int_value
 
 POLICY_ATTR_CLASS = "X509 Certificate"  # type: str
+ROOT_PATH = "\\VED\\Policy\\"  # type: str
+POLICY_CLASS = "Policy"  # type: str
 
 
 class URLS:

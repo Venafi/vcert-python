@@ -35,7 +35,8 @@ from six import string_types, binary_type
 
 from .errors import VenafiConnectionError, ServerUnexptedBehavior, BadData, ClientBadData
 from .http import HTTPStatus
-from .policy.policy_spec import PolicySpecification
+from .policy import PolicySpecification
+
 
 MIME_JSON = "application/json"
 MIME_HTML = "text/html"

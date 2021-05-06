@@ -15,7 +15,7 @@
 #
 from vcert.common import Policy as Cit, AppDetails
 from vcert.errors import VenafiError
-from vcert.policy import RPA, ALLOW_ALL, DEFAULT_CA, DEFAULT_MAX_VALID_DAYS, DEFAULT_HASH_ALGORITHM
+from vcert.policy import RPA, DEFAULT_CA
 from vcert.policy.policy_spec import Policy, Subject, KeyPair, DefaultSubject, DefaultKeyPair, PolicySpecification, \
     Defaults, SubjectAltNames
 
@@ -25,6 +25,9 @@ CA_TYPE_ENTRUST = 'ENTRUST'
 REQUESTER_NAME = "Venafi Cloud Service"
 REQUESTER_EMAIL = "no-reply@venafi.cloud"
 REQUESTER_PHONE = "801-555-0123"
+ALLOW_ALL = ".*"
+DEFAULT_MAX_VALID_DAYS = 365
+DEFAULT_HASH_ALGORITHM = 'SHA256'
 
 
 def build_policy_spec(cit, ca_info):

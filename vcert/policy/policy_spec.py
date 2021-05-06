@@ -13,7 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from vcert.policy import DEFAULT_CA
+
+DEFAULT_CA = "BUILTIN\\Built-In CA\\Default Product"
 
 
 class PolicySpecification:

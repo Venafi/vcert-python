@@ -15,18 +15,7 @@
 #
 
 from .policy_spec import Policy, Subject, KeyPair, SubjectAltNames, Defaults, DefaultSubject, DefaultKeyPair, \
-    PolicySpecification
-
-JSON_EXT = ".json"
-YAML_EXT = ".yaml"
-POLICY_PATH = "Policy\\"
-ROOT_PATH = "\\VED\\" + POLICY_PATH
-POLICY_CLASS = "Policy"
-POLICY_ATTRIBUTE_CLASS = "X509 Certificate"
-ALLOW_ALL = ".*"
-DEFAULT_CA = "BUILTIN\\Built-In CA\\Default Product"
-DEFAULT_MAX_VALID_DAYS = 365
-DEFAULT_HASH_ALGORITHM = 'SHA256'
+    PolicySpecification, DEFAULT_CA
 
 
 class CommonPA:
