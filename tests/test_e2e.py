@@ -795,13 +795,13 @@ class TestLocalMethods(unittest.TestCase):
         cert = conn.retrieve_cert(req)
         self.assertIn("BEGIN CERTIFICATE", cert.cert)
 
-    def test_tpp_url_noramlization(self):
+    def test_tpp_url_normalization(self):
         conn = TPPConnection(url="localhost", user="user", password="password")
-        self.assertEqual(conn._base_url, "https://localhost/vedsdk/")
+        self.assertEqual(conn._base_url, "https://localhost/")
         conn._base_url = "http://localhost:8080"
-        self.assertEqual(conn._base_url, "https://localhost:8080/vedsdk/")
-        conn._base_url = "http://localhost:8080/"
-        self.assertEqual(conn._base_url, "https://localhost:8080/vedsdk/")
+        self.assertEqual(conn._base_url, "https://localhost:8080/")
+        conn._base_url = "http://localhost:8080/vedsdk"
+        self.assertEqual(conn._base_url, "https://localhost:8080/")
         with self.assertRaises(Exception):
             conn._base_url = "ftp://example.com"
         with self.assertRaises(Exception):

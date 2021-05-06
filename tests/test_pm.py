@@ -14,15 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
+import os
 import unittest
 from pprint import pprint
 
 from future.backports.datetime import datetime
 
-from test_env import TPP_TOKEN_URL, CLOUD_APIKEY, CLOUD_URL, TPP_ACCESS_TOKEN, TPP_PM_ROOT, \
-    CLOUD_ENTRUST_CA_NAME, \
-    CLOUD_DIGICERT_CA_NAME, TPP_CA_NAME
+from test_env import TPP_TOKEN_URL, CLOUD_APIKEY, CLOUD_URL, TPP_PM_ROOT, CLOUD_ENTRUST_CA_NAME, \
+    CLOUD_DIGICERT_CA_NAME, TPP_CA_NAME, TPP_USER, TPP_PASSWORD
 from vcert import TPPTokenConnection, CloudConnection
 from vcert.parser import json_parser, yaml_parser
 from vcert.parser.utils import parse_policy_spec
@@ -30,18 +29,21 @@ from vcert.policy import Policy, Subject, KeyPair, SubjectAltNames, Defaults, De
     PolicySpecification
 from vcert.policy.pm_cloud import CA_TYPE_DIGICERT, CA_TYPE_ENTRUST
 
-POLICY_SPEC_JSON = './resources/policy_specification.json'
-POLICY_SPEC_YAML = './resources/policy_specification.yaml'
+POLICY_SPEC_JSON = '/resources/policy_specification.json'
+POLICY_SPEC_YAML = '/resources/policy_specification.yaml'
 CA_TYPE_TPP = 'TPP'
 
 
 class TestParsers(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TestParsers, self).__init__(*args, **kwargs)
+        self.json_file = _resolve_resources_path(POLICY_SPEC_JSON)
+        self.yaml_file = _resolve_resources_path(POLICY_SPEC_YAML)
 
     def test_json_parsing(self):
-        data = json_parser.parse_file(POLICY_SPEC_JSON)
-        pprint(data.__dict__)
+        data = json_parser.parse_file(self.json_file)
+        print_data = parse_policy_spec(data)
+        pprint(print_data)
 
     def test_json_serialization(self):
         ps = PolicySpecification(policy=_get_policy_obj(), defaults=_get_defaults_obj())
@@ -51,8 +53,9 @@ class TestParsers(unittest.TestCase):
         pass
 
     def test_yaml_12_parsing(self):
-        data = yaml_parser.parse_file(POLICY_SPEC_YAML)
-        pprint(data.__dict__)
+        data = yaml_parser.parse_file(self.yaml_file)
+        print_data = parse_policy_spec(data)
+        pprint(print_data)
 
     def test_yaml_serialization(self):
         ps = PolicySpecification(policy=_get_policy_obj(), defaults=_get_defaults_obj())
@@ -61,16 +64,18 @@ class TestParsers(unittest.TestCase):
 
 class TestTPPPolicyManagement(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        self.tpp_conn = TPPTokenConnection(url=TPP_TOKEN_URL, access_token=TPP_ACCESS_TOKEN,
+        self.tpp_conn = TPPTokenConnection(url=TPP_TOKEN_URL, user=TPP_USER, password=TPP_PASSWORD,
                                            http_request_kwargs={"verify": "/tmp/chain.pem"})
+        self.json_file = _resolve_resources_path(POLICY_SPEC_JSON)
+        self.yaml_file = _resolve_resources_path(POLICY_SPEC_YAML)
         super(TestTPPPolicyManagement, self).__init__(*args, **kwargs)
 
     def test_create_policy_from_json(self):
-        ps = json_parser.parse_file(POLICY_SPEC_JSON)
+        ps = json_parser.parse_file(self.json_file)
         self._create_policy_tpp(policy_spec=ps)
 
     def test_create_policy_yaml(self):
-        ps = yaml_parser.parse_file(POLICY_SPEC_YAML)
+        ps = yaml_parser.parse_file(self.yaml_file)
         self._create_policy_tpp(policy_spec=ps)
 
     def test_create_policy_full(self):
@@ -93,14 +98,16 @@ class TestTPPPolicyManagement(unittest.TestCase):
 class TestCloudPolicyManagement(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         self.cloud_conn = CloudConnection(token=CLOUD_APIKEY, url=CLOUD_URL)
+        self.json_file = _resolve_resources_path(POLICY_SPEC_JSON)
+        self.yaml_file = _resolve_resources_path(POLICY_SPEC_YAML)
         super(TestCloudPolicyManagement, self).__init__(*args, **kwargs)
 
     def test_create_policy_from_json(self):
-        ps = json_parser.parse_file(POLICY_SPEC_JSON)
+        ps = json_parser.parse_file(self.json_file)
         self._create_policy_cloud(policy_spec=ps)
 
     def test_create_policy_yaml(self):
-        ps = yaml_parser.parse_file(POLICY_SPEC_YAML)
+        ps = yaml_parser.parse_file(self.yaml_file)
         self._create_policy_cloud(policy_spec=ps)
 
     def test_create_policy_full(self):
@@ -214,3 +221,9 @@ def _get_cit_name():
 
 def _get_tpp_policy_name():
     return _get_app_name()
+
+
+def _resolve_resources_path(path):
+    resources_dir = os.path.dirname(__file__)
+    resolved_path = ('.%s' % path) if resources_dir.endswith('tests') else ('./tests%s' % path)
+    return resolved_path
