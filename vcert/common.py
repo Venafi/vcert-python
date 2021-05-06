@@ -17,26 +17,25 @@
 from __future__ import absolute_import, division, generators, unicode_literals, print_function, nested_scopes, \
     with_statement
 
-import socket
-
-from builtins import bytes
-
 import datetime
 import logging as log
+import socket
+import sys
+
+import ipaddress
+from builtins import bytes
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.x509.oid import NameOID, ExtensionOID
 from six import string_types, binary_type
 
 from .errors import VenafiConnectionError, ServerUnexptedBehavior, BadData, ClientBadData
 from .http import HTTPStatus
-
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography import x509
-from cryptography.x509.oid import NameOID, ExtensionOID
-from cryptography.hazmat.primitives import hashes
-import ipaddress
-import sys
+from .policy import PolicySpecification
 
 
 MIME_JSON = "application/json"
@@ -148,10 +147,14 @@ class TokenInfo:
 
 
 class Policy:
+    # This is the Certificate Issuing Template.
+    # It is used by both TPP and Cloud implementations, hence the name was adapted to something more generic.
     def __init__(self, policy_id=None, company_id=None, name=None, system_generated=None,
                  creation_date=None, subject_cn_regexes=None, subject_o_regexes=None,
                  subject_ou_regexes=None, subject_st_regexes=None, subject_l_regexes=None, subject_c_regexes=None,
-                 san_regexes=None, key_types=None, key_reuse=None):
+                 san_regexes=None, key_types=None, key_reuse=None, cert_authority=None, cert_authority_account_id=None,
+                 cert_authority_product_option_id=None, priority=None, modification_date=None, status=None, reason=None,
+                 validity_period=None, recommended_settings=None):
         """
         :param str policy_id:
         :param str company_id:
@@ -167,6 +170,15 @@ class Policy:
         :param list[str] san_regexes:
         :param list[KeyType] key_types:
         :param bool key_reuse:
+        :param str cert_authority:
+        :param str cert_authority_account_id:
+        :param str cert_authority_product_option_id:
+        :param int priority:
+        :param str modification_date:
+        :param str status:
+        :param str reason:
+        :param str validity_period:
+        :param RecommendedSettings recommended_settings:
         """
         self.id = policy_id
         self.company_id = company_id
@@ -183,6 +195,16 @@ class Policy:
         self.key_types = key_types
         self.key_reuse = key_reuse
 
+        self.cert_authority = cert_authority
+        self.cert_authority_account_id = cert_authority_account_id
+        self.cert_authority_product_option_id = cert_authority_product_option_id
+        self.priority = priority
+        self.modification_date = modification_date
+        self.status = status
+        self.reason = reason
+        self.validity_period = validity_period
+        self.recommended_settings = recommended_settings
+
     def __repr__(self):
         return "Policy:\n" + "\n".join(["  %s: %s" % (k, v) for k, v in (
             ("Id", self.id),
@@ -193,6 +215,27 @@ class Policy:
 
     def __str__(self):
         return self.name
+
+
+class RecommendedSettings:
+    def __init__(self, subject_o_value=None, subject_ou_value=None, subject_l_value=None, subject_st_value=None,
+                 subject_c_value=None, key_type=None, key_reuse=None):
+        """
+        :param str subject_o_value:
+        :param str subject_ou_value:
+        :param str subject_l_value:
+        :param str subject_st_value:
+        :param str subject_c_value:
+        :param KeyType key_type:
+        :param bool key_reuse:
+        """
+        self.subjectOValue = subject_o_value
+        self.subjectOUValue = subject_ou_value
+        self.subjectLValue = subject_l_value
+        self.subjectSTValue = subject_st_value
+        self.subjectCValue = subject_c_value
+        self.keyType = key_type
+        self.keyReuse = key_reuse
 
 
 class CertificateRequest:
@@ -513,7 +556,7 @@ class RevocationRequest:
 
 
 CLIENT_ID = "vcert-sdk"  # type: str
-SCOPE = "certificate:manage,revoke"  # type: str
+SCOPE = "certificate:manage,revoke;configuration:manage"  # type: str
 
 
 class Authentication:
@@ -531,13 +574,29 @@ class Authentication:
 
 
 class AppDetails:
-    def __init__(self, app_id=None, cit_map=None):
+    def __init__(self, app_id=None, cit_map=None, company_id=None, name=None, description=None,
+                 owner_ids_and_types=None, fq_dns=None, internal_fq_dns=None, external_ip_ranges=None,
+                 internal_ip_ranges=None, internal_ports=None, fully_qualified_domain_names=None, ip_ranges=None,
+                 ports=None, org_unit_id=None):
         """
         :param str app_id:
-        :param dict cit_ids:
+        :param dict cit_map:
         """
         self.app_id = app_id
         self.cit_alias_id_map = cit_map
+        self.company_id = company_id
+        self.name = name
+        self.description = description
+        self.owner_ids_and_types = owner_ids_and_types
+        self.fq_dns = fq_dns
+        self.internal_fq_dns = internal_fq_dns
+        self.external_ip_ranges = external_ip_ranges
+        self.internal_ip_ranges = internal_ip_ranges
+        self.internal_ports = internal_ports
+        self.fully_qualified_domain_names = fully_qualified_domain_names
+        self.ip_ranges = ip_ranges
+        self.ports = ports
+        self.org_unit_id = org_unit_id
 
 
 class CommonConnection:
@@ -551,19 +610,20 @@ class CommonConnection:
 
     def request_cert(self, request, zone):
         """
-        Making request to certificate. It will generate CSR from data if CSR not specified,
-        generate key if required and send to server for signing. Set request.id for retrieving certificate.
+        Making request to certificate. It will generate CSR from data if CSR not specified, generate key if required and send to server for signing. Set request.id for retrieving certificate.
+
         :param CertificateRequest request: Certificate in PEM format
         :param str zone: Venafi zone tag name
-        :rtype bool : Success
+        :rtype: bool
         """
         raise NotImplementedError
 
     def retrieve_cert(self, request):
         """
         Get signed certificate from server by request.id
+
         :param CertificateRequest request:
-        :rtype Certificate
+        :rtype: Certificate
         """
         raise NotImplementedError
 
@@ -583,11 +643,26 @@ class CommonConnection:
     def read_zone_conf(self, tag):
         """
         :param str tag:
-        :rtype ZoneConfig
+        :rtype: ZoneConfig
         """
         raise NotImplementedError
 
     def import_cert(self, request):
+        raise NotImplementedError
+
+    def get_policy(self, zone):
+        """
+        :param str zone:
+        :rtype: PolicySpecification
+        """
+        raise NotImplementedError
+
+    def set_policy(self, zone, policy_spec):
+        """
+        :param str zone:
+        :param PolicySpecification policy_spec:
+        :rtype: None
+        """
         raise NotImplementedError
 
     @staticmethod
@@ -597,8 +672,7 @@ class CommonConnection:
                 log_errors(r.json())
             except:
                 log_errors(r.content)
-            raise VenafiConnectionError("Server status: %s\n Response: %s" %
-                                        (r.status_code, r.request.url))
+            raise VenafiConnectionError("Server status: %s\nResponse: %s" % (r.status_code, r.request.url))
 
         content_type = r.headers.get("content-type")
         # Content-type not present, return status and reason (if any)
@@ -612,7 +686,7 @@ class CommonConnection:
             return r.status_code, r.text
         # content-type in response is  application/json; charset=utf-8
         elif content_type.startswith(MIME_JSON):
-            log.debug(r.content.decode())
+            # log.debug(r.content.decode())
             return r.status_code, r.json()
         elif content_type.startswith(MIME_CSV):
             log.debug(r.content.decode())

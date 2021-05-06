@@ -45,3 +45,7 @@ class CertificateRenewError(ServerUnexptedBehavior):
 
 class AuthenticationError(VenafiError):
     pass
+
+
+class VenafiParsingError(VenafiError):
+    pass

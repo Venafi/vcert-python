@@ -23,39 +23,21 @@ import re
 import time
 
 import requests
-from cryptography.hazmat.backends import default_backend
 from cryptography import x509
+from cryptography.hazmat.backends import default_backend
 from cryptography.x509 import SignatureAlgorithmOID as AlgOID
 
-from .common import CommonConnection, MIME_JSON, CertField, ZoneConfig, Policy, KeyType
-from .pem import parse_pem
+from .common import MIME_JSON, CertField, ZoneConfig, Policy, KeyType
+from .connection_tpp_abstract import AbstractTPPConnection, URLS
 from .errors import (ServerUnexptedBehavior, ClientBadData, CertificateRequestError, AuthenticationError,
                      CertificateRenewError)
 from .http import HTTPStatus
-
-
-class URLS:
-    def __init__(self):
-        pass
-
-    API_BASE_URL = ""
-
-    AUTHORIZE = "authorize/"
-    CERTIFICATE_REQUESTS = "certificates/request"
-    CERTIFICATE_RETRIEVE = "certificates/retrieve"
-    FIND_POLICY = "config/findpolicy"
-    CERTIFICATE_REVOKE = "certificates/revoke"
-    CERTIFICATE_RENEW = "certificates/renew"
-    CERTIFICATE_SEARCH = "certificates/"
-    CERTIFICATE_IMPORT = "certificates/import"
-    ZONE_CONFIG = "certificates/checkpolicy"
-    CONFIG_READ_DN = "Config/ReadDn"
-
+from .pem import parse_pem
 
 TOKEN_HEADER_NAME = "x-venafi-api-key"  # nosec
 
 
-class TPPConnection(CommonConnection):
+class TPPConnection(AbstractTPPConnection):
     def __init__(self, user, password, url, http_request_kwargs=None):
         """
         :param str user:
@@ -111,9 +93,9 @@ class TPPConnection(CommonConnection):
             u = "https://" + u
         if not u.endswith("/"):
             u += "/"
-        if not u.endswith("vedsdk/"):
-            u += "vedsdk/"
-        if not re.match(r"^https://[a-z\d]+[-a-z\d.]+[a-z\d][:\d]*/vedsdk/$", u):
+        if u.endswith(URLS.API_BASE_URL):
+            u = u[:len(u)-7]  # "vedsdk/"
+        if not re.match(r"^https://[a-z\d]+[-a-z\d.]+[a-z\d][:\d]*/$", u):
             raise ClientBadData
         return u
 

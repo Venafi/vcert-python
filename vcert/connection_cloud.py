@@ -16,16 +16,24 @@
 
 from __future__ import (absolute_import, division, generators, unicode_literals, print_function, nested_scopes,
                         with_statement)
-import re
+
 import logging as log
+import re
+from pprint import pprint
+
 import requests
 import six.moves.urllib.parse as urlparse
+
 from .common import (ZoneConfig, CertificateRequest, CommonConnection, Policy, get_ip_address, log_errors, MIME_JSON,
-                     MIME_TEXT, MIME_ANY, CertField, KeyType, AppDetails)
-from .pem import parse_pem
+                     MIME_TEXT, MIME_ANY, CertField, KeyType, AppDetails, RecommendedSettings)
 from .errors import (VenafiConnectionError, ServerUnexptedBehavior, ClientBadData, CertificateRequestError,
                      CertificateRenewError, VenafiError)
 from .http import HTTPStatus
+from .pem import parse_pem
+from .policy.pm_cloud import build_policy_spec, validate_policy_spec, \
+    AccountDetails, build_cit_request, build_user, UserDetails, build_company, build_apikey, build_app_update_request, \
+    get_ca_info, CertificateAuthorityDetails, CertificateAuthorityInfo, build_account_details, \
+    build_app_create_request
 
 
 class CertStatuses:
@@ -42,17 +50,25 @@ class URLS:
     def __init__(self):
         pass
 
-    API_BASE_URL = "https://api.venafi.cloud/outagedetection/v1/"
+    API_BASE_URL = "https://api.venafi.cloud/"
+    API_VERSION = "v1/"
+    API_BASE_PATH = "outagedetection/" + API_VERSION
 
-    USER_ACCOUNTS = "useraccounts"  # Not being used at all
-    POLICIES_BY_ID = "certificatepolicies/%s"
-    CERTIFICATE_REQUESTS = "certificaterequests"
+    POLICIES_BY_ID = API_BASE_PATH + "certificatepolicies/%s"
+    CERTIFICATE_REQUESTS = API_BASE_PATH + "certificaterequests"
     CERTIFICATE_STATUS = CERTIFICATE_REQUESTS + "/%s"
-    CERTIFICATE_RETRIEVE = "certificates/%s/contents"
-    CERTIFICATE_SEARCH = "certificatesearch"
-    CERTIFICATE_TEMPLATE_BY_ID = "applications/%s/certificateissuingtemplates/%s"
-    APP_DETAILS_BY_NAME = "applications/name/%s"
-    CERTIFICATE_BY_ID = "certificates/%s"
+    CERTIFICATE_RETRIEVE = API_BASE_PATH + "certificates/%s/contents"
+    CERTIFICATE_SEARCH = API_BASE_PATH + "certificatesearch"
+    APPLICATIONS = API_BASE_PATH + "applications"
+    APP_BY_ID = APPLICATIONS + "/%s"
+    CERTIFICATE_TEMPLATE_BY_ID = APP_BY_ID + "/certificateissuingtemplates/%s"
+    APP_DETAILS_BY_NAME = APPLICATIONS + "/name/%s"
+    CERTIFICATE_BY_ID = API_BASE_PATH + "certificates/%s"
+    CA_ACCOUNTS = API_VERSION + "certificateauthorities/%s/accounts"
+    CA_ACCOUNT_DETAILS = CA_ACCOUNTS + "/%s"
+    ISSUING_TEMPLATES = API_VERSION + "certificateissuingtemplates"
+    ISSUING_TEMPLATES_UPDATE = ISSUING_TEMPLATES + "/%s"
+    USER_ACCOUNTS = API_VERSION + "useraccounts"
 
 
 class CondorChainOptions:
@@ -83,10 +99,10 @@ def _parse_zone(zone):
     segments = zone.split("\\")
     if len(segments) < 2 or len(segments) > 2:
         log.error("Invalid zone. Incorrect format")
-        raise ClientBadData("Invalid Zone. The zone format is incorrect")
+        raise ClientBadData("Invalid Zone [%s]. The zone format is incorrect", zone)
 
-    app_name = urlparse.quote(segments[0])
-    cit_alias = urlparse.quote(segments[1])
+    app_name = segments[0]
+    cit_alias = segments[1]
     return app_name, cit_alias
 
 
@@ -124,6 +140,19 @@ class CloudConnection(CommonConnection):
             raise ClientBadData
         return self.process_server_response(r)
 
+    def _put(self, url, data=None):
+        if isinstance(data, dict):
+            r = requests.put(self._base_url + url, json=data,
+                             headers={TOKEN_HEADER_NAME: self._token,
+                                      "cache-control": "no-cache",
+                                      "Accept": MIME_JSON},
+                             **self._http_request_kwargs
+                             )
+        else:
+            log.error("Unexpected client data type: %s for %s" % (type(data), url))
+            raise ClientBadData
+        return self.process_server_response(r)
+
     def _normalize_and_verify_base_url(self):
         u = self._base_url
         if u.startswith("http://"):
@@ -132,9 +161,9 @@ class CloudConnection(CommonConnection):
             u = "https://" + u
         if not u.endswith("/"):
             u += "/"
-        if not u.endswith("v1/"):
-            u += "v1/"
-        if not re.match(r"^https://[a-z\d]+[-a-z\d.]+[a-z\d][:\d]*/outagedetection/v1/$", u):
+        # if not u.endswith("v1/"):
+        #     u += "v1/"
+        if not re.match(r"^https://[a-z\d]+[-a-z\d.]+[a-z\d][:\d]*/$", u):
             raise ClientBadData
         self._base_url = u
 
@@ -164,20 +193,29 @@ class CloudConnection(CommonConnection):
     @staticmethod
     def _parse_policy_response_to_object(d):
         policy = Policy(
-            d["id"],
-            d["companyId"],
-            d["name"],
-            d["systemGenerated"],
-            d["creationDate"],
-            d["subjectCNRegexes"],
-            d["subjectORegexes"],
-            d["subjectOURegexes"],
-            d["subjectSTRegexes"],
-            d["subjectLRegexes"],
-            d["subjectCValues"],
-            d["sanRegexes"],
+            d["id"] if 'id' in d else None,
+            d["companyId"] if 'companyId' in d else None,
+            d["name"] if 'name' in d else None,
+            d["systemGenerated"] if 'systemGenerated' in d else None,
+            d["creationDate"] if 'creationDate' in d else None,
+            d["subjectCNRegexes"] if 'subjectCNRegexes' in d else None,
+            d["subjectORegexes"] if 'subjectORegexes' in d else None,
+            d["subjectOURegexes"] if 'subjectOURegexes' in d else None,
+            d["subjectSTRegexes"] if 'subjectSTRegexes' in d else None,
+            d["subjectLRegexes"] if 'subjectLRegexes' in d else None,
+            d["subjectCValues"] if 'subjectCValues' in d else None,
+            d["sanRegexes"] if 'sanRegexes' in d else None,
             [],
-            d['keyReuse']
+            d['keyReuse'] if 'keyReuse' in d else None,
+            d['certificateAuthority'] if 'certificateAuthority' in d else None,
+            d['certificateAuthorityAccountId'] if 'certificateAuthorityAccountId' in d else None,
+            d['certificateAuthorityProductOptionId'] if 'certificateAuthorityProductOptionId' in d else None,
+            d['priority'] if 'priority' in d else None,
+            d['modificationDate'] if 'modificationDate' in d else None,
+            d['status'] if 'status' in d else None,
+            d['reason'] if 'reason' in d else None,
+            d['validityPeriod'] if 'validityPeriod' in d else None,
+            None
         )
         for kt in d.get('keyTypes', []):
             key_type = kt['keyType'].lower()
@@ -187,14 +225,43 @@ class CloudConnection(CommonConnection):
             else:
                 log.error("Unknow key type: %s" % kt['keyType'])
                 raise ServerUnexptedBehavior
+
+        rs = CloudConnection._parse_recommended_settings_to_object(d)
+        if rs:
+            policy.recommended_settings = rs
+
         return policy
 
-    def _get_policy_by_id(self, policy_id):
-        app_name, cit_alias = _parse_zone(policy_id)
-        status, data = self._get(URLS.CERTIFICATE_TEMPLATE_BY_ID % (app_name, cit_alias))
+    @staticmethod
+    def _parse_recommended_settings_to_object(d):
+        if 'recommendedSettings' in d:
+            rs = d["recommendedSettings"]
+            settings = RecommendedSettings(
+                rs["subjectOValue"] if 'subjectOValue' in rs else None,
+                rs["subjectOUValue"] if 'subjectOUValue' in rs else None,
+                rs["subjectLValue"] if 'subjectLValue' in rs else None,
+                rs["subjectSTValue"] if 'subjectSTValue' in rs else None,
+                rs["subjectCValue"] if 'subjectCValue' in rs else None,
+                None,
+                rs["keyReuse"] if 'keyReuse' in rs else None
+            )
+            if 'key' in rs:
+                kt = KeyType(rs['key']['type'], rs['key']['length'])
+                settings.keyType = kt
+
+            return settings
+
+    def _get_template_by_id(self, zone):
+        """
+        Returns the Certificate Issuing Template details
+
+        :rtype: Policy
+        """
+        app_name, cit_alias = _parse_zone(zone)
+        status, data = self._get(URLS.CERTIFICATE_TEMPLATE_BY_ID % (urlparse.quote(app_name), urlparse.quote(cit_alias)))
         if status != HTTPStatus.OK:
-            log.error("Invalid status during getting policy: %s for policy %s" % (status, policy_id))
-            raise ServerUnexptedBehavior
+            log.error("Invalid status %s while retrieving policy [%s]" % (status, zone))
+            return None
         return self._parse_policy_response_to_object(data)
 
     def auth(self):
@@ -205,23 +272,40 @@ class CloudConnection(CommonConnection):
     def _get_app_details_by_name(self, app_name):
         """
         :param str app_name:
-        :rtype AppDetails
+        :rtype: AppDetails
         """
         if not app_name:
             raise ClientBadData("You need to specify the application name")
-        status, data = self._get(URLS.APP_DETAILS_BY_NAME % app_name)
+        try:
+            status, data = self._get(URLS.APP_DETAILS_BY_NAME % urlparse.quote(app_name))
+        except VenafiConnectionError:
+            return None
+
         if status == HTTPStatus.OK:
-            return AppDetails(data["id"], data["certificateIssuingTemplateAliasIdMap"])
+            return AppDetails(data['id'] if 'id' in data else None,
+                              data['certificateIssuingTemplateAliasIdMap'] if 'certificateIssuingTemplateAliasIdMap'
+                                                                              in data else None,
+                              data['companyId'] if 'companyId' in data else None,
+                              data['name'] if 'name' in data else None,
+                              data['description'] if 'description' in data else None,
+                              data['ownerIdsAndTypes'] if 'ownerIdsAndTypes' in data else None,
+                              data['fqDns'] if 'fqDns' in data else None,
+                              data['internalFqDns'] if 'internalFqDns' in data else None,
+                              data['externalIpRanges'] if 'externalIpRanges' in data else None,
+                              data['internalIpRanges'] if 'internalIpRanges' in data else None,
+                              data['internalPorts'] if 'internalPorts' in data else None,
+                              data['fullyQualifiedDomainNames'] if 'fullyQualifiedDomainNames' in data else None,
+                              data['ipRanges'] if 'ipRanges' in data else None,
+                              data['ports'] if 'ports' in data else None,
+                              data['organizationalUnitId'] if 'organizationalUnitId' in data else None
+                              )
         elif status in (HTTPStatus.BAD_REQUEST, HTTPStatus.NOT_FOUND, HTTPStatus.PRECONDITION_FAILED):
             log_errors(data)
-        else:
-            pass
 
     def request_cert(self, request, zone):
         app_name, cit_alias = _parse_zone(zone)
         details = self._get_app_details_by_name(app_name)
-        cit_alias_decoded = urlparse.unquote(cit_alias)
-        cit_id = details.cit_alias_id_map.get(cit_alias_decoded)
+        cit_id = details.cit_alias_id_map.get(cit_alias)
         if not request.csr:
             request.build_csr()
 
@@ -368,7 +452,7 @@ class CloudConnection(CommonConnection):
         return CertificateStatusResponse(data['certificates'][0])
 
     def read_zone_conf(self, zone):
-        policy = self._get_policy_by_id(zone)
+        policy = self._get_template_by_id(zone)
         z = ZoneConfig(
             organization=CertField(""),
             organizational_unit=CertField(""),
@@ -383,3 +467,160 @@ class CloudConnection(CommonConnection):
     def import_cert(self, request):
         # not supported in Cloud
         raise NotImplementedError
+
+    def get_policy(self, zone):
+        cit = self._get_template_by_id(zone)
+        if not cit:
+            raise VenafiError('Certificate issuing template not found for zone [%s]', zone)
+
+        info = self._get_ca_info(cit.cert_authority, cit.cert_authority_account_id, cit.cert_authority_product_option_id)
+        if not info:
+            raise VenafiError('Certificate Authority info not found.')
+
+        ps = build_policy_spec(cit, info)
+        return ps
+
+    def _policy_exists(self, zone):
+        """
+        :param str zone:
+        :rtype: bool
+        """
+        try:
+            cit = self._get_template_by_id(zone)
+        except VenafiConnectionError:
+            cit = None
+        return False if cit is None else True
+
+    def set_policy(self, zone, policy_spec):
+        validate_policy_spec(policy_spec)
+        app_name, cit_alias = _parse_zone(zone)
+
+        if not policy_spec.policy.certificate_authority:
+            raise VenafiError('Certificate Authority is required')
+
+        ca_details = self._get_ca_details(policy_spec.policy.certificate_authority)
+        if not ca_details:
+            raise VenafiError('CA [%s] not found in Venafi Cloud', policy_spec.policy.certificate_authority)
+
+        # CA valid. Create request dictionary
+        request = build_cit_request(policy_spec, ca_details)
+        request['name'] = cit_alias
+        cit_data = self._get_cit(cit_alias)
+        resp_cit_data = None
+        if cit_data:
+            # Issuing Template exists. Update
+            status, resp_cit_data = self._put(URLS.ISSUING_TEMPLATES_UPDATE % cit_data['id'], request)
+            if status != HTTPStatus.OK:
+                raise VenafiError('Failed to update issuing template [%s] for zone [%s]' % (cit_data['id'], zone))
+        else:
+            # Issuing Template does not exist. Create one
+            status, resp_cit_data = self._post(URLS.ISSUING_TEMPLATES, request)
+            if status != HTTPStatus.CREATED:
+                raise VenafiError('Failed to create issuing template for zone [%s]', zone)
+
+        # Validate Application existence in Venafi Cloud.
+        user_details = self._get_user_details()
+        if not user_details:
+            raise VenafiError('User Details not found.')
+
+        app_details = self._get_app_details_by_name(app_name)
+        if app_details:
+            # Application exists. Update with cit
+            if not self._policy_exists(zone):
+                # Only link cit with Application when cit is not already associated with Application
+                app_req = build_app_update_request(app_details, resp_cit_data)
+                status, data = self._put(URLS.APP_BY_ID % app_details.app_id, app_req)
+                if status != HTTPStatus.OK:
+                    raise VenafiError('Could not update Application [%s] with cit [%s]' % (app_name,
+                                                                                           pprint(resp_cit_data)))
+        else:
+            # Application does not exist. Create one
+            app_req = build_app_create_request(app_name, user_details, resp_cit_data)
+            status, data = self._post(URLS.APPLICATIONS, app_req)
+            if status != HTTPStatus.CREATED:
+                raise VenafiError('Could not create application [%s].', app_name)
+        return
+
+    def _get_ca_details(self, ca_name):
+        """
+        :param str ca_name:
+        :rtype: CertificateAuthorityDetails
+        """
+        accounts, info = self._get_accounts(ca_name)
+        for acc in accounts:
+            if acc.account.key == info.ca_account_key:
+                for po in acc.product_options:
+                    if po.product_name == info.vendor_name:
+                        return CertificateAuthorityDetails(po.product_id, po.details.product_template.organization_id,)
+
+    def _get_accounts(self, ca_name):
+        """
+        :param str ca_name:
+        :rtype: tuple[list[AccountDetails],CertificateAuthorityInfo]
+        """
+        details = get_ca_info(ca_name)
+        ca_type = urlparse.quote(details.ca_type)
+        url = URLS.CA_ACCOUNTS % ca_type
+        status, data = self._get(url)
+        if status != HTTPStatus.OK:
+            raise ServerUnexptedBehavior
+
+        if 'accounts' not in data:
+            raise VenafiError('Response error. Accounts not found')
+
+        acc_list = []
+        for d in data['accounts']:
+            ad = build_account_details(d)
+            acc_list.append(ad)
+
+        return acc_list, details
+
+    def _get_cit(self, cit_name):
+        """
+        :param str cit_name:
+        :rtype: dict
+        """
+        status, data = self._get(URLS.ISSUING_TEMPLATES)
+        if status != HTTPStatus.OK:
+            raise VenafiError('Could not retrieve Certificate Issuing Templates')
+
+        if 'certificateIssuingTemplates' in data:
+            for cit_data in data['certificateIssuingTemplates']:
+                if cit_data['name'] == cit_name:
+                    return cit_data
+        return None
+
+    def _get_user_details(self):
+        """
+        :rtype: UserDetails
+        """
+        status, data = self._get(URLS.USER_ACCOUNTS)
+        if status != HTTPStatus.OK:
+            raise VenafiError('Failed to retrieve user accounts. Error %s', pprint(data))
+
+        user = build_user(data['user']) if 'user' in data else None
+        company = build_company(data['company']) if 'company' in data else None
+        apikey = build_apikey(data['apiKey']) if 'apiKey' in data else None
+
+        return UserDetails(user, company, apikey)
+
+    def _get_ca_info(self, name, account_id, product_option_id):
+        """
+        :param str name:
+        :param str account_id:
+        :param str product_option_id:
+        :rtype: CertificateAuthorityInfo
+        """
+        ca_name = urlparse.quote(name)
+        url = URLS.CA_ACCOUNT_DETAILS % (ca_name, account_id)
+        status, data = self._get(url)
+        if status != HTTPStatus.OK:
+            raise ServerUnexptedBehavior
+
+        account_details = build_account_details(data)
+        info = CertificateAuthorityInfo(account_details.account.certificate_authority, account_details.account.key)
+        for po in account_details.product_options:
+            if po.product_id == product_option_id:
+                info.vendor_name = po.product_name
+
+        return info

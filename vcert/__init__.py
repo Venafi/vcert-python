@@ -14,11 +14,12 @@
 # limitations under the License.
 #
 
+from .common import CertificateRequest, CommonConnection, RevocationRequest, ZoneConfig, CertField, KeyType, CustomField
 from .connection_cloud import CloudConnection
 from .connection_tpp import TPPConnection
 from .connection_tpp_token import TPPTokenConnection
 from .connection_fake import FakeConnection
-from .common import CertificateRequest, CommonConnection, RevocationRequest, ZoneConfig, KeyType
+from .pem import Certificate
 
 
 def Connection(url=None, token=None, user=None, password=None, fake=False, http_request_kwargs=None):
