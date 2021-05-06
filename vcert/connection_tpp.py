@@ -93,9 +93,9 @@ class TPPConnection(AbstractTPPConnection):
             u = "https://" + u
         if not u.endswith("/"):
             u += "/"
-        if not u.endswith("vedsdk/"):
-            u += "vedsdk/"
-        if not re.match(r"^https://[a-z\d]+[-a-z\d.]+[a-z\d][:\d]*/vedsdk/$", u):
+        if u.endswith(URLS.API_BASE_URL):
+            u = u[:len(u)-7]  # "vedsdk/"
+        if not re.match(r"^https://[a-z\d]+[-a-z\d.]+[a-z\d][:\d]*/$", u):
             raise ClientBadData
         return u
 
