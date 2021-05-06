@@ -1,7 +1,7 @@
 ![Venafi](Venafi_logo.png)
 [![Apache 2.0 License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 ![Community Supported](https://img.shields.io/badge/Support%20Level-Community-brightgreen)
-![Compatible with TPP 17.3+ & Cloud](https://img.shields.io/badge/Compatibility-TPP%2017.3+%20%26%20Cloud-f9a90c)  
+![Compatible with TPP 17.3+ & VaaS](https://img.shields.io/badge/Compatibility-TPP%2017.3+%20%26%20VaaS-f9a90c)  
 _**This open source project is community-supported.** To report a problem or share an idea, use
 **[Issues](../../issues)**; and if you have a suggestion for fixing the issue, please include those details, too.
 In addition, use **[Pull Requests](../../pulls)** to contribute actual bug fixes or proposed enhancements.
@@ -12,7 +12,8 @@ We welcome and appreciate all contributions. Got questions or want to discuss so
  
 VCert Python is a Python library and SDK  designed to simplify key generation and enrollment of machine identities
 (also known as SSL/TLS certificates and keys) that comply with enterprise security policy by using the
-[Venafi Platform](https://www.venafi.com/platform/trust-protection-platform) or [Venafi Cloud](https://pki.venafi.com/venafi-cloud/).
+[Venafi Trust Protection Platform](https://www.venafi.com/platform/trust-protection-platform) or
+[Venafi as a Service](https://www.venafi.com/venaficloud).
 
 This implementation is based on the original Go library, https://github.com/Venafi/vcert.
 
@@ -33,7 +34,7 @@ If installation fails collecting dependancies, make sure your python setuptools 
 
 For code samples of programmatic use, please review the files in [/examples](/examples).
 - For Trust Protection Platform, the `zone` format is the DN of a policy with or without the "\VED\Policy\" prefix (e.g. "\VED\Policy\Certificates\VCert" or simply "Certificates\VCert")
-- For Venafi Cloud, the `zone` format is the name of an OutagePREDICT Application and the API Alias of an Issuing Template assigned to it delimited by a single backslash character (e.g. "My Application\My CIT")
+- For Venafi as a Service, the `zone` format is the name of an OutagePREDICT Application and the API Alias of an Issuing Template assigned to it delimited by a single backslash character (e.g. "My Application\My CIT")
 
 ## Prerequisites for using with Trust Protection Platform
 
@@ -57,12 +58,12 @@ practice which also met our design objective to keep the certificate request pro
 VCert users. If you require the ability to specify the CA Template with the request you can use the
 TPP REST APIs but please be advised this goes against Venafi recommendations.
 
-## Prerequisites for using with Venafi Cloud
+## Prerequisites for using with Venafi as a Service
 
-1. The Venafi Cloud REST API is accessible at https://api.venafi.cloud from the system where VCert
+1. The Venafi as a Service REST API is accessible at https://api.venafi.cloud from the system where VCert
 will be executed.
-2. You have successfully registered for a Venafi Cloud account, have been granted at least the
-OutagePREDICT "Resource Owner" role, and know your API key.
+2. You have successfully registered for a Venafi as a Service account, have been granted at least the
+"Resource Owner" role, and know your API key.
 3. A CA Account and Issuing Template exist and have been configured with:
     1. Recommended Settings values for:
         1. Organizational Unit (OU)
@@ -74,7 +75,7 @@ OutagePREDICT "Resource Owner" role, and know your API key.
         1. (Recommended) Limits Common Name and Subject Alternative Name to domains that are allowed by your organization
         2. (Recommended) Restricts the Key Length to 2048 or higher
         3. (Recommended) Does not allow Private Key Reuse
-4. An OutagePREDICT Application exists where you are among the owners, and you know the Application Name.
+4. An Application exists where you are among the owners, and you know the Application Name.
 5. An Issuing Template is assigned to the Application, and you know its API Alias.
 
 ## Contributing to VCert
