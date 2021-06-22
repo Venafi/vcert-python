@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
-import logging as log
+import logging
 import os
 import unittest
-from pprint import pprint
+from pprint import pformat
 
 from future.backports.datetime import datetime
 
@@ -34,6 +34,9 @@ from vcert.policy.pm_cloud import CA_TYPE_DIGICERT, CA_TYPE_ENTRUST
 POLICY_SPEC_JSON = '/resources/policy_specification.json'
 POLICY_SPEC_YAML = '/resources/policy_specification.yaml'
 CA_TYPE_TPP = 'TPP'
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger('vcert-test')
 
 
 class TestParsers(unittest.TestCase):
@@ -142,7 +145,7 @@ class TestCloudPolicyManagement(unittest.TestCase):
 
     @staticmethod
     def _get_random_zone():
-        return _get_app_name() + '\\' + _get_cit_name()
+        return _get_zone()
 
 
 def create_policy(connector, zone, policy_spec=None, policy=None, defaults=None):
@@ -156,7 +159,8 @@ def create_policy(connector, zone, policy_spec=None, policy=None, defaults=None)
     connector.set_policy(zone, policy_spec)
     resp = connector.get_policy(zone)
     data = parse_policy_spec(resp)
-    pprint(data)
+    logger.debug('Created Policy at %s' % zone)
+    logger.debug(pformat(data))
     return resp
 
 
@@ -170,7 +174,7 @@ def _get_policy_obj(ca_type=None):
             countries=['US']),
         key_pair=KeyPair(
             key_types=['RSA'],
-            rsa_key_sizes=[4096],
+            rsa_key_sizes=[2048, 4096],
             elliptic_curves=['P521'],
             reuse_allowed=False),
         subject_alt_names=SubjectAltNames(
@@ -207,7 +211,7 @@ def _get_defaults_obj():
             country='US'),
         d_key_pair=DefaultKeyPair(
             key_type='RSA',
-            rsa_key_size=4096,
+            rsa_key_size=2048,
             elliptic_curve='P521'),
         auto_installed=False)
     return defaults
@@ -218,13 +222,19 @@ def _get_timestamp():
 
 
 def _get_app_name():
-    name = 'vcert-python-%s' % _get_timestamp()
+    name = 'vcert-python-%s'
     return name
 
 
 def _get_cit_name():
-    cit_name = 'vcert-python-cit-%s' % _get_timestamp()
+    cit_name = 'vcert-python-cit-%s'
     return cit_name
+
+
+def _get_zone():
+    timestamp = _get_timestamp()
+    zone = (_get_app_name() + '\\' + _get_cit_name()) % (timestamp, timestamp)
+    return zone
 
 
 def _get_tpp_policy_name():
@@ -233,7 +243,7 @@ def _get_tpp_policy_name():
 
 def _resolve_resources_path(path):
     resources_dir = os.path.dirname(__file__)
-    log.info('Testing root folder: [%s]' % resources_dir)
+    logger.debug('Testing root folder: [%s]' % resources_dir)
     resolved_path = ('.%s' % path) if resources_dir.endswith('tests') else ('./tests%s' % path)
-    log.info('resolved path: [%s]' % resolved_path)
+    logger.debug('resolved path: [%s]' % resolved_path)
     return resolved_path

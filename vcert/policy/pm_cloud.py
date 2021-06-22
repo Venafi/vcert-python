@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from vcert.common import Policy as Cit, AppDetails
+from vcert.common import Policy as Cit, AppDetails, KeyType
 from vcert.errors import VenafiError
 from vcert.policy import RPA, DEFAULT_CA
 from vcert.policy.policy_spec import Policy, Subject, KeyPair, DefaultSubject, DefaultKeyPair, PolicySpecification, \
@@ -82,7 +82,9 @@ def build_policy_spec(cit, ca_info):
         for allowed_kt in cit.key_types:
             kt = allowed_kt.key_type
             kl = allowed_kt.option
-            key_types.append(kt)
+            # Only include one instance of the KeyType
+            if kt not in key_types:
+                key_types.append(kt)
             key_sizes.append(kl)
         create_kp = True
         kp.key_types = key_types
@@ -152,7 +154,8 @@ def validate_policy_spec(policy_spec):
             if len(policy_spec.policy.key_pair.key_types) > 1:
                 raise VenafiError('Key Type values exceeded. Only one Key Type is allowed by Venafi Cloud')
 
-            if policy_spec.policy.key_pair.key_types and policy_spec.policy.key_pair.key_types[0] != 'RSA':
+            if policy_spec.policy.key_pair.key_types \
+                    and policy_spec.policy.key_pair.key_types[0].lower() != KeyType.RSA:
                 raise VenafiError('Key Type [%s] is not supported by Venafi Cloud' % p.key_pair.key_types[0])
 
             if len(policy_spec.policy.key_pair.rsa_key_sizes) > 0:
@@ -380,9 +383,9 @@ def build_cit_request(ps, ca_details):
 
     key_types = dict()
     if ps.policy and ps.policy.key_pair and len(ps.policy.key_pair.key_types) > 0:
-        key_types['keyType'] = ps.policy.key_pair.key_types[0]
+        key_types['keyType'] = ps.policy.key_pair.key_types[0].upper()
     else:
-        key_types['keyType'] = 'RSA'
+        key_types['keyType'] = KeyType.RSA.upper()
 
     if ps.policy and ps.policy.key_pair and len(ps.policy.key_pair.rsa_key_sizes) > 0:
         key_types['keyLengths'] = ps.policy.key_pair.rsa_key_sizes
