@@ -88,7 +88,9 @@ class TestTPPPolicyManagement(unittest.TestCase):
         pass
 
     def test_create_policy_full(self):
-        self._create_policy_tpp(policy=_get_policy_obj(ca_type=CA_TYPE_TPP), defaults=_get_defaults_obj())
+        policy = _get_policy_obj(ca_type=CA_TYPE_TPP)
+        policy.key_pair.rsa_key_sizes = [2048]
+        self._create_policy_tpp(policy=policy, defaults=_get_defaults_obj())
 
     def test_create_policy_empty(self):
         self._create_policy_tpp()
@@ -97,7 +99,9 @@ class TestTPPPolicyManagement(unittest.TestCase):
         self._create_policy_tpp(defaults=_get_defaults_obj())
 
     def test_create_policy_no_defaults(self):
-        self._create_policy_tpp(policy=_get_policy_obj(ca_type=CA_TYPE_TPP))
+        policy = _get_policy_obj(ca_type=CA_TYPE_TPP)
+        policy.key_pair.rsa_key_sizes = [2048]
+        self._create_policy_tpp(policy=policy)
 
     def _create_policy_tpp(self, policy_spec=None, policy=None, defaults=None):
         zone = '%s\\%s' % (TPP_PM_ROOT, _get_tpp_policy_name())
