@@ -139,9 +139,14 @@ class TestCloudPolicyManagement(unittest.TestCase):
     def test_create_policy_digicert(self):
         self._create_policy_cloud(policy=_get_policy_obj(ca_type=CA_TYPE_DIGICERT), defaults=_get_defaults_obj())
 
+    def test_validate_domains(self):
+        policy = self._create_policy_cloud(policy=_get_policy_obj())
+        self.assertListEqual(policy.policy.domains, POlICY_DOMAINS)
+
     def _create_policy_cloud(self, policy_spec=None, policy=None, defaults=None):
         zone = self._get_random_zone()
-        create_policy(self.cloud_conn, zone, policy_spec, policy, defaults)
+        response = create_policy(self.cloud_conn, zone, policy_spec, policy, defaults)
+        return response
 
     @staticmethod
     def _get_random_zone():
@@ -164,6 +169,9 @@ def create_policy(connector, zone, policy_spec=None, policy=None, defaults=None)
     return resp
 
 
+POlICY_DOMAINS = ['vfidev.com', 'vfidev.net', 'venafi.example']
+
+
 def _get_policy_obj(ca_type=None):
     policy = Policy(
         subject=Subject(
@@ -183,7 +191,7 @@ def _get_policy_obj(ca_type=None):
             email_allowed=False,
             uri_allowed=False,
             upn_allowed=False),
-        domains=['vfidev.com', 'vfidev.net', 'venafi.example'],
+        domains=POlICY_DOMAINS,
         wildcard_allowed=True,
         auto_installed=False)
 
