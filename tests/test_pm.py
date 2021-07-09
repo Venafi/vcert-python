@@ -147,7 +147,7 @@ class TestCloudPolicyManagement(unittest.TestCase):
 
     def test_validate_domains(self):
         policy = self._create_policy_cloud(policy=_get_policy_obj())
-        self.assertListEqual(policy.policy.domains, POlICY_DOMAINS)
+        self.assertListEqual(policy.policy.domains, POLICY_DOMAINS)
 
     def _create_policy_cloud(self, policy_spec=None, policy=None, defaults=None):
         zone = self._get_random_zone()
@@ -175,7 +175,7 @@ def create_policy(connector, zone, policy_spec=None, policy=None, defaults=None)
     return resp
 
 
-POlICY_DOMAINS = ['vfidev.com', 'vfidev.net', 'venafi.example']
+POLICY_DOMAINS = ['vfidev.com', 'vfidev.net', 'venafi.example']
 
 
 def _get_policy_obj(ca_type=None):
@@ -197,7 +197,7 @@ def _get_policy_obj(ca_type=None):
             email_allowed=False,
             uri_allowed=False,
             upn_allowed=False),
-        domains=POlICY_DOMAINS,
+        domains=POLICY_DOMAINS,
         wildcard_allowed=True,
         auto_installed=False)
 
