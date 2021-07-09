@@ -41,8 +41,13 @@ def build_policy_spec(cit, ca_info):
 
     ps = PolicySpecification()
     p = Policy()
-    p.domains = cit.SubjectCRegexes if len(cit.SubjectCRegexes) > 0 else None
     p.wildcard_allowed = is_wildcard_allowed(cit.SubjectCNRegexes)
+    if len(cit.SubjectCNRegexes) > 0:
+        domains = convert_to_string(cit.SubjectCNRegexes, p.wildcard_allowed)
+        p.domains = domains
+    else:
+        p.domains = None
+
     if cit.validity_period:
         # getting days in format P#D
         days = cit.validity_period[1:len(cit.validity_period)-1]
@@ -433,6 +438,10 @@ def build_cit_request(ps, ca_details):
     return request
 
 
+domain_regex = '[a-z]{1}[a-z0-9.-]*\\.'
+domain_regex_wildcard = '[*a-z]{1}[a-z0-9.-]*\\.'
+
+
 def convert_to_regex(domains, wildcard_allowed):
     """
     :param list[str] domains:
@@ -443,11 +452,27 @@ def convert_to_regex(domains, wildcard_allowed):
     for d in domains:
         current = d.replace('.', '\\.')
         if wildcard_allowed:
-            current = "[*a-z]{1}[a-z0-9.-]*\\." + current
+            current = domain_regex_wildcard + current
         else:
-            current = "[a-z]{1}[a-z0-9.-]*\\." + current
+            current = domain_regex + current
         regex_list.append(current)
     return regex_list
+
+
+def convert_to_string(regexes, wildcard_allowed):
+    """
+    :param list[str] regexes:
+    :param bool wildcard_allowed:
+    :return list[str]:
+    """
+    pattern = domain_regex_wildcard if wildcard_allowed else domain_regex
+    string_list = []
+    for r in regexes:
+        if r.startswith(pattern):
+            r = r.replace(pattern, '')
+        r = r.replace('\\.', '.')
+        string_list.append(r)
+    return string_list
 
 
 def is_wildcard_allowed(san_regexes):

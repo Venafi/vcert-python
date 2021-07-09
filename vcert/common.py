@@ -556,12 +556,17 @@ class RevocationRequest:
 
 
 CLIENT_ID = "vcert-sdk"  # type: str
-SCOPE = "certificate:manage,revoke;configuration:manage"  # type: str
+# Certificate Management scope
+SCOPE_CM = "certificate:manage,revoke"  # type: str
+# Policy Management scope
+SCOPE_PM = "certificate:manage;configuration:manage"  # type: str
+# Full Management scope
+SCOPE_FULL = "certificate:manage,revoke;configuration:manage"  # type: str
 
 
 class Authentication:
     def __init__(self, user=None, password=None, access_token=None, refresh_token=None, api_key=None, state=None,
-                 token_expires=None, client_id=CLIENT_ID, scope=SCOPE):
+                 token_expires=None, client_id=CLIENT_ID, scope=SCOPE_CM):
         self.user = user
         self.password = password
         self.access_token = access_token

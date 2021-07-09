@@ -25,6 +25,7 @@ from future.backports.datetime import datetime
 from test_env import TPP_TOKEN_URL, CLOUD_APIKEY, CLOUD_URL, TPP_PM_ROOT, CLOUD_ENTRUST_CA_NAME, \
     CLOUD_DIGICERT_CA_NAME, TPP_CA_NAME, TPP_USER, TPP_PASSWORD
 from vcert import TPPTokenConnection, CloudConnection
+from vcert.common import Authentication, SCOPE_PM
 from vcert.parser import json_parser, yaml_parser
 from vcert.parser.utils import parse_policy_spec
 from vcert.policy import Policy, Subject, KeyPair, SubjectAltNames, Defaults, DefaultSubject, DefaultKeyPair, \
@@ -71,8 +72,9 @@ class TestParsers(unittest.TestCase):
 
 class TestTPPPolicyManagement(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        self.tpp_conn = TPPTokenConnection(url=TPP_TOKEN_URL, user=TPP_USER, password=TPP_PASSWORD,
-                                           http_request_kwargs={"verify": "/tmp/chain.pem"})
+        self.tpp_conn = TPPTokenConnection(url=TPP_TOKEN_URL, http_request_kwargs={"verify": "/tmp/chain.pem"})
+        auth = Authentication(user=TPP_USER, password=TPP_PASSWORD, scope=SCOPE_PM)
+        self.tpp_conn.get_access_token(auth)
         self.json_file = _resolve_resources_path(POLICY_SPEC_JSON)
         self.yaml_file = _resolve_resources_path(POLICY_SPEC_YAML)
         super(TestTPPPolicyManagement, self).__init__(*args, **kwargs)
@@ -88,7 +90,9 @@ class TestTPPPolicyManagement(unittest.TestCase):
         pass
 
     def test_create_policy_full(self):
-        self._create_policy_tpp(policy=_get_policy_obj(ca_type=CA_TYPE_TPP), defaults=_get_defaults_obj())
+        policy = _get_policy_obj(ca_type=CA_TYPE_TPP)
+        policy.key_pair.rsa_key_sizes = [2048]
+        self._create_policy_tpp(policy=policy, defaults=_get_defaults_obj())
 
     def test_create_policy_empty(self):
         self._create_policy_tpp()
@@ -97,7 +101,9 @@ class TestTPPPolicyManagement(unittest.TestCase):
         self._create_policy_tpp(defaults=_get_defaults_obj())
 
     def test_create_policy_no_defaults(self):
-        self._create_policy_tpp(policy=_get_policy_obj(ca_type=CA_TYPE_TPP))
+        policy = _get_policy_obj(ca_type=CA_TYPE_TPP)
+        policy.key_pair.rsa_key_sizes = [2048]
+        self._create_policy_tpp(policy=policy)
 
     def _create_policy_tpp(self, policy_spec=None, policy=None, defaults=None):
         zone = '%s\\%s' % (TPP_PM_ROOT, _get_tpp_policy_name())
@@ -139,9 +145,14 @@ class TestCloudPolicyManagement(unittest.TestCase):
     def test_create_policy_digicert(self):
         self._create_policy_cloud(policy=_get_policy_obj(ca_type=CA_TYPE_DIGICERT), defaults=_get_defaults_obj())
 
+    def test_validate_domains(self):
+        policy = self._create_policy_cloud(policy=_get_policy_obj())
+        self.assertListEqual(policy.policy.domains, POLICY_DOMAINS)
+
     def _create_policy_cloud(self, policy_spec=None, policy=None, defaults=None):
         zone = self._get_random_zone()
-        create_policy(self.cloud_conn, zone, policy_spec, policy, defaults)
+        response = create_policy(self.cloud_conn, zone, policy_spec, policy, defaults)
+        return response
 
     @staticmethod
     def _get_random_zone():
@@ -164,6 +175,9 @@ def create_policy(connector, zone, policy_spec=None, policy=None, defaults=None)
     return resp
 
 
+POLICY_DOMAINS = ['vfidev.com', 'vfidev.net', 'venafi.example']
+
+
 def _get_policy_obj(ca_type=None):
     policy = Policy(
         subject=Subject(
@@ -183,7 +197,7 @@ def _get_policy_obj(ca_type=None):
             email_allowed=False,
             uri_allowed=False,
             upn_allowed=False),
-        domains=['vfidev.com', 'vfidev.net', 'venafi.example'],
+        domains=POLICY_DOMAINS,
         wildcard_allowed=True,
         auto_installed=False)
 
@@ -238,7 +252,8 @@ def _get_zone():
 
 
 def _get_tpp_policy_name():
-    return _get_app_name()
+    timestamp = _get_timestamp()
+    return _get_app_name() % timestamp
 
 
 def _resolve_resources_path(path):
