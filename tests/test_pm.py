@@ -25,6 +25,7 @@ from future.backports.datetime import datetime
 from test_env import TPP_TOKEN_URL, CLOUD_APIKEY, CLOUD_URL, TPP_PM_ROOT, CLOUD_ENTRUST_CA_NAME, \
     CLOUD_DIGICERT_CA_NAME, TPP_CA_NAME, TPP_USER, TPP_PASSWORD
 from vcert import TPPTokenConnection, CloudConnection
+from vcert.common import Authentication, SCOPE_PM
 from vcert.parser import json_parser, yaml_parser
 from vcert.parser.utils import parse_policy_spec
 from vcert.policy import Policy, Subject, KeyPair, SubjectAltNames, Defaults, DefaultSubject, DefaultKeyPair, \
@@ -71,8 +72,9 @@ class TestParsers(unittest.TestCase):
 
 class TestTPPPolicyManagement(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        self.tpp_conn = TPPTokenConnection(url=TPP_TOKEN_URL, user=TPP_USER, password=TPP_PASSWORD,
-                                           http_request_kwargs={"verify": "/tmp/chain.pem"})
+        self.tpp_conn = TPPTokenConnection(url=TPP_TOKEN_URL, http_request_kwargs={"verify": "/tmp/chain.pem"})
+        auth = Authentication(user=TPP_USER, password=TPP_PASSWORD, scope=SCOPE_PM)
+        self.tpp_conn.get_access_token(auth)
         self.json_file = _resolve_resources_path(POLICY_SPEC_JSON)
         self.yaml_file = _resolve_resources_path(POLICY_SPEC_YAML)
         super(TestTPPPolicyManagement, self).__init__(*args, **kwargs)
@@ -250,7 +252,8 @@ def _get_zone():
 
 
 def _get_tpp_policy_name():
-    return _get_app_name()
+    timestamp = _get_timestamp()
+    return _get_app_name() % timestamp
 
 
 def _resolve_resources_path(path):

@@ -18,8 +18,8 @@ from pprint import pprint
 
 from parser import json_parser, yaml_parser
 from parser.utils import parse_policy_spec
-from policy.policy_spec import PolicySpecification, Policy, Subject, KeyPair, SubjectAltNames, Defaults, DefaultSubject, \
-    DefaultKeyPair
+from policy.policy_spec import PolicySpecification, Policy, Subject, KeyPair, SubjectAltNames, Defaults, \
+    DefaultSubject, DefaultKeyPair
 from vcert import venafi_connection
 import logging
 from os import environ
@@ -30,11 +30,11 @@ logging.getLogger("urllib3").setLevel(logging.ERROR)
 
 def main():
     # Get credentials from environment variables
-    zone = environ.get('CLOUD_ZONE')
-    api_key = environ.get('CLOUD_APIKEY')
+    zone = environ.get('VAAS_ZONE')
+    api_key = environ.get('VAAS_APIKEY')
 
     # Get connector object
-    conn = venafi_connection(api_key=api_key)
+    connector = venafi_connection(api_key=api_key)
 
     # Define policy specification object to create a new policy
     ps = PolicySpecification()
@@ -87,10 +87,10 @@ def main():
 
     # Create the new policy in the path specified by zone
     # If the policy already exists, it will be updated instead with the new settings
-    conn.set_policy(zone, ps)
+    connector.set_policy(zone, ps)
 
     # Retrieve the Policy from the Venafi Platform
-    response = conn.get_policy(zone)
+    response = connector.get_policy(zone)
 
     # Transform the PolicySpecification object to a serializable form
     data = parse_policy_spec(response)
@@ -99,3 +99,7 @@ def main():
     # Alternatively the parser utilities can be used to serialize the PolicySpecification object to a json/yaml file
     # json_parser.serialize(response, 'path/to/file.json')
     # yaml_parser.serialize(response, 'path/to/file.yaml')
+
+
+if __name__ == '__main__':
+    main()
