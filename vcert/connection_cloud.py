@@ -347,7 +347,7 @@ class CloudConnection(CommonConnection):
                 raise ClientBadData
 
             # Time in seconds
-            time_now = time.time()
+            time_start = time.time()
             while True:
                 try:
                     status, data = self._get(url)
@@ -358,7 +358,7 @@ class CloudConnection(CommonConnection):
                     log.debug("Certificate found, parsing response...")
                     return parse_pem(data, request.chain_option)
                 else:
-                    if (time.time() - time_now) < request.timeout:
+                    if (time.time() - time_start) < request.timeout:
                         log.debug("Waiting for certificate...")
                         time.sleep(2)
                     else:
