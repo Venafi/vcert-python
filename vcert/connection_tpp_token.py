@@ -431,17 +431,9 @@ class TPPTokenConnection(AbstractTPPConnection):
 
     @staticmethod
     def _parse_access_token_data_to_object(data):
-        identity = ""
-        if "identity" in data:
-            identity = data["identity"]
-
         token_info = TokenInfo(
             access_token=data["access_token"],
             expires=data["expires"],
-            identity=identity,
             refresh_token=data["refresh_token"],
-            refresh_until=data["refresh_until"],
-            scope=data["scope"],
-            token_type=data["token_type"]
         )
         return token_info
