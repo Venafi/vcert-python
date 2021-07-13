@@ -135,15 +135,10 @@ class ZoneConfig:
 
 
 class TokenInfo:
-    def __init__(self, access_token, expires, identity, refresh_token, refresh_until,
-                 scope, token_type):
+    def __init__(self, access_token, expires, refresh_token):
         self.access_token = access_token
         self.expires = expires
-        self.identity = identity
         self.refresh_token = refresh_token
-        self.refresh_until = refresh_until
-        self.scope = scope
-        self.token_type = token_type
 
 
 class Policy:
@@ -260,6 +255,7 @@ class CertificateRequest:
                  locality=None,
                  origin=None,
                  custom_fields=None,
+                 timeout=0
                  ):
         """
         :param str cert_id: Certificate request id. Generating by server.
@@ -278,6 +274,7 @@ class CertificateRequest:
         :param str thumbprint: Certificate thumbprint. Can be used for identifying certificate on the platform.
         :param str origin: application identifier
         :param list[CustomField] custom_fields: list of custom fields values to be added to the certificate.
+        :param int timeout: Timeout for the certificate to be retrieved from server. Measured in seconds.
         """
 
         self.chain_option = "last"
@@ -306,6 +303,7 @@ class CertificateRequest:
         self.origin = origin or "Venafi VCert-Python"
         self.custom_fields = custom_fields
         self.cert_guid = None
+        self.timeout = timeout
 
     def __setattr__(self, key, value):
         if key == "key_password":

@@ -49,3 +49,7 @@ class AuthenticationError(VenafiError):
 
 class VenafiParsingError(VenafiError):
     pass
+
+
+class RetrieveCertificateTimeoutError(VenafiError):
+    pass
