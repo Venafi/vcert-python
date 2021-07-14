@@ -58,21 +58,6 @@ class TestCloudMethods(unittest.TestCase):
         self.cloud_conn = CloudConnection(token=CLOUD_APIKEY, url=CLOUD_URL)
         super(TestCloudMethods, self).__init__(*args, **kwargs)
 
-    def test_cloud_enroll_100_times(self):
-        # Dev test. Its purpose is to check for certificate retrieval integrity from VaaS
-        self.skipTest("No required for Jenkins job")
-        fail_count = 0
-        for i in range(100):
-            print("Running test %d" % i)
-            try:
-                self.test_cloud_enroll()
-            except RetrieveCertificateTimeoutError as e:
-                msg = "Enroll failed at iteration %d\nError: %s" % (i, e.message)
-                print(msg)
-                fail_count += 1
-
-        print("Number of enrolling failed tests: %d" % fail_count)
-
     def test_cloud_enroll(self):
         cn = random_word(10) + ".venafi.example.com"
         enroll(self.cloud_conn, self.cloud_zone, cn)
@@ -91,12 +76,11 @@ class TestCloudMethods(unittest.TestCase):
     def test_cloud_renew_twice(self):
         cn = random_word(10) + ".venafi.example.com"
         cert_id, pkey, cert, _, _ = enroll(self.cloud_conn, self.cloud_zone, cn)
-        time.sleep(5)
+
         new_cert = renew(self.cloud_conn, cert_id, pkey, cert.serial_number, cn)
         fingerprint = binascii.hexlify(new_cert.fingerprint(hashes.SHA1())).decode()
         found_cert = self.cloud_conn.search_by_thumbprint(fingerprint)
 
-        time.sleep(5)
         renew(self.cloud_conn, found_cert.csrId, pkey, new_cert.serial_number, cn)
 
     def test_cloud_renew_by_thumbprint(self):
@@ -301,7 +285,7 @@ class TestTPPTokenMethods(unittest.TestCase):
             cert_config = self.tpp_conn._get_certificate_details(cert_guid)
             self.assertEqual(cert_config["Origin"], "Venafi VCert-Python")
         except Exception as err:
-            self.fail("Error in test: %s" % err.__str__)
+            self.fail("Error in test: %s" % err.message)
 
     def test_tpp_token_enroll_with_custom_fields(self):
         cn = random_word(10) + ".venafi.example.com"
@@ -482,15 +466,9 @@ class TestTPPTokenAccess(unittest.TestCase):
 
 
 def simple_enroll(conn, zone):
-    req = CertificateRequest(common_name=random_word(12) + ".venafi.example.com")
+    req = CertificateRequest(common_name=random_word(12) + ".venafi.example.com", timeout=300)
     conn.request_cert(req, zone)
-    t = time.time()
-    while time.time() - t < 300:
-        cert = conn.retrieve_cert(req)
-        if cert:
-            break
-        else:
-            time.sleep(5)
+    cert = conn.retrieve_cert(req)
     return req, cert
 
 
@@ -498,15 +476,9 @@ def renew_without_key_reuse(unittest_object, conn, zone):
     cn = random_word(10) + ".venafi.example.com"
     cert_id, pkey, _, public_key, _ = enroll(conn, zone, cn)
     time.sleep(5)
-    req = CertificateRequest(cert_id=cert_id)
+    req = CertificateRequest(cert_id=cert_id, timeout=300)
     conn.renew_cert(req, reuse_key=False)
-    t = time.time()
-    while time.time() - t < 300:
-        cert = conn.retrieve_cert(req)
-        if cert:
-            break
-        else:
-            time.sleep(5)
+    cert = conn.retrieve_cert(req)
     cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
     public_key_new = cert.public_key().public_bytes(
         encoding=serialization.Encoding.PEM,
@@ -516,16 +488,11 @@ def renew_without_key_reuse(unittest_object, conn, zone):
 
 
 def enroll_with_zone_update(conn, zone, cn=None):
-    request = CertificateRequest(common_name=cn, origin="Python-SDK ECDSA")
+    request = CertificateRequest(common_name=cn, origin="Python-SDK ECDSA", timeout=300)
     zc = conn.read_zone_conf(zone)
     request.update_from_zone_config(zc)
     conn.request_cert(request, zone)
-    while True:
-        cert = conn.retrieve_cert(request)
-        if cert:
-            break
-        else:
-            time.sleep(5)
+    cert = conn.retrieve_cert(request)
     return cert, request.cert_guid
 
 
@@ -534,7 +501,7 @@ def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None
         common_name=cn,
         private_key=private_key,
         key_password=password,
-        timeout=30
+        timeout=300
     )
 
     if custom_fields:
@@ -596,17 +563,11 @@ def renew(conn, cert_id, pkey, sn, cn):
     print("Trying to renew certificate")
     new_request = CertificateRequest(
         cert_id=cert_id,
+        timeout=300
     )
     # TODO change back to True when support for renew with csr use is deployed.
     conn.renew_cert(new_request, reuse_key=False)
-    time.sleep(5)
-    t = time.time()
-    while time.time() - t < 300:
-        new_cert = conn.retrieve_cert(new_request)
-        if new_cert:
-            break
-        else:
-            time.sleep(5)
+    new_cert = conn.retrieve_cert(new_request)
 
     f = open("./renewed_cert.pem", "w")
     f.write(new_cert.full_chain)
@@ -637,16 +598,10 @@ def renew(conn, cert_id, pkey, sn, cn):
 def renew_by_thumbprint(conn, prev_cert):
     print("Trying to renew by thumbprint")
     thumbprint = binascii.hexlify(prev_cert.fingerprint(hashes.SHA1())).decode()
-    new_request = CertificateRequest(thumbprint=thumbprint)
+    new_request = CertificateRequest(thumbprint=thumbprint, timeout=300)
     # TODO change back to True when support for renew with csr use is deployed.
     conn.renew_cert(new_request, reuse_key=False)
-    t = time.time()
-    while time.time() - t < 300:
-        new_cert = conn.retrieve_cert(new_request)
-        if new_cert:
-            break
-        else:
-            time.sleep(5)
+    new_cert = conn.retrieve_cert(new_request)
     cert = x509.load_pem_x509_certificate(new_cert.cert.encode(), default_backend())
     assert isinstance(cert, x509.Certificate)
     print(cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME))

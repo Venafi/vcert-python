@@ -352,19 +352,18 @@ class CloudConnection(CommonConnection):
                 try:
                     status, data = self._get(url)
                 except VenafiError as e:
-                    log.debug("Certificate with id %s not found.\nError: %s" % (request.id, e.message))
+                    log.debug("Certificate with id %s not found." % request.id)
                     status = 0
                 if status == HTTPStatus.OK:
                     log.debug("Certificate found, parsing response...")
                     return parse_pem(data, request.chain_option)
+                elif (time.time() - time_start) < request.timeout:
+                    log.debug("Waiting for certificate...")
+                    time.sleep(2)
                 else:
-                    if (time.time() - time_start) < request.timeout:
-                        log.debug("Waiting for certificate...")
-                        time.sleep(2)
-                    else:
-                        raise RetrieveCertificateTimeoutError(
-                            'Operation timed out at %d seconds while retrieving certificate with id %s'
-                            % (request.timeout, request.id))
+                    raise RetrieveCertificateTimeoutError(
+                        'Operation timed out at %d seconds while retrieving certificate with id %s'
+                        % (request.timeout, request.id))
         else:
             raise ServerUnexptedBehavior
 
