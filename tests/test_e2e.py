@@ -37,7 +37,7 @@ from test_env import random_word, CLOUD_APIKEY, CLOUD_URL, TPP_PASSWORD, TPP_USE
     TPP_ZONE, TPP_ZONE_ECDSA
 from vcert import CloudConnection, CertificateRequest, TPPConnection, FakeConnection, ZoneConfig, RevocationRequest, \
     TPPTokenConnection, CertField, KeyType, CustomField
-from vcert.errors import ClientBadData, ServerUnexptedBehavior
+from vcert.errors import ClientBadData, ServerUnexptedBehavior, RetrieveCertificateTimeoutError
 from vcert.pem import parse_pem
 
 logging.basicConfig(level=logging.DEBUG)
@@ -57,6 +57,21 @@ class TestCloudMethods(unittest.TestCase):
         self.cloud_zone = CLOUD_ZONE
         self.cloud_conn = CloudConnection(token=CLOUD_APIKEY, url=CLOUD_URL)
         super(TestCloudMethods, self).__init__(*args, **kwargs)
+
+    def test_cloud_enroll_100_times(self):
+        # Dev test. Its purpose is to check for certificate retrieval integrity from VaaS
+        self.skipTest("No required for Jenkins job")
+        fail_count = 0
+        for i in range(100):
+            print("Running test %d" % i)
+            try:
+                self.test_cloud_enroll()
+            except RetrieveCertificateTimeoutError as e:
+                msg = "Enroll failed at iteration %d\nError: %s" % (i, e.message)
+                print(msg)
+                fail_count += 1
+
+        print("Number of enrolling failed tests: %d" % fail_count)
 
     def test_cloud_enroll(self):
         cn = random_word(10) + ".venafi.example.com"
@@ -519,6 +534,7 @@ def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None
         common_name=cn,
         private_key=private_key,
         key_password=password,
+        timeout=30
     )
 
     if custom_fields:
@@ -535,13 +551,7 @@ def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None
         request.csr = csr
 
     conn.request_cert(request, zone)
-    t = time.time()
-    while time.time() - t < 300:
-        cert = conn.retrieve_cert(request)
-        if cert:
-            break
-        else:
-            time.sleep(5)
+    cert = conn.retrieve_cert(request)
     # print("Certificate is:\n %s" % cert_pem)
     # print("Private key is:\n %s:" % request.private_key_pem)
     # and save into file

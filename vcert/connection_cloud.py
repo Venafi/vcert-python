@@ -19,6 +19,7 @@ from __future__ import (absolute_import, division, generators, unicode_literals,
 
 import logging as log
 import re
+import time
 from pprint import pprint
 
 import requests
@@ -27,7 +28,7 @@ import six.moves.urllib.parse as urlparse
 from .common import (ZoneConfig, CertificateRequest, CommonConnection, Policy, get_ip_address, log_errors, MIME_JSON,
                      MIME_TEXT, MIME_ANY, CertField, KeyType, AppDetails, RecommendedSettings)
 from .errors import (VenafiConnectionError, ServerUnexptedBehavior, ClientBadData, CertificateRequestError,
-                     CertificateRenewError, VenafiError)
+                     CertificateRenewError, VenafiError, RetrieveCertificateTimeoutError)
 from .http import HTTPStatus
 from .pem import parse_pem
 from .policy.pm_cloud import build_policy_spec, validate_policy_spec, \
@@ -345,11 +346,25 @@ class CloudConnection(CommonConnection):
                 log.error("chain option %s is not valid" % request.chain_option)
                 raise ClientBadData
 
-            status, data = self._get(url)
-            if status == HTTPStatus.OK:
-                return parse_pem(data, request.chain_option)
-            else:
-                raise ServerUnexptedBehavior
+            # Time in seconds
+            time_start = time.time()
+            while True:
+                try:
+                    status, data = self._get(url)
+                except VenafiError as e:
+                    log.debug("Certificate with id %s not found.\nError: %s" % (request.id, e.message))
+                    status = 0
+                if status == HTTPStatus.OK:
+                    log.debug("Certificate found, parsing response...")
+                    return parse_pem(data, request.chain_option)
+                else:
+                    if (time.time() - time_start) < request.timeout:
+                        log.debug("Waiting for certificate...")
+                        time.sleep(2)
+                    else:
+                        raise RetrieveCertificateTimeoutError(
+                            'Operation timed out at %d seconds while retrieving certificate with id %s'
+                            % (request.timeout, request.id))
         else:
             raise ServerUnexptedBehavior
 
