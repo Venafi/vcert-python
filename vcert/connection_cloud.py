@@ -444,26 +444,40 @@ class CloudConnection(CommonConnection):
             log.error("server unexpected status %s" % status)
             raise CertificateRenewError
 
-    def search_by_thumbprint(self, thumbprint):
+    def search_by_thumbprint(self, thumbprint, timeout=0):
         """
         :param str thumbprint:
+        :param int timeout:
         :rtype CertificateStatusResponse
         """
+        log.info("Searching certificate by thumbprint...")
         thumbprint = re.sub(r'[^\dabcdefABCDEF]', "", thumbprint)
         thumbprint = thumbprint.upper()
-        status, data = self._post(URLS.CERTIFICATE_SEARCH, data={
-            "expression": {
-                "operands": [{"field": "fingerprint",
-                              "operator": "MATCH",
-                              "value": thumbprint
-                              }]
-            }
-        })
-        if status != HTTPStatus.OK:
-            raise ServerUnexptedBehavior
-        if not data.get('count'):
-            return None
-        return CertificateStatusResponse(data['certificates'][0])
+
+        time_start = time.time()
+        while True:
+            status, data = self._post(URLS.CERTIFICATE_SEARCH, data={
+                "expression": {
+                    "operands": [{
+                        "field": "fingerprint",
+                        "operator": "MATCH",
+                        "value": thumbprint
+                        }]
+                }
+            })
+            if status != HTTPStatus.OK:
+                raise ServerUnexptedBehavior
+            elif not data.get('count'):
+                if (time.time() - time_start) < timeout:
+                    log.debug("Waiting for certificate...")
+                    time.sleep(2)
+                else:
+                    raise RetrieveCertificateTimeoutError(
+                        'Operation timed out at %d seconds while retrieving certificate with thumbprint %s'
+                        % (timeout, thumbprint))
+            else:
+                log.debug("Certificate found, returning...")
+                return CertificateStatusResponse(data['certificates'][0])
 
     def read_zone_conf(self, zone):
         policy = self._get_template_by_id(zone)

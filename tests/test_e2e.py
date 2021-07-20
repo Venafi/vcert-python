@@ -79,7 +79,7 @@ class TestCloudMethods(unittest.TestCase):
 
         new_cert = renew(self.cloud_conn, cert_id, pkey, cert.serial_number, cn)
         fingerprint = binascii.hexlify(new_cert.fingerprint(hashes.SHA1())).decode()
-        found_cert = self.cloud_conn.search_by_thumbprint(fingerprint)
+        found_cert = self.cloud_conn.search_by_thumbprint(thumbprint=fingerprint, timeout=300)
 
         renew(self.cloud_conn, found_cert.csrId, pkey, new_cert.serial_number, cn)
 
