@@ -37,7 +37,7 @@ from test_env import random_word, CLOUD_APIKEY, CLOUD_URL, TPP_PASSWORD, TPP_USE
     TPP_ZONE, TPP_ZONE_ECDSA
 from vcert import CloudConnection, CertificateRequest, TPPConnection, FakeConnection, ZoneConfig, RevocationRequest, \
     TPPTokenConnection, CertField, KeyType, CustomField
-from vcert.errors import ClientBadData, ServerUnexptedBehavior, RetrieveCertificateTimeoutError
+from vcert.errors import ClientBadData, ServerUnexptedBehavior
 from vcert.pem import parse_pem
 
 logging.basicConfig(level=logging.DEBUG)
@@ -79,7 +79,7 @@ class TestCloudMethods(unittest.TestCase):
 
         new_cert = renew(self.cloud_conn, cert_id, pkey, cert.serial_number, cn)
         fingerprint = binascii.hexlify(new_cert.fingerprint(hashes.SHA1())).decode()
-        found_cert = self.cloud_conn.search_by_thumbprint(thumbprint=fingerprint, timeout=300)
+        found_cert = self.cloud_conn.search_by_thumbprint(thumbprint=fingerprint)
 
         renew(self.cloud_conn, found_cert.csrId, pkey, new_cert.serial_number, cn)
 
@@ -466,7 +466,7 @@ class TestTPPTokenAccess(unittest.TestCase):
 
 
 def simple_enroll(conn, zone):
-    req = CertificateRequest(common_name=random_word(12) + ".venafi.example.com", timeout=300)
+    req = CertificateRequest(common_name=random_word(12) + ".venafi.example.com")
     conn.request_cert(req, zone)
     cert = conn.retrieve_cert(req)
     return req, cert
@@ -476,7 +476,7 @@ def renew_without_key_reuse(unittest_object, conn, zone):
     cn = random_word(10) + ".venafi.example.com"
     cert_id, pkey, _, public_key, _ = enroll(conn, zone, cn)
     time.sleep(5)
-    req = CertificateRequest(cert_id=cert_id, timeout=300)
+    req = CertificateRequest(cert_id=cert_id)
     conn.renew_cert(req, reuse_key=False)
     cert = conn.retrieve_cert(req)
     cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
@@ -488,7 +488,7 @@ def renew_without_key_reuse(unittest_object, conn, zone):
 
 
 def enroll_with_zone_update(conn, zone, cn=None):
-    request = CertificateRequest(common_name=cn, origin="Python-SDK ECDSA", timeout=300)
+    request = CertificateRequest(common_name=cn, origin="Python-SDK ECDSA")
     zc = conn.read_zone_conf(zone)
     request.update_from_zone_config(zc)
     conn.request_cert(request, zone)
@@ -500,8 +500,7 @@ def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None
     request = CertificateRequest(
         common_name=cn,
         private_key=private_key,
-        key_password=password,
-        timeout=300
+        key_password=password
     )
 
     if custom_fields:
@@ -562,8 +561,7 @@ def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None
 def renew(conn, cert_id, pkey, sn, cn):
     print("Trying to renew certificate")
     new_request = CertificateRequest(
-        cert_id=cert_id,
-        timeout=300
+        cert_id=cert_id
     )
     # TODO change back to True when support for renew with csr use is deployed.
     conn.renew_cert(new_request, reuse_key=False)
@@ -598,7 +596,7 @@ def renew(conn, cert_id, pkey, sn, cn):
 def renew_by_thumbprint(conn, prev_cert):
     print("Trying to renew by thumbprint")
     thumbprint = binascii.hexlify(prev_cert.fingerprint(hashes.SHA1())).decode()
-    new_request = CertificateRequest(thumbprint=thumbprint, timeout=300)
+    new_request = CertificateRequest(thumbprint=thumbprint)
     # TODO change back to True when support for renew with csr use is deployed.
     conn.renew_cert(new_request, reuse_key=False)
     new_cert = conn.retrieve_cert(new_request)

@@ -44,6 +44,7 @@ MIME_TEXT = "text/plain"
 MIME_CSV = "text/csv"
 MIME_ANY = "*/*"
 LOCALHOST = "127.0.0.1"
+DEFAULT_TIMEOUT = 180
 
 
 class CertField:
@@ -255,7 +256,7 @@ class CertificateRequest:
                  locality=None,
                  origin=None,
                  custom_fields=None,
-                 timeout=0
+                 timeout=DEFAULT_TIMEOUT
                  ):
         """
         :param str cert_id: Certificate request id. Generating by server.
