@@ -26,7 +26,7 @@ import requests
 import six.moves.urllib.parse as urlparse
 
 from .common import (ZoneConfig, CertificateRequest, CommonConnection, Policy, get_ip_address, log_errors, MIME_JSON,
-                     MIME_TEXT, MIME_ANY, CertField, KeyType, AppDetails, RecommendedSettings)
+                     MIME_TEXT, MIME_ANY, CertField, KeyType, AppDetails, RecommendedSettings, DEFAULT_TIMEOUT)
 from .errors import (VenafiConnectionError, ServerUnexptedBehavior, ClientBadData, CertificateRequestError,
                      CertificateRenewError, VenafiError, RetrieveCertificateTimeoutError)
 from .http import HTTPStatus
@@ -444,7 +444,7 @@ class CloudConnection(CommonConnection):
             log.error("server unexpected status %s" % status)
             raise CertificateRenewError
 
-    def search_by_thumbprint(self, thumbprint, timeout=0):
+    def search_by_thumbprint(self, thumbprint, timeout=DEFAULT_TIMEOUT):
         """
         :param str thumbprint:
         :param int timeout:
