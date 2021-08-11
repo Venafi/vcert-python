@@ -36,6 +36,7 @@ from six import string_types, binary_type
 from .errors import VenafiConnectionError, ServerUnexptedBehavior, BadData, ClientBadData
 from .http import HTTPStatus
 from .policy import PolicySpecification
+from .ssh_utils import SSHCertRequest, SSHRetrieveResponse
 
 
 MIME_JSON = "application/json"
@@ -665,7 +666,25 @@ class CommonConnection:
         """
         :param str zone:
         :param PolicySpecification policy_spec:
-        :rtype: None
+        :rtype: str
+        """
+        raise NotImplementedError
+
+    def request_ssh_cert(self, request):
+        """
+        Sample text
+
+        :param SSHCertRequest request:
+        :rtype: bool
+        """
+        raise NotImplementedError
+
+    def retrieve_ssh_cert(self, request):
+        """
+        Sample text
+
+        :param SSHCertRequest request:
+        :rtype: SSHRetrieveResponse
         """
         raise NotImplementedError
 

@@ -187,3 +187,21 @@ class FakeConnection(CommonConnection):
     def renew_cert(self, request, reuse_key=False):
         log.debug("Renew is not supported in test mode.")
         raise NotImplementedError
+
+    def read_zone_conf(self, tag):
+        raise NotImplementedError
+
+    def import_cert(self, request):
+        raise NotImplementedError
+
+    def get_policy(self, zone):
+        raise NotImplementedError
+
+    def set_policy(self, zone, policy_spec):
+        raise NotImplementedError
+
+    def request_ssh_cert(self, request):
+        raise NotImplementedError
+
+    def retrieve_ssh_cert(self, request):
+        raise NotImplementedError

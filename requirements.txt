@@ -1,6 +1,6 @@
 requests
 python-dateutil>=2.6.1
-cryptography
+cryptography>=3.0
 six
 ipaddress;python_version<'3.3'
 enum34;python_version<'3.4'

@@ -15,14 +15,17 @@
 #
 import logging as log
 import re
+import time
 from pprint import pprint
 
 from vcert.common import CertField, CommonConnection
-from vcert.errors import VenafiError, ServerUnexptedBehavior, ClientBadData
+from vcert.errors import VenafiError, ServerUnexptedBehavior, ClientBadData, RetrieveCertificateTimeoutError
 from vcert.http import HTTPStatus
 from vcert.policy import RPA, SPA
 from vcert.policy.pm_tpp import TPPPolicy, is_service_generated_csr, SetAttrResponse, validate_policy_spec, \
     get_int_value
+from vcert.ssh_utils import SSHCertRequest, SSHCertResponse, build_tpp_retrieve_request, SSHResponse, \
+    SSHRetrieveResponse, build_tpp_request
 
 POLICY_ATTR_CLASS = "X509 Certificate"  # type: str
 ROOT_PATH = "\\VED\\Policy\\"  # type: str
@@ -52,6 +55,10 @@ class URLS:
     POLICY_CREATE = API_BASE_URL + "config/create"
     POLICY_SET_ATTRIBUTE = API_BASE_URL + "config/writepolicy"
     POLICY_CLEAR_ATTRIBUTE = API_BASE_URL + "config/clearpolicyattribute"
+
+    SSH_BASE_URL = API_BASE_URL + "SSHCertificates/"
+    SSH_CERTIFICATE_REQUEST = SSH_BASE_URL + "request"
+    SSH_CERTIFICATE_RETRIEVE = SSH_BASE_URL + "retrieve"
 
     def __init__(self):
         pass
@@ -268,6 +275,58 @@ class AbstractTPPConnection(CommonConnection):
 
         return
 
+    def request_ssh_cert(self, request):
+        """
+
+        :param SSHCertRequest request:
+        :rtype: bool
+        """
+        json_request = build_tpp_request(request)
+        log.info("Requesting SSH Certificate with id %s" % request.key_id)
+        status, data = self._post(URLS.SSH_CERTIFICATE_REQUEST, json_request)
+
+        if status != HTTPStatus.OK:
+            raise ServerUnexptedBehavior("Server returns %d status on requesting SSH certificate." % status)
+
+        response = SSHCertResponse(data)
+        if not response.response.success:
+            raise VenafiError("An error occurred with status %s. Message: %s"
+                              % (response.response.error_code, response.response.error_msg))
+        request.pickup_id = response.dn
+        request.guid = response.guid
+
+        return True
+
+    def retrieve_ssh_cert(self, request):
+        """
+
+        :param SSHCertRequest request:
+        :rtype: SSHRetrieveResponse
+        """
+        json_request = build_tpp_retrieve_request(request)
+        log.info("Retrieving SSH Certificate with id %s" % request.pickup_id)
+
+        time_start = time.time()
+        while True:
+            try:
+                status, data = self._post(URLS.SSH_CERTIFICATE_RETRIEVE, json_request)
+            except VenafiError:
+                log.debug("SSH Certificate with id %s not found" % request.pickup_id)
+                status = 0
+
+            if status == HTTPStatus.OK:
+                response_object = SSHResponse(data["Response"])
+                if response_object.success:
+                    return SSHRetrieveResponse(data)
+
+            if (time.time() - time_start) < request.timeout:
+                log.debug("Waiting for certificate...")
+                time.sleep(2)
+            else:
+                raise RetrieveCertificateTimeoutError(
+                    'Operation timed out at %d seconds while retrieving SSH certificate with id %s'
+                    % (request.timeout, request.pickup_id))
+
     def _policy_exists(self, zone):
         """
         :param str zone:
@@ -368,7 +427,6 @@ class AbstractTPPConnection(CommonConnection):
         result = response['Result'] if 'Result' in response else None
 
         return SetAttrResponse(result, err)
-
 
     @staticmethod
     def _normalize_zone(zone):
