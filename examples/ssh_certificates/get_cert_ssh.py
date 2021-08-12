@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright 2019 Venafi, Inc.
+# Copyright 2021 Venafi, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,12 +17,12 @@
 
 from __future__ import print_function
 
-from ssh_utils import SSHCertRequest, generate_ssh_keypair
-from vcert import venafi_connection
-import string
-import random
 import logging
+import random
+import string
 from os import environ
+
+from vcert import venafi_connection, Authentication, SCOPE_SSH, generate_ssh_keypair, SSHCertRequest
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("urllib3").setLevel(logging.ERROR)
@@ -30,14 +30,26 @@ logging.getLogger("urllib3").setLevel(logging.ERROR)
 
 def main():
     # Get credentials from environment variables
-    access_token = environ.get("TPP_ACCESS_TOKEN")
     url = environ.get('TPP_URL')
+    user = environ.get("TPP_USER")
+    password = environ.get("TPP_PASSWORD")
 
-    conn = venafi_connection(url=url, access_token=access_token, http_request_kwargs={"verify": False})
-    # If your TPP server certificate signed with your own CA, or available only via proxy,
+    connector = venafi_connection(url=url, user=user, password=password, http_request_kwargs={"verify": False})
+    # If your TPP server certificate is signed with your own CA, or available only via proxy,
     # you can specify a trust bundle using requests vars:
-    # conn = venafi_connection(url=url, api_key=api_key, access_token=access_token,
+    # connector = venafi_connection(url=url, api_key=api_key, access_token=access_token,
     #                          http_request_kwargs={"verify": "/path-to/bundle.pem"})
+
+    # Create an Authentication object to request a token with the proper scope to manage SSH certificates
+    auth = Authentication(user=user, password=password, scope=SCOPE_SSH)
+    # Additionally, you may change the default client id for a custom one
+    # Make sure this id has been registered on the TPP instance beforehand
+    # Also, the user (TTP_USER) should be allowed to use this application
+    # And the application should have the ssh permissions enabled
+    auth.client_id = 'vcert-ssh-demo'
+    # Request access token
+    # After the request is successful, subsequent api calls will use the same token
+    connector.get_access_token(auth)
 
     # Generate an SSH key pair for use. The passphrase can be omitted if encryption is not required
     # IMPORTANT: Save the private key on a secure location and do not share it with anyone.
@@ -45,6 +57,7 @@ def main():
     #            without the corresponding private key
     pub_key, priv_key = generate_ssh_keypair(key_size=4096, passphrase="foobar")
     # The path to the SSH CA in the TPP instance
+    # This is a placeholder. Make sure an SSH CA already exists on your TPP instance
     cadn = "\\VED\\Certificate Authority\\SSH\\Templates\\open-source-test-cit"
     # The id of the SSH certificate
     key_id = "vcert-python-%s" % random_word(12)
@@ -61,10 +74,10 @@ def main():
     request.public_key_data = pub_key
 
     # Request the certificate from TPP instance
-    success = conn.request_ssh_cert(request)
+    success = connector.request_ssh_cert(request)
     if success:
         # Retrieve the certificate from TPP instance
-        response = conn.retrieve_ssh_cert(request)
+        response = connector.retrieve_ssh_cert(request)
         pass
 
 

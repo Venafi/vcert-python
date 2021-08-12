@@ -18,6 +18,7 @@ import random
 import string
 from os import environ
 
+from future.backports.datetime import datetime
 from six import text_type
 
 FAKE = environ.get('FAKE')
@@ -38,6 +39,8 @@ TPP_CA_NAME = environ.get('TPP_CA_NAME')
 CLOUD_ENTRUST_CA_NAME = environ.get('CLOUD_ENTRUST_CA_NAME')
 CLOUD_DIGICERT_CA_NAME = environ.get('CLOUD_DIGICERT_CA_NAME')
 
+SSH_CADN = "\\VED\\Certificate Authority\\SSH\\Templates\\vCert-team"
+
 if not isinstance(RANDOM_DOMAIN, text_type):
     RANDOM_DOMAIN = RANDOM_DOMAIN.decode()
 
@@ -45,3 +48,7 @@ if not isinstance(RANDOM_DOMAIN, text_type):
 def random_word(length):
     letters = string.ascii_lowercase
     return ''.join(random.choice(letters) for _ in range(length))
+
+
+def timestamp():
+    return datetime.today().strftime('%Y.%m.%d-%Hh%Mm%Ss')

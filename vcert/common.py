@@ -560,8 +560,10 @@ CLIENT_ID = "vcert-sdk"  # type: str
 SCOPE_CM = "certificate:manage,revoke"  # type: str
 # Policy Management scope
 SCOPE_PM = "certificate:manage;configuration:manage"  # type: str
+# SSH Certificate Management scope
+SCOPE_SSH = "ssh:manage"  # type: str
 # Full Management scope
-SCOPE_FULL = "certificate:manage,revoke;configuration:manage"  # type: str
+SCOPE_FULL = "certificate:manage,revoke;configuration:manage;ssh:manage"  # type: str
 
 
 class Authentication:

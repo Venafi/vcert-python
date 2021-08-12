@@ -114,15 +114,16 @@ class SSHRetrieveResponse:
 
         :param dict response:
         """
-        self.status = response["Status"] if "Status" in response else None
-        self.guid = response["Guid"] if "Guid" in response else None
-        self.dn = response["DN"] if "DN" in response else None
-        self.cert_data = response["CertificateData"] if "CertificateData" in response else None
-        self.private_key_data = response["PrivateKeyData"] if "PrivateKeyData" in response else None
-        self.public_key_data = response["PublicKeyData"] if "PublicKeyData" in response else None
-        self.ca_guid = response["CAGuid"] if "CAGuid" in response else None
-        self.ca_dn = response["CADN"] if "CADN" in response else None
+        self.status = response["Status"] if "Status" in response else None  # type: str
+        self.guid = response["Guid"] if "Guid" in response else None  # type: str
+        self.dn = response["DN"] if "DN" in response else None  # type: str
+        self.cert_data = response["CertificateData"] if "CertificateData" in response else None  # type: str
+        self.private_key_data = response["PrivateKeyData"] if "PrivateKeyData" in response else None  # type: str
+        self.public_key_data = response["PublicKeyData"] if "PublicKeyData" in response else None  # type: str
+        self.ca_guid = response["CAGuid"] if "CAGuid" in response else None  # type: str
+        self.ca_dn = response["CADN"] if "CADN" in response else None  # type: str
         self.cert_details = SSHCertDetails(response["CertificateDetails"]) if "CertificateDetails" in response else None
+        # type: SSHCertDetails
 
 
 class SSHCertDetails:
