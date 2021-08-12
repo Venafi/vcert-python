@@ -91,6 +91,7 @@ class TPPTokenConnection(AbstractTPPConnection):
             headers = {HEADER_AUTHORIZATION: token, 'content-type': MIME_JSON, "cache-control": "no-cache"}
 
         if isinstance(data, dict):
+            log.debug("POST Request\n\tURL: %s\n\tHeaders:%s\n\tBody:%s\n" % (self._base_url+url, headers, data))
             r = requests.post(self._base_url + url, headers=headers, json=data,  **self._http_request_kwargs)
         else:
             log.error("Unexpected client data type: %s for %s" % (type(data), url))

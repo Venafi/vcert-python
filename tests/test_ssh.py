@@ -18,8 +18,9 @@ import logging
 import unittest
 
 from test_env import timestamp, TPP_TOKEN_URL, TPP_USER, TPP_PASSWORD, SSH_CADN
-from vcert import CommonConnection, SSHCertRequest, SSHRetrieveResponse, TPPTokenConnection, Authentication, \
+from vcert import CommonConnection, SSHCertRequest, TPPTokenConnection, Authentication, \
     SCOPE_SSH, generate_ssh_keypair
+from vcert.ssh_utils import SSHRetrieveResponse
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger('vcert-test')
@@ -37,19 +38,19 @@ class TestTPPSSHCertificate(unittest.TestCase):
         super(TestTPPSSHCertificate, self).__init__(*args, **kwargs)
 
     def test_enroll_local_generated_keypair(self):
-        pub_key, priv_key = generate_ssh_keypair(key_size=4096, passphrase="foobar")
+        keypair = generate_ssh_keypair(key_size=4096, passphrase="foobar")
 
         request = SSHCertRequest(cadn=SSH_CADN, key_id=_random_key_id())
         request.validity_period = "4h"
         request.source_addresses = ["test.com"]
-        request.public_key_data = pub_key
+        request.set_public_key_data(keypair.public_key)
         response = _enroll_ssh_cert(self.tpp_conn, request)
         self.assertTrue(response.private_key_data is None,
                         SERVICE_GENERATED_NO_KEY_ERROR % ("Private", "not", request.key_id))
         self.assertTrue(response.public_key_data, SERVICE_GENERATED_NO_KEY_ERROR % ("Public", "", request.key_id))
-        self.assertTrue(response.public_key_data == request.public_key_data,
+        self.assertTrue(response.public_key_data == request.get_public_key_data(),
                         "Public key on response does not match request.\nExpected: %s\nGot: %s"
-                        % (request.public_key_data, response.public_key_data))
+                        % (request.get_public_key_data(), response.public_key_data))
         self.assertTrue(response.cert_data, SSH_CERT_DATA_ERROR % request.key_id)
 
     def test_enroll_service_generated_keypair(self):
@@ -69,7 +70,7 @@ def _enroll_ssh_cert(connector, request):
     :rtype: SSHRetrieveResponse
     """
     success = connector.request_ssh_cert(request)
-    assert success  # self.assertTrue(success, "SSH certificate request failed. Key id: %s CADN: %s" % (request.key_id, request.cadn))
+    assert success
     response = connector.retrieve_ssh_cert(request)
     assert isinstance(response, SSHRetrieveResponse)
     return response

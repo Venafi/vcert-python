@@ -60,7 +60,7 @@ class SSHCertRequest:
         self.object_name = object_name
         self.destination_addresses = destination_addresses
         self.principals = principals
-        self.public_key_data = public_key_data
+        self._public_key_data = public_key_data
         self.extensions = extensions
         self.force_command = force_command
         self.source_addresses = source_addresses
@@ -74,24 +74,25 @@ class SSHCertRequest:
         self.include_cert_details = include_cert_details
         self.timeout = timeout
 
-    @property
-    def public_key_data(self):
+    def get_public_key_data(self):
         """
         :rtype: str
         """
+        if not self._public_key_data:
+            return None
         temp = self._public_key_data.rstrip("\r\n")
         if self.key_id:
             return "%s %s" % (temp, self.key_id)
         else:
             return temp
 
-    @public_key_data.setter
-    def public_key_data(self, public_key):
+    def set_public_key_data(self, key):
         """
-        :param str public_key:
+
+        :param str key:
         :rtype: None
         """
-        self._public_key_data = public_key
+        self._public_key_data = key
 
 
 class SSHCertResponse:
@@ -160,6 +161,17 @@ class SSHResponse:
         self.error_msg = response["ErrorMessage"] if "ErrorMessage" in response else None
 
 
+class SSHKeyPair:
+    def __init__(self, private, public):
+        """
+
+        :param str private:
+        :param str public:
+        """
+        self.private_key = private
+        self.public_key = public
+
+
 def build_tpp_request(request):
     """
     :param SSHCertRequest request:
@@ -189,8 +201,8 @@ def build_tpp_request(request):
         data["Principals"] = request.principals
     if request.validity_period:
         data["ValidityPeriod"] = request.validity_period
-    if request.public_key_data:
-        data["PublicKeyData"] = request.public_key_data
+    if request.get_public_key_data():
+        data["PublicKeyData"] = request.get_public_key_data()
     if request.extensions:
         data["Extensions"] = request.extensions
     if request.force_command:
@@ -229,7 +241,7 @@ def generate_ssh_keypair(key_size=DEFAULT_SSH_KEY_SIZE, passphrase=None):
     Generates a key pair (private, public) for use with SSH
     :param int key_size:
     :param str passphrase:
-    :rtype: tuple
+    :rtype: SSHKeyPair
     """
     if passphrase:
         encryption = serialization.BestAvailableEncryption(passphrase)
@@ -250,4 +262,4 @@ def generate_ssh_keypair(key_size=DEFAULT_SSH_KEY_SIZE, passphrase=None):
         format=serialization.PublicFormat.OpenSSH
     )
 
-    return private_key, public_key
+    return SSHKeyPair(private_key, public_key)
