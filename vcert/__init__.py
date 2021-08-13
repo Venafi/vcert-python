@@ -21,7 +21,7 @@ from .connection_tpp import TPPConnection
 from .connection_tpp_token import TPPTokenConnection
 from .connection_fake import FakeConnection
 from .pem import Certificate
-from .ssh_utils import SSHCertRequest, generate_ssh_keypair
+from .ssh_utils import SSHCertRequest, SSHKeyPair, write_ssh_files
 
 
 def Connection(url=None, token=None, user=None, password=None, fake=False, http_request_kwargs=None):

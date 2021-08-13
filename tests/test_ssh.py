@@ -15,12 +15,15 @@
 # limitations under the License.
 #
 import logging
+import platform
+import re
 import unittest
 
-from test_env import timestamp, TPP_TOKEN_URL, TPP_USER, TPP_PASSWORD, SSH_CADN
+from assets import SSH_CERT_DATA, SSH_PRIVATE_KEY, SSH_PUBLIC_KEY
+from test_env import timestamp, TPP_TOKEN_URL, TPP_USER, TPP_PASSWORD, TPP_SSH_CADN
 from vcert import CommonConnection, SSHCertRequest, TPPTokenConnection, Authentication, \
-    SCOPE_SSH, generate_ssh_keypair
-from vcert.ssh_utils import SSHRetrieveResponse
+    SCOPE_SSH, write_ssh_files
+from vcert.ssh_utils import SSHRetrieveResponse, SSHKeyPair
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger('vcert-test')
@@ -32,18 +35,19 @@ SSH_CERT_DATA_ERROR = "Certificate data is empty for Certificate %s"  # type: st
 
 class TestTPPSSHCertificate(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        self.tpp_conn = TPPTokenConnection(url=TPP_TOKEN_URL, http_request_kwargs={"verify": "/tmp/chain.pem"})
+        self.tpp_conn = TPPTokenConnection(url=TPP_TOKEN_URL, http_request_kwargs={"verify": False})
         auth = Authentication(user=TPP_USER, password=TPP_PASSWORD, scope=SCOPE_SSH)
         self.tpp_conn.get_access_token(auth)
         super(TestTPPSSHCertificate, self).__init__(*args, **kwargs)
 
     def test_enroll_local_generated_keypair(self):
-        keypair = generate_ssh_keypair(key_size=4096, passphrase="foobar")
+        keypair = SSHKeyPair()
+        keypair.generate(key_size=4096, passphrase="foobar")
 
-        request = SSHCertRequest(cadn=SSH_CADN, key_id=_random_key_id())
+        request = SSHCertRequest(cadn=TPP_SSH_CADN, key_id=_random_key_id())
         request.validity_period = "4h"
         request.source_addresses = ["test.com"]
-        request.set_public_key_data(keypair.public_key)
+        request.set_public_key_data(keypair.public_key())
         response = _enroll_ssh_cert(self.tpp_conn, request)
         self.assertTrue(response.private_key_data is None,
                         SERVICE_GENERATED_NO_KEY_ERROR % ("Private", "not", request.key_id))
@@ -51,16 +55,43 @@ class TestTPPSSHCertificate(unittest.TestCase):
         self.assertTrue(response.public_key_data == request.get_public_key_data(),
                         "Public key on response does not match request.\nExpected: %s\nGot: %s"
                         % (request.get_public_key_data(), response.public_key_data))
-        self.assertTrue(response.cert_data, SSH_CERT_DATA_ERROR % request.key_id)
+        self.assertTrue(response.certificate_data, SSH_CERT_DATA_ERROR % request.key_id)
 
     def test_enroll_service_generated_keypair(self):
-        request = SSHCertRequest(cadn=SSH_CADN, key_id=_random_key_id())
+        request = SSHCertRequest(cadn=TPP_SSH_CADN, key_id=_random_key_id())
         request.validity_period = "4h"
         request.source_addresses = ["test.com"]
         response = _enroll_ssh_cert(self.tpp_conn, request)
         self.assertTrue(response.private_key_data, SERVICE_GENERATED_NO_KEY_ERROR % ("Private", "", request.key_id))
         self.assertTrue(response.public_key_data, SERVICE_GENERATED_NO_KEY_ERROR % ("Public", "", request.key_id))
-        self.assertTrue(response.cert_data, SSH_CERT_DATA_ERROR % request.key_id)
+        self.assertTrue(response.certificate_data, SSH_CERT_DATA_ERROR % request.key_id)
+
+
+class TestSSHUtils(unittest.TestCase):
+
+    def test_write_ssh_files(self):
+        key_id = _random_key_id()
+        normalized_name = re.sub(r"[^A-Za-z0-9]+", "_", key_id)
+        full_path = "./" + normalized_name
+        write_ssh_files("./", key_id, SSH_CERT_DATA, SSH_PRIVATE_KEY, SSH_PUBLIC_KEY)
+
+        err_msg = "%s serialization does not match expected value"
+
+        with open(full_path + "-cert.pub", "r") as cert_file:
+            s_cert = cert_file.read()
+            self.assertTrue(SSH_CERT_DATA == s_cert, err_msg % "SSH Certificate")
+
+        with open(full_path, "r") as priv_key_file:
+            s_priv_key = priv_key_file.read()
+            expected_priv_key = SSH_PRIVATE_KEY
+            if platform.system() is not "Windows":
+                expected_priv_key = expected_priv_key.replace("\r\n", "\n")
+
+            self.assertTrue(expected_priv_key == s_priv_key, err_msg % "SSH Private Key")
+
+        with open(full_path + ".pub", "r") as pub_key_file:
+            s_pub_key = pub_key_file.read()
+            self.assertTrue(SSH_PUBLIC_KEY == s_pub_key, err_msg % "SSH Public Key")
 
 
 def _enroll_ssh_cert(connector, request):

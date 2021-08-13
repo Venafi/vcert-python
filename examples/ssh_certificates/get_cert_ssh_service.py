@@ -22,7 +22,7 @@ import random
 import string
 from os import environ
 
-from vcert import venafi_connection, Authentication, SCOPE_SSH, SSHCertRequest
+from vcert import venafi_connection, Authentication, SCOPE_SSH, SSHCertRequest, write_ssh_files
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("urllib3").setLevel(logging.ERROR)
@@ -52,7 +52,7 @@ def main():
     connector.get_access_token(auth)
 
     # The path to the SSH CA in the TPP instance
-    cadn = "\\VED\\Certificate Authority\\SSH\\Templates\\open-source-test-cit"
+    cadn = "\\VED\\Certificate Authority\\SSH\\Templates\\my-ca"
     # The id of the SSH certificate
     key_id = "vcert-python-%s" % random_word(12)
 
@@ -74,7 +74,10 @@ def main():
         request.private_key_passphrase = "foobar"
         # Retrieve the certificate from TPP instance
         response = connector.retrieve_ssh_cert(request)
-        pass
+        # Save the certificate, private and public key to files
+        write_ssh_files("/path/to/ssh/cert/folder", response.certificate_details.key_id, response.certificate_data,
+                        response.private_key_data,
+                        response.public_key_data)
 
 
 def random_word(length):

@@ -39,7 +39,7 @@ TPP_CA_NAME = environ.get("TPP_CA_NAME")
 CLOUD_ENTRUST_CA_NAME = environ.get("CLOUD_ENTRUST_CA_NAME")
 CLOUD_DIGICERT_CA_NAME = environ.get("CLOUD_DIGICERT_CA_NAME")
 
-SSH_CADN = environ.get("SSH_CADN")
+TPP_SSH_CADN = environ.get("TPP_SSH_CADN")
 
 if RANDOM_DOMAIN and not isinstance(RANDOM_DOMAIN, text_type):
     RANDOM_DOMAIN = RANDOM_DOMAIN.decode()

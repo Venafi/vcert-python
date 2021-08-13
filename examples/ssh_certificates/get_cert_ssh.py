@@ -22,7 +22,7 @@ import random
 import string
 from os import environ
 
-from vcert import venafi_connection, Authentication, SCOPE_SSH, generate_ssh_keypair, SSHCertRequest
+from vcert import venafi_connection, Authentication, SCOPE_SSH, SSHKeyPair, SSHCertRequest, write_ssh_files
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("urllib3").setLevel(logging.ERROR)
@@ -55,10 +55,11 @@ def main():
     # IMPORTANT: Save the private key on a secure location and do not share it with anyone.
     #            There is no way to decrypt the certificates generated with the public key
     #            without the corresponding private key
-    pub_key, priv_key = generate_ssh_keypair(key_size=4096, passphrase="foobar")
+    ssh_kp = SSHKeyPair()
+    ssh_kp.generate(key_size=4096, passphrase="foobar")
     # The path to the SSH CA in the TPP instance
     # This is a placeholder. Make sure an SSH CA already exists on your TPP instance
-    cadn = "\\VED\\Certificate Authority\\SSH\\Templates\\open-source-test-cit"
+    cadn = "\\VED\\Certificate Authority\\SSH\\Templates\\my-ca"
     # The id of the SSH certificate
     key_id = "vcert-python-%s" % random_word(12)
 
@@ -71,14 +72,18 @@ def main():
         "permit-pty": ""
     }
     # Include the locally-generated public key. If not set, the server will generate one for the certificate
-    request.public_key_data = pub_key
+    request.public_key_data = ssh_kp.public_key()
 
     # Request the certificate from TPP instance
     success = connector.request_ssh_cert(request)
     if success:
         # Retrieve the certificate from TPP instance
         response = connector.retrieve_ssh_cert(request)
-        pass
+        # Save the certificate to a file
+        # The private and public key are optional values.
+        write_ssh_files("/path/to/ssh/cert/folder", response.certificate_details.key_id, response.certificate_data,
+                        ssh_kp.private_key(),
+                        ssh_kp.public_key())
 
 
 def random_word(length):

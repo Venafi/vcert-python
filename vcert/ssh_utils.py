@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import re
+
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -88,7 +90,6 @@ class SSHCertRequest:
 
     def set_public_key_data(self, key):
         """
-
         :param str key:
         :rtype: None
         """
@@ -101,12 +102,12 @@ class SSHCertResponse:
         :param dict response:
         """
 
-        self.dn = response["DN"] if "DN" in response else None
-        self.guid = response["Guid"] if "Guid" in response else None
-        self.status = response["Status"] if "Status" in response else None
+        self.dn = response["DN"] if "DN" in response else None  # type: str
+        self.guid = response["Guid"] if "Guid" in response else None  # type: str
+        self.status = response["Status"] if "Status" in response else None  # type: str
 
         resp = response["Response"] if "Response" in response else dict()
-        self.response = SSHResponse(resp)
+        self.response = SSHResponse(resp)  # type: SSHResponse
 
 
 class SSHRetrieveResponse:
@@ -118,12 +119,12 @@ class SSHRetrieveResponse:
         self.status = response["Status"] if "Status" in response else None  # type: str
         self.guid = response["Guid"] if "Guid" in response else None  # type: str
         self.dn = response["DN"] if "DN" in response else None  # type: str
-        self.cert_data = response["CertificateData"] if "CertificateData" in response else None  # type: str
+        self.certificate_data = response["CertificateData"] if "CertificateData" in response else None  # type: str
         self.private_key_data = response["PrivateKeyData"] if "PrivateKeyData" in response else None  # type: str
         self.public_key_data = response["PublicKeyData"] if "PublicKeyData" in response else None  # type: str
         self.ca_guid = response["CAGuid"] if "CAGuid" in response else None  # type: str
         self.ca_dn = response["CADN"] if "CADN" in response else None  # type: str
-        self.cert_details = SSHCertDetails(response["CertificateDetails"]) if "CertificateDetails" in response else None
+        self.certificate_details = SSHCertDetails(response["CertificateDetails"]) if "CertificateDetails" in response else None
         # type: SSHCertDetails
 
 
@@ -133,21 +134,21 @@ class SSHCertDetails:
 
         :param dict data:
         """
-        self.key_type = data["KeyType"] if "" in data else None
-        self.cert_type = data["CertificateType"] if "CertificateType" in data else None
+        self.key_type = data["KeyType"] if "" in data else None  # type: str
+        self.cert_type = data["CertificateType"] if "CertificateType" in data else None  # type: str
         self.cert_fingerprint_sha256 = data["CertificateFingerprintSHA256"] if "CertificateFingerprintSHA256" in data \
-            else None
-        self.ca_fingerprint_sha256 = data["CAFingerprintSHA256"] if "CAFingerprintSHA256" in data else None
-        self.key_id = data["KeyID"] if "KeyID" in data else None
-        self.serial_number = data["SerialNumber"] if "SerialNumber" in data else None
-        self.principals = data["Principals"] if "Principals" in data else None
-        self.valid_from = data["ValidFrom"] if "ValidFrom" in data else None
-        self.valid_to = data["ValidTo"] if "ValidTo" in data else None
-        self.force_command = data["ForceCommand"] if "ForceCommand" in data else None
-        self.source_addresses = data["SourceAddresses"] if "SourceAddresses" in data else None
+            else None  # type: str
+        self.ca_fingerprint_sha256 = data["CAFingerprintSHA256"] if "CAFingerprintSHA256" in data else None  # type: str
+        self.key_id = data["KeyID"] if "KeyID" in data else None  # type: str
+        self.serial_number = data["SerialNumber"] if "SerialNumber" in data else None  # type: str
+        self.principals = data["Principals"] if "Principals" in data else None  # type: list[str]
+        self.valid_from = data["ValidFrom"] if "ValidFrom" in data else None  # type: int
+        self.valid_to = data["ValidTo"] if "ValidTo" in data else None  # type: int
+        self.force_command = data["ForceCommand"] if "ForceCommand" in data else None  # type: str
+        self.source_addresses = data["SourceAddresses"] if "SourceAddresses" in data else None  # type: list[str]
         self.public_key_fingerprint_sha256 = data["PublicKeyFingerprintSHA256"] \
-            if "PublicKeyFingerprintSHA256" in data else None
-        self.extensions = data["Extensions"] if "Extensions" in data else None
+            if "PublicKeyFingerprintSHA256" in data else None  # type: str
+        self.extensions = data["Extensions"] if "Extensions" in data else None  # type: dict[str, Any]
 
 
 class SSHResponse:
@@ -156,20 +157,49 @@ class SSHResponse:
 
         :param dict response:
         """
-        self.success = response["Success"] if "Success" in response else None
-        self.error_code = response["ErrorCode"] if "ErrorCode" in response else None
-        self.error_msg = response["ErrorMessage"] if "ErrorMessage" in response else None
+        self.success = response["Success"] if "Success" in response else None  # type: bool
+        self.error_code = response["ErrorCode"] if "ErrorCode" in response else None  # type: int
+        self.error_msg = response["ErrorMessage"] if "ErrorMessage" in response else None  # type: str
 
 
 class SSHKeyPair:
-    def __init__(self, private, public):
-        """
+    def __init__(self):
+        self._private_key = None  # type: str
+        self._public_key = None  # type: str
 
-        :param str private:
-        :param str public:
+    def generate(self, key_size=DEFAULT_SSH_KEY_SIZE, passphrase=None):
         """
-        self.private_key = private
-        self.public_key = public
+        Generates a key pair (private, public) for use with SSH
+        :param int key_size:
+        :param str passphrase:
+        :return:
+        """
+        if passphrase:
+            encryption = serialization.BestAvailableEncryption(passphrase)
+        else:
+            encryption = serialization.NoEncryption()
+
+        key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=key_size,
+            backend=default_backend()
+        )
+        private_key = key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=encryption)
+        public_key = key.public_key().public_bytes(
+            encoding=serialization.Encoding.OpenSSH,
+            format=serialization.PublicFormat.OpenSSH
+        )
+        self._private_key = private_key
+        self._public_key = public_key
+
+    def private_key(self):
+        return self._private_key
+
+    def public_key(self):
+        return self._public_key
 
 
 def build_tpp_request(request):
@@ -236,30 +266,31 @@ def build_tpp_retrieve_request(request):
     return data
 
 
-def generate_ssh_keypair(key_size=DEFAULT_SSH_KEY_SIZE, passphrase=None):
+def write_ssh_files(file_path, file_name, certificate_data, private_key=None, public_key=None, for_windows=False):
     """
-    Generates a key pair (private, public) for use with SSH
-    :param int key_size:
-    :param str passphrase:
-    :rtype: SSHKeyPair
+
+    :param str file_path:
+    :param str file_name:
+    :param str certificate_data:
+    :param str private_key:
+    :param  str public_key:
+    :param bool for_windows:
+    :rtype: None
     """
-    if passphrase:
-        encryption = serialization.BestAvailableEncryption(passphrase)
-    else:
-        encryption = serialization.NoEncryption()
+    if not file_path.endswith("/"):
+        file_path += "/"
+    normalized_name = re.sub(r"[^A-Za-z0-9]+", "_", file_name)
+    full_path = file_path + normalized_name
 
-    key = rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=key_size,
-        backend=default_backend()
-    )
-    private_key = key.private_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=encryption)
-    public_key = key.public_key().public_bytes(
-        encoding=serialization.Encoding.OpenSSH,
-        format=serialization.PublicFormat.OpenSSH
-    )
+    with open(full_path + "-cert.pub", "w") as cert_file:
+        cert_file.write(certificate_data)
 
-    return SSHKeyPair(private_key, public_key)
+    if private_key:
+        if not for_windows:
+            private_key = private_key.replace("\r\n", "\n")
+        with open(full_path, "w") as private_key_file:
+            private_key_file.write(private_key)
+
+    if public_key:
+        with open(full_path + ".pub", "w") as public_key_file:
+            public_key_file.write(public_key)
