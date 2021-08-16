@@ -20,7 +20,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 
-from errors import ClientBadData
+from .errors import ClientBadData
 
 PATH_SEPARATOR = "\\"
 CA_ROOT_PATH = PATH_SEPARATOR + "VED" + PATH_SEPARATOR + "Certificate Authority" + PATH_SEPARATOR + "SSH" \
