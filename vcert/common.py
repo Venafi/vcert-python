@@ -36,6 +36,7 @@ from six import string_types, binary_type
 from .errors import VenafiConnectionError, ServerUnexptedBehavior, BadData, ClientBadData
 from .http import HTTPStatus
 from .policy import PolicySpecification
+from .ssh_utils import SSHCertRequest, SSHRetrieveResponse
 
 
 MIME_JSON = "application/json"
@@ -559,8 +560,10 @@ CLIENT_ID = "vcert-sdk"  # type: str
 SCOPE_CM = "certificate:manage,revoke"  # type: str
 # Policy Management scope
 SCOPE_PM = "certificate:manage;configuration:manage"  # type: str
+# SSH Certificate Management scope
+SCOPE_SSH = "ssh:manage"  # type: str
 # Full Management scope
-SCOPE_FULL = "certificate:manage,revoke;configuration:manage"  # type: str
+SCOPE_FULL = "certificate:manage,revoke;configuration:manage;ssh:manage"  # type: str
 
 
 class Authentication:
@@ -665,7 +668,25 @@ class CommonConnection:
         """
         :param str zone:
         :param PolicySpecification policy_spec:
-        :rtype: None
+        :rtype: str
+        """
+        raise NotImplementedError
+
+    def request_ssh_cert(self, request):
+        """
+        Sample text
+
+        :param SSHCertRequest request:
+        :rtype: bool
+        """
+        raise NotImplementedError
+
+    def retrieve_ssh_cert(self, request):
+        """
+        Sample text
+
+        :param SSHCertRequest request:
+        :rtype: SSHRetrieveResponse
         """
         raise NotImplementedError
 
@@ -676,7 +697,8 @@ class CommonConnection:
                 log_errors(r.json())
             except:
                 log_errors(r.content)
-            raise VenafiConnectionError("Server status: %s\nResponse: %s" % (r.status_code, r.request.url))
+            raise VenafiConnectionError("\n\tServer status: %s\n\tURL: %s\n\tResponse: %s"
+                                        % (r.status_code, r.request.url, r.content))
 
         content_type = r.headers.get("content-type")
         # Content-type not present, return status and reason (if any)

@@ -427,3 +427,64 @@ mFFkM+qC8o8G9zXULydK1DBnWJqBfHGoFu9+JkEcykPsANjHRoG9
 -----END RSA PRIVATE KEY-----
 
 """
+
+SSH_CERT_DATA = "ssh-rsa-cert-v01@openssh.com AAAAHHNzaC1yc2EtY2VydC12MDFAb3BlbnNzaC5jb20AAAAggY7TIQpWzhBFShMZLR0mh2/" \
+                "5aK5S3xxNUVaK3EP0XI0AAAADAQABAAABgQDFCm9cWkABjag9XaoFoV50U7EK+v69jm9qa6aY53XWYY1V9E8vOk21zQD2+ROC623" \
+                "yrVv59JanFSmgrFfQpDhUKwrMAqLuzloSYtaKH7Ft3A9uIx78D862zFykW0oTs7uR2kG2DIGWupAL469CHv4S0ljtZ5pYyU3m5Pm" \
+                "EwaFn+lndfSe+aju1qhtbNrIib/F96tg/0f8KcDxU+ilb2kl30vaNa/zvga/x+kJKE1A3VSjy97n7uSJji7fcN8WnEGOsDEL4dZQ" \
+                "RIzCXx0aKlMr1bkAxQ0h5QK5rE1RPhIlfckxrsOw9yEoXMnU7qv/IGZ9EaIpxVhK5SlNGnFo0pTs5OE5FdlZvW3IBJzKci+gRD8Z" \
+                "DHqk4Wf4zlS9whb/kz7XsaJBreIz0M8V50FNbpn09tHUNYkKvynElO8BC5X1YkoAoRwysk3WrTCo7UJQ8Q+whle0LUCXcdJqs0NN" \
+                "O4kKLwA/6IrCJirhZi1RGp3CDIEfl5wUs62HVLeB94h/3jF353sgvoJOo4AAAAAEAAAAfdmNlcnQtZ28tMTYyNjgwNTg2OC1zeHp" \
+                "zU1NIQ2VydAAAABAAAAAFYWxpY2UAAAADYm9iAAAAAGES4REAAAAAYRMZUQAAACIAAAAOc291cmNlLWFkZHJlc3MAAAAMAAAACHR" \
+                "lc3QuY29tAAAAKAAAAApwZXJtaXQtcHR5AAAAAAAAAA5wZXJtaXQtdXNlci1yYwAAAAAAAAAAAAACFwAAAAdzc2gtcnNhAAAAAwE" \
+                "AAQAAAgEAtP5TdyYaXn9EsihnCRuXOeAcplCrr7G4eUmpgxI/iOo8PyO3LcfeeSwgecEcZZCEZRZGLl0i0GrHS4Y5wxz14lvJ4/s" \
+                "w7hwdUC4+BNh5kCscC5YhtUU9SWliaSCutz1NvGsRoBPk/6R/aScuBpEepggbL9ol7ObICuvGyvoSvFoZbYCD8kpCHxbnBNxLCuI" \
+                "Rx3DAnsMyfT9V/jdj3+lxJSYDMtWhQ01f4EjON4esrz/gMmU/Yl9R1qSK6TM/T0r2RYNEq3f9XfywLDBry+gEKrvkwlhBPkPSC+1" \
+                "onx66rSXUqsHhK09bn8FrVGVDFd4Cl/xhdLld8BHbxV6dI7qj0Fop7P/v/d7Iqvd1LExOoqTRqM6ZhmFa147ocksTxpxJDe+XvVk" \
+                "fW8H6/89HqcERGrlmQTxGmh6W9JbuDbHJoTmrF6igcwDRBY5BrU0fYLXTqQenA60YqJD1iO6Cde2WsWa/HyoAdF2O837oRVNze9V" \
+                "rHD/tKypN+w0aF7gglG0KVJxu29B34mspx2xSUuafqLeSq5j3EXZbeapDoCkS+7U8yXDQSD5P8sB/9XvyCkbxMv6H2yKhWYooGYX" \
+                "6F/s3nHLd5wooRwLN5DVDd74WrVoSnuHfQEhUrq3iHWALW0Jl54yJWdVqVBCY6JCT0GnvzZRNKMP8G255qVqetSk7/qkAAAIUAAA" \
+                "ADHJzYS1zaGEyLTUxMgAAAgB43MnV/s1iyt0KPnfyAqvvvX3xUlO83gKJQe3vgGnGwGfo0hS3Rg53BCUjGTVUGvHyH/Lxj4F7wqA" \
+                "WuK0Fs3EzsIIIKD/pyJPWaDSgj2yPP9ElNBCqhwOYXgvDyPSKjsxjDqDhINAna8cdQdD+wDrckc/SX/Jt7DgBrD8WRy3Otr+FKnA" \
+                "zJeEZe4MwSa4WjGcMnfwH4hStI6hwuuX3i486EYyrC3Kl6t2TUUF3YosOu09eIAMDDw5PDtp8Uhmzz+n1rQNyTn6L4vq2j9P01I8" \
+                "ynmOwq1+DgyGb4bcMDRStNIiBb1qhLAW+nxeL2Mw68w4LkGh0UT0T+ivGbEWuZWD2VniPLZjqjWCHdpdWW8SW27UQF9ypsjxiIVF" \
+                "kALulljvFIztOR7ZN5bFgxtMTHJb5mHogjWCzcs0xY1olJuYdNsGkoOoSQnkE/M4JmVoDOjBwSQLkSx54nLJPgxf10ZCiEqIk/dq" \
+                "R4jBmv39skpb1DIo0Jgm4fE1czNPmYJldYhSbMud1RNyyFAmLmkVxcqV0dPQ50aFHOl/LG2CpOn9l2qYvhEs9iXEpua5sWR/R31O" \
+                "q6ahPWfA4Wfn2tKtOIgJaZTOLgfys4QUhbRpZ8btV79hjrOlPzryg5pflQe8dx63Iut9HR+SOZzxnE2pFYJSgcJO8prnlIfdNq5B" \
+                "xPpHQqA== vcert-go-1626805868-sxzsSSHCert"
+
+SSH_PUBLIC_KEY = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDFCm9cWkABjag9XaoFoV50U7EK+v69jm9qa6aY53XWYY1V9E8vOk21zQD2+RO" \
+                 "C623yrVv59JanFSmgrFfQpDhUKwrMAqLuzloSYtaKH7Ft3A9uIx78D862zFykW0oTs7uR2kG2DIGWupAL469CHv4S0ljtZ5pYyU" \
+                 "3m5PmEwaFn+lndfSe+aju1qhtbNrIib/F96tg/0f8KcDxU+ilb2kl30vaNa/zvga/x+kJKE1A3VSjy97n7uSJji7fcN8WnEGOsD" \
+                 "EL4dZQRIzCXx0aKlMr1bkAxQ0h5QK5rE1RPhIlfckxrsOw9yEoXMnU7qv/IGZ9EaIpxVhK5SlNGnFo0pTs5OE5FdlZvW3IBJzKc" \
+                 "i+gRD8ZDHqk4Wf4zlS9whb/kz7XsaJBreIz0M8V50FNbpn09tHUNYkKvynElO8BC5X1YkoAoRwysk3WrTCo7UJQ8Q+whle0LUCX" \
+                 "cdJqs0NNO4kKLwA/6IrCJirhZi1RGp3CDIEfl5wUs62HVLeB94h/3jF0= vcert-go-1626805868-sxzsSSHCert"
+
+SSH_PRIVATE_KEY = "-----BEGIN OPENSSH PRIVATE KEY-----\r\nb3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAABlwA" \
+                  "AAAdz\r\nc2gtcnNhAAAAAwEAAQAAAYEAxQpvXFpAAY2oPV2qBaFedFOxCvr+vY5vamummOd1\r\n1mGNVfRPLzpNtc0A9vkTg" \
+                  "utt8q1b+fSWpxUpoKxX0KQ4VCsKzAKi7s5aEmLWih+x\r\nbdwPbiMe/A/OtsxcpFtKE7O7kdpBtgyBlrqQC+OvQh7+EtJY7We" \
+                  "aWMlN5uT5hMGh\r\nZ/pZ3X0nvmo7taobWzayIm/xferYP9H/CnA8VPopW9pJd9L2jWv874Gv8fpCShNQ\r\nN1Uo8ve5+7kiY" \
+                  "4u33DfFpxBjrAxC+HWUESMwl8dGipTK9W5AMUNIeUCuaxNUT4SJ\r\nX3JMa7DsPchKFzJ1O6r/yBmfRGiKcVYSuUpTRpxaNKU" \
+                  "7OThORXZWb1tyAScynIvo\r\nEQ/GQx6pOFn+M5UvcIW/5M+17GiQa3iM9DPFedBTW6Z9PbR1DWJCr8pxJTvAQuV9\r\nWJKAK" \
+                  "EcMrJN1q0wqO1CUPEPsIZXtC1Al3HSarNDTTuJCi8AP+iKwiYq4WYtURqdw\r\ngyBH5ecFLOth1S3gfeIf94xdAAAFeG7jGyt" \
+                  "u4xsrAAAAB3NzaC1yc2EAAAGBAMUK\r\nb1xaQAGNqD1dqgWhXnRTsQr6/r2Ob2prppjnddZhjVX0Ty86TbXNAPb5E4LrbfKt" \
+                  "\r\nW/n0lqcVKaCsV9CkOFQrCswCou7OWhJi1oofsW3cD24jHvwPzrbMXKRbShOzu5Ha\r\nQbYMgZa6kAvjr0Ie/hLSWO1nml" \
+                  "jJTebk+YTBoWf6Wd19J75qO7WqG1s2siJv8X3q\r\n2D/R/wpwPFT6KVvaSXfS9o1r/O+Br/H6QkoTUDdVKPL3ufu5ImOLt9w3" \
+                  "xacQY6wM\r\nQvh1lBEjMJfHRoqUyvVuQDFDSHlArmsTVE+EiV9yTGuw7D3IShcydTuq/8gZn0Ro\r\ninFWErlKU0acWjSlOz" \
+                  "k4TkV2Vm9bcgEnMpyL6BEPxkMeqThZ/jOVL3CFv+TPtexo\r\nkGt4jPQzxXnQU1umfT20dQ1iQq/KcSU7wELlfViSgChHDKyT" \
+                  "datMKjtQlDxD7CGV\r\n7QtQJdx0mqzQ007iQovAD/oisImKuFmLVEancIMgR+XnBSzrYdUt4H3iH/eMXQAA\r\nAAMBAAEAAA" \
+                  "GBAI0npZFOYg360ixr/hIcgRLqpakNGBLph+2AAxAEuIkEx4BtDZDy\r\nvprfqrJCyvR9/fzcrkhJLOezJGgjLqGcE3JQh2KQ" \
+                  "/PIAx8vmHHVEsRHXlQI8jMTb\r\n+iVAD5n6f/3PQy8AYRSuruMw8WJjELlYhIEtSWGBV7QFOhaPsCSnph5b3abrMt6Z\r\nMf" \
+                  "85RnG4pDJBaYngBFzr7j4nG0FxGNHhdcIuUkwLsV5O1KGPu49feJa7HiO4zfaD\r\nsRwJCoTrO2AsP0f3StiKbyGZt98WHXqS" \
+                  "9DDdLKBB8O0YSm1uCs0mVn1CkWJMseg+\r\naCa6m5MmOmIU7wFQV87/Up0S/ym+Q9pOERgYn50NCJsY9S/1ORgxo9/fsj1KSb" \
+                  "xK\r\nae2b3brRcueJ6rtQsNlm9wjYcYSzDiwl8AQhGEx8lF0RwnMF7AKgkpMKyFfQ2Tbu\r\n9zqlXSoSUI9aAbItVjDfM1Kd" \
+                  "tuRHSs7CRcqRVC+1D2xQ/Knu8fje84hCQIk22iyr\r\nBOd+1kLGii1izQAAAMEApzivPz6hZHAfXmCf3EUxTXFxOekOCbpmkv" \
+                  "hE3m+6THTH\r\nIa034I8S2D79sILL10VcevRjbHmYcwlHNIR2U6Wvl8asq4YKk9P2Yoqx3XZMsjOO\r\ncNCPPs9voSGzFDyx" \
+                  "TfSZ91zIy1YOsuhvq9eXCdyusx4vq2TqpfhXCe4AK+P/pyp/\r\nA6KGrGPT8lxreVyQMWC5Nt/sEWuYGg02lMd9VC+sHMUKZi" \
+                  "9h6ENAPrLcUmkU3GvS\r\nksCH3bPwszdeL89+yCEeAAAAwQD1w+Nkx+dn69z4v8E2IUJG2g7wy1zRKkqix8Sa\r\noXig893l" \
+                  "0fJQC7Y9c0dTr0YwnEwkPjjU7cqi7nMS93CaRDhd7ad3IgR+3a5obB5m\r\nOxPWVR7HNOyqCcJDt9ADIkWV341Nzh2l1R8mmB" \
+                  "i4jbvPvU7xtCFLWCt5+Rfc0yFP\r\n1FHnUw3L6wuhKdlRY5jP5stRjz7zd2ChoSk7x11Azb4agAd+k1v6GsujD4tYaOvl\r\n" \
+                  "oOdJNU+X8erSqfTDKS/hxKYo+QcAAADBAM0/GAWL0JgiMHaNyoVuR11f+XOlBkQE\r\nkqfSVclk15zW3xWSWnxg0odmq0Vn6k" \
+                  "AMRHZAQ+2f/oRad7qbkv6KXi70TcaRDe1G\r\nyyeQC7bs147nudDwoO9Iq4V7sj1TyU1TOOk4t95S6sOo4+crd7kq+l1g5ed5" \
+                  "GRqv\r\nMKfg4Ae8NEiJLSbKcB4nDzFzk03JND6gJY8YiwQK6GYnBLEaPtuTIhb6XAUr4aSa\r\nw3elZMPNVE0KryHBahiIZq" \
+                  "vpeKD5f71qewAAAAAB\r\n-----END OPENSSH PRIVATE KEY-----\r\n"

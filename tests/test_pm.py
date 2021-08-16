@@ -20,12 +20,9 @@ import os
 import unittest
 from pprint import pformat
 
-from future.backports.datetime import datetime
-
 from test_env import TPP_TOKEN_URL, CLOUD_APIKEY, CLOUD_URL, TPP_PM_ROOT, CLOUD_ENTRUST_CA_NAME, \
-    CLOUD_DIGICERT_CA_NAME, TPP_CA_NAME, TPP_USER, TPP_PASSWORD
-from vcert import TPPTokenConnection, CloudConnection
-from vcert.common import Authentication, SCOPE_PM
+    CLOUD_DIGICERT_CA_NAME, TPP_CA_NAME, TPP_USER, TPP_PASSWORD, timestamp
+from vcert import TPPTokenConnection, CloudConnection, Authentication, SCOPE_PM
 from vcert.parser import json_parser, yaml_parser
 from vcert.parser.utils import parse_policy_spec
 from vcert.policy import Policy, Subject, KeyPair, SubjectAltNames, Defaults, DefaultSubject, DefaultKeyPair, \
@@ -231,12 +228,8 @@ def _get_defaults_obj():
     return defaults
 
 
-def _get_timestamp():
-    return datetime.today().strftime('%Y.%m.%d-%Hh%Mm%Ss')
-
-
 def _get_app_name():
-    name = 'vcert-python-%s'
+    name = 'vcert-python-app-%s'
     return name
 
 
@@ -246,14 +239,14 @@ def _get_cit_name():
 
 
 def _get_zone():
-    timestamp = _get_timestamp()
-    zone = (_get_app_name() + '\\' + _get_cit_name()) % (timestamp, timestamp)
+    time = timestamp()
+    zone = (_get_app_name() + '\\' + _get_cit_name()) % (time, time)
     return zone
 
 
 def _get_tpp_policy_name():
-    timestamp = _get_timestamp()
-    return _get_app_name() % timestamp
+    time = timestamp()
+    return _get_app_name() % time
 
 
 def _resolve_resources_path(path):
