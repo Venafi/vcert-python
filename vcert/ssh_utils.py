@@ -20,7 +20,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 
-from errors import ClientBadData
+from .errors import ClientBadData
 
 PATH_SEPARATOR = "\\"
 CA_ROOT_PATH = PATH_SEPARATOR + "VED" + PATH_SEPARATOR + "Certificate Authority" + PATH_SEPARATOR + "SSH" \
@@ -175,7 +175,7 @@ class SSHKeyPair:
         :return:
         """
         if passphrase:
-            encryption = serialization.BestAvailableEncryption(passphrase)
+            encryption = serialization.BestAvailableEncryption(passphrase.encode())
         else:
             encryption = serialization.NoEncryption()
 
@@ -192,8 +192,8 @@ class SSHKeyPair:
             encoding=serialization.Encoding.OpenSSH,
             format=serialization.PublicFormat.OpenSSH
         )
-        self._private_key = private_key
-        self._public_key = public_key
+        self._private_key = private_key.decode()
+        self._public_key = public_key.decode()
 
     def private_key(self):
         return self._private_key
