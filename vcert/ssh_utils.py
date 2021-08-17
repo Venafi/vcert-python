@@ -175,7 +175,7 @@ class SSHKeyPair:
         :return:
         """
         if passphrase:
-            encryption = serialization.BestAvailableEncryption(passphrase)
+            encryption = serialization.BestAvailableEncryption(passphrase.encode())
         else:
             encryption = serialization.NoEncryption()
 
