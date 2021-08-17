@@ -192,8 +192,8 @@ class SSHKeyPair:
             encoding=serialization.Encoding.OpenSSH,
             format=serialization.PublicFormat.OpenSSH
         )
-        self._private_key = private_key
-        self._public_key = public_key
+        self._private_key = private_key.decode()
+        self._public_key = public_key.decode()
 
     def private_key(self):
         return self._private_key
