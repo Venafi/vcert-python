@@ -119,7 +119,7 @@ class TPPTokenConnection(AbstractTPPConnection):
             u = "https://" + u
         if not u.endswith("/"):
             u += "/"
-        if not re.match(r"^https://[a-z\d]+[-a-z\d.]+[a-z\d][:\d]*/$", u):
+        if not re.match(r"^https://[a-zA-Z\d]+[-a-zA-Z\d.]+[a-zA-Z\d][:\d]*/$", u):
             raise ClientBadData
         return u
 

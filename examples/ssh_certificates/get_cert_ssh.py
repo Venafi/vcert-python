@@ -69,7 +69,7 @@ def main():
         "permit-pty": ""
     }
     # Include the locally-generated public key. If not set, the server will generate one for the certificate
-    request.public_key_data = ssh_kp.public_key()
+    request.set_public_key_data(ssh_kp.public_key())
 
     # Request the certificate from TPP instance
     success = connector.request_ssh_cert(request)
