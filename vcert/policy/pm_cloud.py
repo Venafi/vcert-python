@@ -432,7 +432,6 @@ def build_cit_request(ps, ca_details):
         r_settings['key'] = r_key
 
     if r_settings:
-        r_settings['keyReuse'] = False
         request['recommendedSettings'] = r_settings
 
     return request

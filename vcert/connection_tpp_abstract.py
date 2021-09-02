@@ -318,6 +318,11 @@ class AbstractTPPConnection(CommonConnection):
                 response_object = SSHResponse(data["Response"])
                 if response_object.success:
                     return SSHRetrieveResponse(data)
+                else:
+                    log.info("Failed to retrieve certificate with following details:\n"
+                             "DN: %s\nGuid: %s\nErrorCode: %s\nErrorMessage:%s"
+                             % (json_request['DN'], json_request['Guid'], response_object.error_code,
+                                response_object.error_msg))
 
             if (time.time() - time_start) < request.timeout:
                 log.debug("Waiting for certificate...")
