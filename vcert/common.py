@@ -46,6 +46,9 @@ MIME_CSV = "text/csv"
 MIME_ANY = "*/*"
 LOCALHOST = "127.0.0.1"
 DEFAULT_TIMEOUT = 180
+CSR_ORIGIN_PROVIDED = "provided"
+CSR_ORIGIN_LOCAL = "local"
+CSR_ORIGIN_SERVICE = "service"
 
 
 class CertField:
@@ -257,7 +260,8 @@ class CertificateRequest:
                  locality=None,
                  origin=None,
                  custom_fields=None,
-                 timeout=DEFAULT_TIMEOUT
+                 timeout=DEFAULT_TIMEOUT,
+                 csr_origin=CSR_ORIGIN_LOCAL
                  ):
         """
         :param str cert_id: Certificate request id. Generating by server.
@@ -277,6 +281,7 @@ class CertificateRequest:
         :param str origin: application identifier
         :param list[CustomField] custom_fields: list of custom fields values to be added to the certificate.
         :param int timeout: Timeout for the certificate to be retrieved from server. Measured in seconds.
+        :param str csr_origin: The origin of the CSR, either user provided, locally generated or service generated.
         """
 
         self.chain_option = "last"
@@ -302,6 +307,10 @@ class CertificateRequest:
         self.locality = locality
         # CSR should be last, because it checks subject to match with over parameters
         self.csr = csr
+        if self.csr:
+            self.csr_origin = CSR_ORIGIN_PROVIDED
+        else:
+            self.csr_origin = csr_origin
         self.origin = origin or "Venafi VCert-Python"
         self.custom_fields = custom_fields
         self.cert_guid = None
