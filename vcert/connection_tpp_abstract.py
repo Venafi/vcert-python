@@ -78,7 +78,7 @@ class AbstractTPPConnection(CommonConnection):
             request.build_csr()
 
         if request.csr_origin in [CSR_ORIGIN_PROVIDED, CSR_ORIGIN_LOCAL]:
-            request_data['PKCS10'] = request.csr,
+            request_data['PKCS10'] = request.csr
         elif request.csr_origin == CSR_ORIGIN_SERVICE:
             request_data['Subject'] = request.common_name
             request_data['SubjectAltNames'] = self.wrap_alt_names(request)
@@ -520,13 +520,13 @@ class AbstractTPPConnection(CommonConnection):
         if zone is None:
             log.error("Bad zone: %s" % zone)
             raise ClientBadData
-        if re.match(r"^\\\\VED\\\\Policy", zone):
+        if re.match(r'^\\VED\\Policy', zone):
             return zone
         else:
-            if re.match(r"^\\\\", zone):
-                return r"\\VED\\Policy" + zone
+            if re.match(r'^\\', zone):
+                return "\\VED\\Policy" + zone
             else:
-                return r"\\VED\\Policy\\" + zone
+                return ROOT_PATH + zone
 
     def wrap_alt_names(self, request):
         """
