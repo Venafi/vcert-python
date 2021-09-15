@@ -339,6 +339,7 @@ class CertificateRequest:
             else:
                 raise ClientBadData("invalid private key type %s" % type(value))
         elif key == "csr":
+            self.csr_origin = CSR_ORIGIN_PROVIDED
             if isinstance(value, binary_type):
                 value = value.decode()
             elif not (isinstance(value, string_types) or value is None):
@@ -365,7 +366,7 @@ class CertificateRequest:
         self.__dict__[key] = value
 
     def _gen_key(self):
-        if self.key_type == None:
+        if self.key_type is None:
             self.key_type = KeyType(KeyType.RSA, 2048)
         if self.key_type.key_type == KeyType.RSA:
             self.private_key = rsa.generate_private_key(
@@ -448,7 +449,7 @@ class CertificateRequest:
                     # string we'll convert it into a bytes object then insert our header. Otherwise, we'll just
                     # insert the header in the passed in bytes.
                     if isinstance(upn, str):
-                        bupn = bytes(upn,'utf-8')
+                        bupn = bytes(upn, 'utf-8')
                     else:
                         bupn = upn
                     values = [12,len(upn)]
