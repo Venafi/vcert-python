@@ -36,7 +36,7 @@ from test_env import random_word, CLOUD_APIKEY, CLOUD_URL, TPP_PASSWORD, TPP_USE
     RANDOM_DOMAIN, CLOUD_ZONE, \
     TPP_ZONE, TPP_ZONE_ECDSA
 from vcert import CloudConnection, CertificateRequest, TPPConnection, FakeConnection, ZoneConfig, RevocationRequest, \
-    TPPTokenConnection, CertField, KeyType, CustomField
+    TPPTokenConnection, CertField, KeyType, CustomField, CSR_ORIGIN_SERVICE
 from vcert.errors import ClientBadData, ServerUnexptedBehavior
 from vcert.pem import parse_pem
 
@@ -287,6 +287,15 @@ class TestTPPTokenMethods(unittest.TestCase):
         except Exception as err:
             self.fail("Error in test: %s" % err.message)
 
+    def test_tpp_token_enroll_with_service_generated_csr(self):
+        cn = random_word(10) + ".venafi.example.com"
+        try:
+            _, _, _, _, cert_guid = enroll(self.tpp_conn, self.tpp_zone, cn=cn, service_generated_csr=True)
+            cert_config = self.tpp_conn._get_certificate_details(cert_guid)
+            self.assertEqual(cert_config["Origin"], "Venafi VCert-Python")
+        except Exception as err:
+            self.fail("Error in test: %s" % err.message)
+
     def test_tpp_token_enroll_with_custom_fields(self):
         cn = random_word(10) + ".venafi.example.com"
         custom_fields = [
@@ -496,7 +505,8 @@ def enroll_with_zone_update(conn, zone, cn=None):
     return cert, request.cert_guid
 
 
-def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None, csr=None, custom_fields=None):
+def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None, csr=None, custom_fields=None,
+           service_generated_csr=False):
     request = CertificateRequest(
         common_name=cn,
         private_key=private_key,
@@ -515,6 +525,8 @@ def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None
 
     if csr:
         request.csr = csr
+    elif service_generated_csr:
+        request.csr_origin = CSR_ORIGIN_SERVICE
 
     conn.request_cert(request, zone)
     cert = conn.retrieve_cert(request)
@@ -523,9 +535,10 @@ def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None
     # and save into file
     f = open("./cert.pem", "w")
     f.write(cert.full_chain)
-    f = open("./cert.key", "w")
-    f.write(request.private_key_pem)
-    f.close()
+    if not service_generated_csr:
+        f = open("./cert.key", "w")
+        f.write(request.private_key_pem)
+        f.close()
 
     cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
     assert isinstance(cert, x509.Certificate)
@@ -551,11 +564,15 @@ def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         ).decode()
     else:
-        source_public_key_pem = request.public_key_pem
+        source_public_key_pem = request.public_key_pem if not service_generated_csr else None
     print(source_public_key_pem)
     print(cert_public_key_pem)
-    assert source_public_key_pem == cert_public_key_pem
-    return request.id, request.private_key_pem, cert, cert_public_key_pem, request.cert_guid
+
+    if not service_generated_csr:
+        assert source_public_key_pem == cert_public_key_pem
+    private_key_pem = request.private_key_pem if not service_generated_csr else None
+
+    return request.id, private_key_pem, cert, cert_public_key_pem, request.cert_guid
 
 
 def renew(conn, cert_id, pkey, sn, cn):

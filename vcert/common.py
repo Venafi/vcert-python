@@ -46,6 +46,9 @@ MIME_CSV = "text/csv"
 MIME_ANY = "*/*"
 LOCALHOST = "127.0.0.1"
 DEFAULT_TIMEOUT = 180
+CSR_ORIGIN_PROVIDED = "provided"
+CSR_ORIGIN_LOCAL = "local"
+CSR_ORIGIN_SERVICE = "service"
 
 
 class CertField:
@@ -257,7 +260,8 @@ class CertificateRequest:
                  locality=None,
                  origin=None,
                  custom_fields=None,
-                 timeout=DEFAULT_TIMEOUT
+                 timeout=DEFAULT_TIMEOUT,
+                 csr_origin=CSR_ORIGIN_LOCAL
                  ):
         """
         :param str cert_id: Certificate request id. Generating by server.
@@ -277,6 +281,7 @@ class CertificateRequest:
         :param str origin: application identifier
         :param list[CustomField] custom_fields: list of custom fields values to be added to the certificate.
         :param int timeout: Timeout for the certificate to be retrieved from server. Measured in seconds.
+        :param str csr_origin: The origin of the CSR, either user provided, locally generated or service generated.
         """
 
         self.chain_option = "last"
@@ -302,6 +307,10 @@ class CertificateRequest:
         self.locality = locality
         # CSR should be last, because it checks subject to match with over parameters
         self.csr = csr
+        if self.csr:
+            self.csr_origin = CSR_ORIGIN_PROVIDED
+        else:
+            self.csr_origin = csr_origin
         self.origin = origin or "Venafi VCert-Python"
         self.custom_fields = custom_fields
         self.cert_guid = None
@@ -330,6 +339,7 @@ class CertificateRequest:
             else:
                 raise ClientBadData("invalid private key type %s" % type(value))
         elif key == "csr":
+            self.csr_origin = CSR_ORIGIN_PROVIDED
             if isinstance(value, binary_type):
                 value = value.decode()
             elif not (isinstance(value, string_types) or value is None):
@@ -356,7 +366,7 @@ class CertificateRequest:
         self.__dict__[key] = value
 
     def _gen_key(self):
-        if self.key_type == None:
+        if self.key_type is None:
             self.key_type = KeyType(KeyType.RSA, 2048)
         if self.key_type.key_type == KeyType.RSA:
             self.private_key = rsa.generate_private_key(
@@ -439,7 +449,7 @@ class CertificateRequest:
                     # string we'll convert it into a bytes object then insert our header. Otherwise, we'll just
                     # insert the header in the passed in bytes.
                     if isinstance(upn, str):
-                        bupn = bytes(upn,'utf-8')
+                        bupn = bytes(upn, 'utf-8')
                     else:
                         bupn = upn
                     values = [12,len(upn)]

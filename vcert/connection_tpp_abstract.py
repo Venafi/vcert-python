@@ -18,8 +18,10 @@ import re
 import time
 from pprint import pprint
 
-from vcert.common import CertField, CommonConnection
-from vcert.errors import VenafiError, ServerUnexptedBehavior, ClientBadData, RetrieveCertificateTimeoutError
+from vcert.common import CertField, CommonConnection, CertificateRequest, CSR_ORIGIN_LOCAL, CSR_ORIGIN_PROVIDED, \
+    CSR_ORIGIN_SERVICE
+from vcert.errors import VenafiError, ServerUnexptedBehavior, ClientBadData, RetrieveCertificateTimeoutError, \
+    CertificateRequestError
 from vcert.http import HTTPStatus
 from vcert.policy import RPA, SPA
 from vcert.policy.pm_tpp import TPPPolicy, is_service_generated_csr, SetAttrResponse, validate_policy_spec, \
@@ -65,6 +67,61 @@ class URLS:
 
 
 class AbstractTPPConnection(CommonConnection):
+
+    def request_cert(self, request, zone):
+        request_data = {'PolicyDN': self._get_policy_dn(zone),
+                        'ObjectName': request.friendly_name,
+                        'DisableAutomaticRenewal': "true"
+                        }
+
+        if request.csr_origin == CSR_ORIGIN_LOCAL:
+            request.build_csr()
+
+        if request.csr_origin in [CSR_ORIGIN_PROVIDED, CSR_ORIGIN_LOCAL]:
+            request_data['PKCS10'] = request.csr
+        elif request.csr_origin == CSR_ORIGIN_SERVICE:
+            request_data['Subject'] = request.common_name
+            request_data['SubjectAltNames'] = self.wrap_alt_names(request)
+        else:
+            log.error("CSR Origin option [%s] is not valid. " % request.csr_origin)
+            raise ClientBadData
+
+        if request.origin:
+            request_data["Origin"] = request.origin
+            ca_origin = {"Name": "Origin", "Value": request.origin}
+            if request_data.get("CASpecificAttributes"):
+                request_data["CASpecificAttributes"].append(ca_origin)
+            else:
+                request_data["CASpecificAttributes"] = [ca_origin]
+
+        if request.custom_fields:
+            custom_fields_map = {}
+            for c_field in request.custom_fields:
+                if custom_fields_map.get(c_field.name):
+                    custom_fields_map[c_field.name].append(c_field.value)
+                else:
+                    custom_fields_map[c_field.name] = [c_field.value]
+
+            for key in custom_fields_map:
+                custom_field_json = {
+                    "Name": key,
+                    "Values": custom_fields_map[key]
+                }
+                if request_data.get("CustomFields"):
+                    request_data["CustomFields"].append(custom_field_json)
+                else:
+                    request_data["CustomFields"] = [custom_field_json]
+
+        status, data = self._post(URLS.CERTIFICATE_REQUESTS, data=request_data)
+        if status == HTTPStatus.OK:
+            request.id = data['CertificateDN']
+            request.cert_guid = data['Guid']
+            log.debug("Certificate successfully requested with request id %s." % request.id)
+            log.debug("Certificate successfully requested with GUID %s." % request.cert_guid)
+            return True
+
+        log.error("Request status is not %s. %s." % HTTPStatus.OK, status)
+        raise CertificateRequestError
 
     def get_policy(self, zone):
         # get policy spec from name
@@ -457,3 +514,48 @@ class AbstractTPPConnection(CommonConnection):
         # Return a substring of zone that starts at 0 and ends at index. Zone here is treated as an slice
         # zone[0:index] returns the same result
         return zone[:index]
+
+    @staticmethod
+    def _get_policy_dn(zone):
+        if zone is None:
+            log.error("Bad zone: %s" % zone)
+            raise ClientBadData
+        if re.match(r'^\\VED\\Policy', zone):
+            return zone
+        else:
+            if re.match(r'^\\', zone):
+                return "\\VED\\Policy" + zone
+            else:
+                return ROOT_PATH + zone
+
+    def wrap_alt_names(self, request):
+        """
+
+        :param CertificateRequest request:
+        :rtype: list[dict]
+        """
+        items = []
+        for value in request.user_principal_names:
+            items.append(self._create_san_item(0, value))
+        for value in request.email_addresses:
+            items.append(self._create_san_item(1, value))
+        for value in request.san_dns:
+            items.append(self._create_san_item(2, value))
+        for value in request.uniform_resource_identifiers:
+            items.append(self._create_san_item(6, value))
+        for value in request.ip_addresses:
+            items.append(self._create_san_item(7, value))
+        return items
+
+    @staticmethod
+    def _create_san_item(san_type, value):
+        """
+
+        :param int san_type:
+        :param str value:
+        :return: dict
+        """
+        return {
+            'Type': san_type,
+            'Name': value
+        }
