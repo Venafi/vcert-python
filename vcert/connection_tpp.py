@@ -174,64 +174,6 @@ class TPPConnection(AbstractTPPConnection):
 
         raise ServerUnexptedBehavior
 
-    def renew_cert(self, request, reuse_key=False):
-        if not request.id and not request.thumbprint:
-            log.debug("Request id or thumbprint must be specified for TPP")
-            raise CertificateRenewError
-        if not request.id and request.thumbprint:
-            request.id = self.search_by_thumbprint(request.thumbprint)
-        if reuse_key:
-            log.debug("Trying to renew certificate %s" % request.id)
-            status, data = self._post(URLS.CERTIFICATE_RENEW, data={"CertificateDN": request.id})
-            if not data['Success']:
-                raise CertificateRenewError
-            return
-        cert = self.retrieve_cert(request)
-        cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
-        for a in cert.subject:
-            if a.oid == x509.NameOID.COMMON_NAME:
-                request.common_name = a.value
-            elif a.oid == x509.NameOID.COUNTRY_NAME:
-                request.country = a.value
-            elif a.oid == x509.NameOID.LOCALITY_NAME:
-                request.locality = a.value
-            elif a.oid == x509.NameOID.STATE_OR_PROVINCE_NAME:
-                request.province = a.value
-            elif a.oid == x509.NameOID.ORGANIZATION_NAME:
-                request.organization = a.value
-            elif a.oid == x509.NameOID.ORGANIZATIONAL_UNIT_NAME:
-                request.organizational_unit = a.value
-        for e in cert.extensions:
-            if e.oid == x509.OID_SUBJECT_ALTERNATIVE_NAME:
-                request.san_dns = list([x.value for x in e.value if isinstance(x, x509.DNSName)])
-                request.email_addresses = list([x.value for x in e.value if isinstance(x, x509.RFC822Name)])
-                request.ip_addresses = list([x.value.exploded for x in e.value if isinstance(x, x509.IPAddress)])
-                # remove header bytes from ASN1 encoded UPN field before setting it in the request object
-                upns = []
-                for x in e.value:
-                    if isinstance(x, x509.OtherName):
-                        upns.append(x.value[2::])
-                request.user_principal_names = upns
-                request.uniform_resource_identifiers = list(
-                    [x.value for x in e.value if isinstance(x, x509.UniformResourceIdentifier)])
-        if cert.signature_algorithm_oid in (AlgOID.ECDSA_WITH_SHA1, AlgOID.ECDSA_WITH_SHA224, AlgOID.ECDSA_WITH_SHA256,
-                                            AlgOID.ECDSA_WITH_SHA384, AlgOID.ECDSA_WITH_SHA512):
-            request.key_type = (KeyType.ECDSA, KeyType.ALLOWED_CURVES[0])
-        else:
-            request.key_type = KeyType(KeyType.RSA, 2048)  # todo: make parsing key size
-        if not request.csr:
-            request.build_csr()
-        status, data = self._post(URLS.CERTIFICATE_RENEW,
-                                  data={"CertificateDN": request.id, "PKCS10": request.csr})
-        if status == HTTPStatus.OK:
-            if "CertificateDN" in data:
-                request.id = data['CertificateDN']
-            log.debug("Certificate successfully requested with request id %s." % request.id)
-            return True
-
-        log.error("Request status is not %s. %s." % HTTPStatus.OK, status)
-        raise CertificateRequestError
-
     @staticmethod
     def _parse_zone_config_to_policy(data):
         # todo: parse over values to regexps (dont forget tests!)
@@ -284,27 +226,13 @@ class TPPConnection(AbstractTPPConnection):
         return z
 
     def read_zone_conf(self, tag):
-        status, data = self._post(URLS.ZONE_CONFIG, {"PolicyDN": self._get_policy_dn(tag)})
+        status, data = self._post(URLS.ZONE_CONFIG, {"PolicyDN": self._normalize_zone(tag)})
         if status != HTTPStatus.OK:
             raise ServerUnexptedBehavior("Server returns %d status on reading zone configuration." % status)
         return self._parse_zone_data_to_object(data)
 
     def import_cert(self, request):
         raise NotImplementedError
-
-    def search_by_thumbprint(self, thumbprint):
-        """
-        :param str thumbprint:
-        """
-        thumbprint = re.sub(r'[^\dabcdefABCDEF]', "", thumbprint)
-        thumbprint = thumbprint.upper()
-        status, data = self._get(URLS.CERTIFICATE_SEARCH, params={"Thumbprint": thumbprint})
-        if status != HTTPStatus.OK:
-            raise ServerUnexptedBehavior
-
-        if not data['Certificates']:
-            raise ClientBadData("Certificate not found by thumbprint")
-        return data['Certificates'][0]['DN']
 
     def _read_config_dn(self, dn, attribute_name):
         status, data = self._post(URLS.CONFIG_READ_DN, {

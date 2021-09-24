@@ -16,7 +16,7 @@
 
 from .common import CertificateRequest, CommonConnection, RevocationRequest, ZoneConfig, CertField, KeyType, \
     CustomField, Authentication, SCOPE_CM, SCOPE_PM, SCOPE_SSH, CSR_ORIGIN_LOCAL, CSR_ORIGIN_PROVIDED, \
-    CSR_ORIGIN_SERVICE
+    CSR_ORIGIN_SERVICE, CHAIN_OPTION_FIRST, CHAIN_OPTION_IGNORE, CHAIN_OPTION_LAST
 from .connection_cloud import CloudConnection
 from .connection_tpp import TPPConnection
 from .connection_tpp_token import TPPTokenConnection
