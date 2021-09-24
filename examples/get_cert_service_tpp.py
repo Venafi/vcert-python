@@ -47,11 +47,11 @@ def main():
     # Set the request to use a service generated CSR
     request.csr_origin = CSR_ORIGIN_SERVICE
     # Include some Subject Alternative Names
-    request.san_dns = ["www.client.venafi.example.com", "ww1.client.venafi.example.com"]
-    request.email_addresses = ["e1@venafi.example.com", "e2@venafi.example.com"]
+    request.san_dns = ["www.dns.venafi.example.com", "ww1.dns.venafi.example.com"]
+    request.email_addresses = ["email1@venafi.example.com", "email2@venafi.example.com"]
     request.ip_addresses = ["127.0.0.1", "192.168.1.1"]
-    request.uniform_resource_identifiers = ["http://wgtest.com","https://ragnartest.com"]
-    request.user_principal_names = ["e1@venafi.example.com", "e2@venafi.example.com"]
+    request.uniform_resource_identifiers = ["http://wgtest.uri.com","https://ragnartest.uri.com"]
+    request.user_principal_names = ["upn1@venafi.example.com", "upn2@venafi.example.com"]
     # Specify ordering certificates in chain. Root can be CHAIN_OPTION_FIRST ("first")
     # or CHAIN_OPTION_LAST ("last"). By default it is CHAIN_OPTION_LAST.
     # You can also specify CHAIN_OPTION_IGNORE ("ignore") to ignore chain (supported only for TPP).
