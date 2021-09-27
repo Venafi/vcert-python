@@ -17,11 +17,10 @@
 
 from __future__ import print_function
 
-from vcert import (CertificateRequest, venafi_connection, RevocationRequest, CSR_ORIGIN_SERVICE)
+from vcert import (CertificateRequest, venafi_connection, CSR_ORIGIN_SERVICE, CHAIN_OPTION_FIRST)
 import string
 import random
 import logging
-import time
 from os import environ
 
 logging.basicConfig(level=logging.INFO)
@@ -39,54 +38,60 @@ def main():
     # Connection will be chosen automatically based on which arguments are passed.
     # If token is passed Venafi Cloud connection will be used.
     # If user, password, and URL Venafi Platform (TPP) will be used.
-    conn = venafi_connection(url=url, user=user, password=password,
-                             http_request_kwargs={"verify": server_trust_bundle})
     # If your TPP server certificate signed with your own CA, or available only via proxy, you can specify
-    # a trust bundle using requests vars:
-    # conn = Connection(url=url, token=token, user=user, password=password,
-    #                  http_request_kwargs={"verify": "/path-to/bundle.pem"})
+    # a trust bundle using http_request_kwargs.
+    conn = venafi_connection(url=url, user=user, password=password, http_request_kwargs={"verify": server_trust_bundle})
 
+    # Build a Certificate request
     request = CertificateRequest(common_name=random_word(10) + ".venafi.example.com")
+    # Set the request to use a service generated CSR
     request.csr_origin = CSR_ORIGIN_SERVICE
-    request.san_dns = ["www.client.venafi.example.com", "ww1.client.venafi.example.com"]
-    request.email_addresses = ["e1@venafi.example.com", "e2@venafi.example.com"]
+    # Include some Subject Alternative Names
+    request.san_dns = ["www.dns.venafi.example.com", "ww1.dns.venafi.example.com"]
+    request.email_addresses = ["email1@venafi.example.com", "email2@venafi.example.com"]
     request.ip_addresses = ["127.0.0.1", "192.168.1.1"]
-    request.uniform_resource_identifiers = ["http://wgtest.com","https://ragnartest.com"]
-    request.user_principal_names = ["e1@venafi.example.com", "e2@venafi.example.com"]
-    # Specify ordering certificates in chain. Root can be "first" or "last". By default it last. You also can
-    # specify "ignore" to ignore chain (supported only for Platform).
+    request.uniform_resource_identifiers = ["http://wgtest.uri.com","https://ragnartest.uri.com"]
+    request.user_principal_names = ["upn1@venafi.example.com", "upn2@venafi.example.com"]
+    # Specify ordering certificates in chain. Root can be CHAIN_OPTION_FIRST ("first")
+    # or CHAIN_OPTION_LAST ("last"). By default it is CHAIN_OPTION_LAST.
+    # You can also specify CHAIN_OPTION_IGNORE ("ignore") to ignore chain (supported only for TPP).
+    # request.chain_option = CHAIN_OPTION_FIRST
     # To set Custom Fields for the certificate, specify an array of CustomField objects as name-value pairs
     # request.custom_fields = [
     #    CustomField(name="Cost Center", value="ABC123"),
     #    CustomField(name="Environment", value="Production"),
     #    CustomField(name="Environment", value="Staging")
     # ]
-    # Update certificate request from zone
+    #
+    # Update certificate request from zone.
     zone_config = conn.read_zone_conf(zone)
     request.update_from_zone_config(zone_config)
+    # Request the certificate.
     conn.request_cert(request, zone)
 
-    # and wait for signing
+    # Wait for the certificate to be retrieved.
+    # This operation may take some time to return, as it waits until the certificate is ISSUED or it timeout.
+    # Timeout is 180s by default. Can be changed using:
+    # request.timeout = 300
     cert = conn.retrieve_cert(request)
 
-    # after that print cert and key
-    print(cert.full_chain, request.private_key_pem, sep="\n")
-    # and save into file
-    f = open("/tmp/cert.pem", "w")
+    # Print the certificate
+    print(cert.full_chain)
+    # Save it into a file
+    f = open("./cert.pem", "w")
     f.write(cert.full_chain)
-    f = open("/tmp/cert.key", "w")
-    f.write(request.private_key_pem)
     f.close()
 
     print("Trying to renew certificate")
     new_request = CertificateRequest(cert_id=request.id)
+    # The renewal request should use a service generated CSR as well
+    # This may not be necessary and depends entirely on the settings of your Policy/Zone
+    new_request.csr_origin = CSR_ORIGIN_SERVICE
     conn.renew_cert(new_request)
     new_cert = conn.retrieve_cert(new_request)
-    print(new_cert.cert, new_request.private_key_pem, sep="\n")
-    fn = open("/tmp/new_cert.pem", "w")
+    print(new_cert.cert)
+    fn = open("./new_cert.pem", "w")
     fn.write(new_cert.cert)
-    fn = open("/tmp/new_cert.key", "w")
-    fn.write(new_request.private_key_pem)
     fn.close()
 
 

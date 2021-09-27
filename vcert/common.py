@@ -49,6 +49,9 @@ DEFAULT_TIMEOUT = 180
 CSR_ORIGIN_PROVIDED = "provided"
 CSR_ORIGIN_LOCAL = "local"
 CSR_ORIGIN_SERVICE = "service"
+CHAIN_OPTION_FIRST = "first"
+CHAIN_OPTION_LAST = "last"
+CHAIN_OPTION_IGNORE = "ignore"
 
 
 class CertField:
@@ -284,7 +287,7 @@ class CertificateRequest:
         :param str csr_origin: The origin of the CSR, either user provided, locally generated or service generated.
         """
 
-        self.chain_option = "last"
+        self.chain_option = CHAIN_OPTION_LAST  # "last"
         self.san_dns = san_dns or []
         self.email_addresses = email_addresses
         self.ip_addresses = ip_addresses or []

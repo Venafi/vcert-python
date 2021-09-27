@@ -16,12 +16,15 @@
 import logging as log
 import re
 import time
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from cryptography.x509 import SignatureAlgorithmOID as AlgOID
 from pprint import pprint
 
 from vcert.common import CertField, CommonConnection, CertificateRequest, CSR_ORIGIN_LOCAL, CSR_ORIGIN_PROVIDED, \
-    CSR_ORIGIN_SERVICE
+    CSR_ORIGIN_SERVICE, KeyType
 from vcert.errors import VenafiError, ServerUnexptedBehavior, ClientBadData, RetrieveCertificateTimeoutError, \
-    CertificateRequestError
+    CertificateRequestError, CertificateRenewError
 from vcert.http import HTTPStatus
 from vcert.policy import RPA, SPA
 from vcert.policy.pm_tpp import TPPPolicy, is_service_generated_csr, SetAttrResponse, validate_policy_spec, \
@@ -69,7 +72,7 @@ class URLS:
 class AbstractTPPConnection(CommonConnection):
 
     def request_cert(self, request, zone):
-        request_data = {'PolicyDN': self._get_policy_dn(zone),
+        request_data = {'PolicyDN': self._normalize_zone(zone),
                         'ObjectName': request.friendly_name,
                         'DisableAutomaticRenewal': "true"
                         }
@@ -87,12 +90,12 @@ class AbstractTPPConnection(CommonConnection):
             raise ClientBadData
 
         if request.origin:
-            request_data["Origin"] = request.origin
-            ca_origin = {"Name": "Origin", "Value": request.origin}
-            if request_data.get("CASpecificAttributes"):
-                request_data["CASpecificAttributes"].append(ca_origin)
+            request_data['Origin'] = request.origin
+            ca_origin = {'Name': "Origin", 'Value': request.origin}
+            if request_data.get('CASpecificAttributes'):
+                request_data['CASpecificAttributes'].append(ca_origin)
             else:
-                request_data["CASpecificAttributes"] = [ca_origin]
+                request_data['CASpecificAttributes'] = [ca_origin]
 
         if request.custom_fields:
             custom_fields_map = {}
@@ -104,13 +107,13 @@ class AbstractTPPConnection(CommonConnection):
 
             for key in custom_fields_map:
                 custom_field_json = {
-                    "Name": key,
-                    "Values": custom_fields_map[key]
+                    'Name': key,
+                    'Values': custom_fields_map[key]
                 }
-                if request_data.get("CustomFields"):
-                    request_data["CustomFields"].append(custom_field_json)
+                if request_data.get('CustomFields'):
+                    request_data['CustomFields'].append(custom_field_json)
                 else:
-                    request_data["CustomFields"] = [custom_field_json]
+                    request_data['CustomFields'] = [custom_field_json]
 
         status, data = self._post(URLS.CERTIFICATE_REQUESTS, data=request_data)
         if status == HTTPStatus.OK:
@@ -118,6 +121,97 @@ class AbstractTPPConnection(CommonConnection):
             request.cert_guid = data['Guid']
             log.debug("Certificate successfully requested with request id %s." % request.id)
             log.debug("Certificate successfully requested with GUID %s." % request.cert_guid)
+            return True
+
+        log.error("Request status is not %s. %s." % HTTPStatus.OK, status)
+        raise CertificateRequestError
+
+    def renew_cert(self, request, reuse_key=False):
+        if not request.id and not request.thumbprint:
+            log.debug("Request id or thumbprint must be specified for TPP")
+            raise CertificateRenewError
+        if not request.id and request.thumbprint:
+            request.id = self.search_by_thumbprint(request.thumbprint)
+
+        if reuse_key:
+            log.debug("Trying to renew certificate %s" % request.id)
+            status, data = self._post(URLS.CERTIFICATE_RENEW, data={'CertificateDN': request.id})
+            if not data['Success']:
+                raise CertificateRenewError
+            return
+
+        cert = self.retrieve_cert(request)
+        cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
+        for a in cert.subject:
+            if a.oid == x509.NameOID.COMMON_NAME:
+                request.common_name = a.value
+            elif a.oid == x509.NameOID.COUNTRY_NAME:
+                request.country = a.value
+            elif a.oid == x509.NameOID.LOCALITY_NAME:
+                request.locality = a.value
+            elif a.oid == x509.NameOID.STATE_OR_PROVINCE_NAME:
+                request.province = a.value
+            elif a.oid == x509.NameOID.ORGANIZATION_NAME:
+                request.organization = a.value
+            elif a.oid == x509.NameOID.ORGANIZATIONAL_UNIT_NAME:
+                request.organizational_unit = a.value
+        for e in cert.extensions:
+            dns = []
+            emails = []
+            ips = []
+            upns = []
+            uris = []
+            if e.oid == x509.OID_SUBJECT_ALTERNATIVE_NAME:
+                for x in e.value:
+                    if isinstance(x, x509.DNSName):
+                        dns.append(x.value)
+                    elif isinstance(x, x509.RFC822Name):
+                        emails.append(x.value)
+                    elif isinstance(x, x509.IPAddress):
+                        ips.append(x.value)
+                    elif isinstance(x, x509.OtherName):
+                        # remove header bytes from ASN1 encoded UPN field before setting it in the request object
+                        upns.append(x.value[2::])
+                    elif isinstance(x, x509.UniformResourceIdentifier):
+                        uris.append(x.value)
+                # request.san_dns = list([x.value for x in e.value if isinstance(x, x509.DNSName)])
+                # request.email_addresses = list([x.value for x in e.value if isinstance(x, x509.RFC822Name)])
+                # request.ip_addresses = list([x.value.exploded for x in e.value if isinstance(x, x509.IPAddress)])
+                # remove header bytes from ASN1 encoded UPN field before setting it in the request object
+                # upns = []
+                # for x in e.value:
+                #     if isinstance(x, x509.OtherName):
+                #         upns.append(x.value[2::])
+                # request.user_principal_names = upns
+                # request.uniform_resource_identifiers = \
+                #     list([x.value for x in e.value if isinstance(x, x509.UniformResourceIdentifier)])
+            request.san_dns = dns
+            request.email_addresses = emails
+            request.ip_addresses = ips
+            request.user_principal_names = upns
+            request.uniform_resource_identifiers = uris
+
+        if request.csr_origin == CSR_ORIGIN_LOCAL:
+            if cert.signature_algorithm_oid in (AlgOID.ECDSA_WITH_SHA1, AlgOID.ECDSA_WITH_SHA224,
+                                                AlgOID.ECDSA_WITH_SHA256, AlgOID.ECDSA_WITH_SHA384,
+                                                AlgOID.ECDSA_WITH_SHA512):
+                request.key_type = (KeyType.ECDSA, KeyType.ALLOWED_CURVES[0])
+            else:
+                request.key_type = KeyType(KeyType.RSA, 2048)  # todo: make parsing key size
+            request.build_csr()
+
+        request_data = {'CertificateDN': request.id}
+        if request.csr_origin in [CSR_ORIGIN_PROVIDED, CSR_ORIGIN_LOCAL]:
+            request_data['PKCS10'] = request.csr
+        elif request.csr_origin == CSR_ORIGIN_SERVICE:
+            request_data['Subject'] = request.common_name
+            request_data['SubjectAltNames'] = self.wrap_alt_names(request)
+
+        status, data = self._post(URLS.CERTIFICATE_RENEW, data=request_data)
+        if status == HTTPStatus.OK:
+            if 'CertificateDN' in data:
+                request.id = data['CertificateDN']
+            log.debug("Certificate successfully requested with request id %s." % request.id)
             return True
 
         log.error("Request status is not %s. %s." % HTTPStatus.OK, status)
@@ -493,15 +587,20 @@ class AbstractTPPConnection(CommonConnection):
     @staticmethod
     def _normalize_zone(zone):
         if zone is None:
-            log.error("Bad zone: %s" % zone)
+            log.error("Zone argument is empty")
             raise ClientBadData
-        if re.match(r"^\\VED\\Policy\\.*", zone):
+        if not re.match(r"^((\\[^\\<]+)|([^\\<]+))+$", zone):
+            log.error("Bad zone format: %s" % zone)
+            raise ClientBadData
+
+        if zone.startswith("\\VED\\Policy"):
             return zone
+        elif zone.startswith("VED\\Policy"):
+            return "\\" + zone
+        elif zone.startswith("\\"):
+            return "\\VED\\Policy" + zone
         else:
-            if re.match(r"^\\", zone):
-                return "\\VED\\Policy" + zone
-            else:
-                return "\\VED\\Policy\\" + zone
+            return "\\VED\\Policy\\" + zone
 
     @staticmethod
     def _get_policy_parent(zone):
@@ -514,19 +613,6 @@ class AbstractTPPConnection(CommonConnection):
         # Return a substring of zone that starts at 0 and ends at index. Zone here is treated as an slice
         # zone[0:index] returns the same result
         return zone[:index]
-
-    @staticmethod
-    def _get_policy_dn(zone):
-        if zone is None:
-            log.error("Bad zone: %s" % zone)
-            raise ClientBadData
-        if re.match(r'^\\VED\\Policy', zone):
-            return zone
-        else:
-            if re.match(r'^\\', zone):
-                return "\\VED\\Policy" + zone
-            else:
-                return ROOT_PATH + zone
 
     def wrap_alt_names(self, request):
         """
@@ -559,3 +645,18 @@ class AbstractTPPConnection(CommonConnection):
             'Type': san_type,
             'Name': value
         }
+
+    def search_by_thumbprint(self, thumbprint):
+        """
+        :param str thumbprint:
+        :rtype: str
+        """
+        thumbprint = re.sub(r'[^\dabcdefABCDEF]', "", thumbprint)
+        thumbprint = thumbprint.upper()
+        status, data = self._get(URLS.CERTIFICATE_SEARCH, params={"Thumbprint": thumbprint})
+        if status != HTTPStatus.OK:
+            raise ServerUnexptedBehavior
+
+        if not data['Certificates']:
+            raise ClientBadData("Certificate not found by thumbprint")
+        return data['Certificates'][0]['DN']

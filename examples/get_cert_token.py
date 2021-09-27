@@ -33,7 +33,7 @@ def main():
     user = environ.get('TPP_USER')
     password = environ.get('TPP_PASSWORD')
     url = environ.get('TPP_TOKEN_URL')
-    zone = environ.get("ZONE")
+    zone = environ.get("TPP_ZONE")
     fake = environ.get('FAKE')
 
     if fake:
@@ -54,7 +54,7 @@ def main():
     request.email_addresses = [u"e1@venafi.example.com", u"e2@venafi.example.com"]
     request.ip_addresses = [u"127.0.0.1", u"192.168.1.1"]
     request.uniform_resource_identifiers = [u"http://wgtest.com",u"https://ragnartest.com"]
-    request.user_principal_names = [u"e1@venafi.example.com", u"e2@venafi.example.com"] 
+    request.user_principal_names = [u"e1@venafi.example.com", u"e2@venafi.example.com"]
     # Specify ordering certificates in chain. Root can be "first" or "last". By default its last. You also can
     # specify "ignore" to ignore chain (supported only for Platform).
     # To set Custom Fields for the certificate, specify an array of CustomField objects as name-value pairs
