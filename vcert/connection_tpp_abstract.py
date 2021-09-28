@@ -163,9 +163,12 @@ class AbstractTPPConnection(CommonConnection):
             if status == HTTPStatus.OK:
                 pem64 = data['CertificateData']
                 pem = base64.b64decode(pem64)
-                return parse_pem(pem.decode(), cert_request.chain_option)
+                cert_response = parse_pem(pem.decode(), cert_request.chain_option)
+                if cert_response.key is None and cert_request.private_key is not None:
+                    log.debug("Adding private key to response...")
+                    cert_response.key = cert_request.private_key_pem
+                return cert_response
             elif (time.time() - time_start) < cert_request.timeout:
-                asd = time.time() - time_start
                 log.debug("Waiting for certificate...")
                 time.sleep(2)
             else:
