@@ -535,10 +535,11 @@ def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None
     # and save into file
     f = open("./cert.pem", "w")
     f.write(cert.full_chain)
-    if not service_generated_csr:
-        f = open("./cert.key", "w")
-        f.write(request.private_key_pem)
-        f.close()
+    with open("./cert.key", "w"):
+        if request.include_private_key:
+            f.write(cert.key)
+        else:
+            f.write(request.private_key_pem)
 
     cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
     assert isinstance(cert, x509.Certificate)

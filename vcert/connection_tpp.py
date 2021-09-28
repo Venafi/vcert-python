@@ -17,23 +17,16 @@
 from __future__ import (absolute_import, division, generators, unicode_literals, print_function, nested_scopes,
                         with_statement)
 
-import base64
 import logging as log
 import re
 import time
 
 import requests
-from cryptography import x509
-from cryptography.hazmat.backends import default_backend
-from cryptography.x509 import SignatureAlgorithmOID as AlgOID
 
-from .common import MIME_JSON, CertField, ZoneConfig, Policy, KeyType, CSR_ORIGIN_LOCAL, CSR_ORIGIN_SERVICE, \
-    CSR_ORIGIN_PROVIDED
+from .common import MIME_JSON, CertField, ZoneConfig, Policy, KeyType
 from .connection_tpp_abstract import AbstractTPPConnection, URLS
-from .errors import (ServerUnexptedBehavior, ClientBadData, CertificateRequestError, AuthenticationError,
-                     CertificateRenewError, VenafiError, RetrieveCertificateTimeoutError)
+from .errors import (ServerUnexptedBehavior, ClientBadData, AuthenticationError)
 from .http import HTTPStatus
-from .pem import parse_pem
 
 TOKEN_HEADER_NAME = "x-venafi-api-key"  # nosec
 
@@ -114,43 +107,6 @@ class TPPConnection(AbstractTPPConnection):
         else:
             log.error("Authentication status is not %s but %s. Exiting" % (HTTPStatus.OK, status[0]))
             raise AuthenticationError
-
-    def retrieve_cert(self, cert_request):
-        log.debug("Getting certificate status for id %s" % cert_request.id)
-
-        retrieve_request = dict(CertificateDN=cert_request.id, Format="base64", IncludeChain='true')
-
-        if cert_request.chain_option == "last":
-            retrieve_request['RootFirstOrder'] = 'false'
-            retrieve_request['IncludeChain'] = 'true'
-        elif cert_request.chain_option == "first":
-            retrieve_request['RootFirstOrder'] = 'true'
-            retrieve_request['IncludeChain'] = 'true'
-        elif cert_request.chain_option == "ignore":
-            retrieve_request['IncludeChain'] = 'false'
-        else:
-            log.error("chain option %s is not valid" % cert_request.chain_option)
-            raise ClientBadData
-
-        time_start = time.time()
-        while True:
-            try:
-                status, data = self._post(URLS.CERTIFICATE_RETRIEVE, data=retrieve_request)
-            except VenafiError:
-                log.debug("Certificate with id %s not found." % cert_request.id)
-                status = 0
-
-            if status == HTTPStatus.OK:
-                pem64 = data['CertificateData']
-                pem = base64.b64decode(pem64)
-                return parse_pem(pem.decode(), cert_request.chain_option)
-            elif (time.time() - time_start) < cert_request.timeout:
-                log.debug("Waiting for certificate...")
-                time.sleep(2)
-            else:
-                raise RetrieveCertificateTimeoutError(
-                    'Operation timed out at %d seconds while retrieving certificate with id %s'
-                    % (cert_request.timeout, cert_request.id))
 
     def revoke_cert(self, request):
         if not (request.id or request.thumbprint):
