@@ -156,6 +156,7 @@ class AbstractTPPConnection(CommonConnection):
         time_start = time.time()
         while True:
             try:
+                log.info(retrieve_request)
                 status, data = self._post(URLS.CERTIFICATE_RETRIEVE, data=retrieve_request)
             except VenafiError:
                 log.debug("Certificate with id %s not found." % cert_request.id)
