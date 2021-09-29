@@ -179,7 +179,9 @@ class FakeConnection(CommonConnection):
         ).sign(root_ca_private_key, hashes.SHA256(), default_backend())
 
         log.info("This certificate is for test purposes only. Don't use it in production!")
-        return parse_pem(cert.public_bytes(serialization.Encoding.PEM).decode(), certificate_request.chain_option)
+        response = parse_pem(cert.public_bytes(serialization.Encoding.PEM).decode(), certificate_request.chain_option)
+        response.key = certificate_request.private_key_pem
+        return response
 
     def revoke_cert(self, request):
         raise NotImplementedError
