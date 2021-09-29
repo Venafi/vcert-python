@@ -139,7 +139,9 @@ class AbstractTPPConnection(CommonConnection):
         if cert_request.csr_origin == CSR_ORIGIN_SERVICE:
             retrieve_request['IncludePrivateKey'] = cert_request.include_private_key
             if cert_request.key_password:
-                retrieve_request['Password'] = cert_request.key_password
+                # The password is encoded when assigned (for local use, I suppose).
+                # decode is needed to send a raw string
+                retrieve_request['Password'] = cert_request.key_password.decode()
 
         if cert_request.chain_option == CHAIN_OPTION_LAST:
             retrieve_request['RootFirstOrder'] = 'false'
