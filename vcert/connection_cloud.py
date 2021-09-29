@@ -358,7 +358,7 @@ class CloudConnection(CommonConnection):
                     log.debug("Certificate found, parsing response...")
                     cert_response = parse_pem(data, request.chain_option)
                     if cert_response.key is None and request.private_key is not None:
-                        log.debug("Adding private key to response...")
+                        log.debug("Adding local private key to response...")
                         cert_response.key = request.private_key_pem
                     return cert_response
                 elif (time.time() - time_start) < request.timeout:

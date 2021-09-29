@@ -52,9 +52,9 @@ def main():
     request.ip_addresses = ["127.0.0.1", "192.168.1.1"]
     request.uniform_resource_identifiers = ["http://wgtest.uri.com","https://ragnartest.uri.com"]
     request.user_principal_names = ["upn1@venafi.example.com", "upn2@venafi.example.com"]
-    # Specify whether or not to return the private key. It is True by default.
-    # request.include_private_key = False
-    # Specify a password for the private key. This may be required or not and depends entirely on the Zone being used.
+    # Specify whether or not to return the private key. It is False by default.
+    # A password should be defined for the private key if include_private_key is True.
+    request.include_private_key = True
     request.key_password = 'Foo.Bar.Pass.123!'
     # Specify ordering certificates in chain. Root can be CHAIN_OPTION_FIRST ("first")
     # or CHAIN_OPTION_LAST ("last"). By default it is CHAIN_OPTION_LAST.

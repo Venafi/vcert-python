@@ -528,6 +528,7 @@ def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None
         request.csr = csr
     elif service_generated_csr:
         request.csr_origin = CSR_ORIGIN_SERVICE
+        request.include_private_key = True
 
     conn.request_cert(request, zone)
     cert = conn.retrieve_cert(request)

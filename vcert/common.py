@@ -264,7 +264,7 @@ class CertificateRequest:
                  custom_fields=None,
                  timeout=DEFAULT_TIMEOUT,
                  csr_origin=CSR_ORIGIN_LOCAL,
-                 include_private_key=True
+                 include_private_key=False
                  ):
         """
         :param str cert_id: Certificate request id. Generating by server.
