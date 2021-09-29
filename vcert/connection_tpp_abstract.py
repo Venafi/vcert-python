@@ -134,7 +134,7 @@ class AbstractTPPConnection(CommonConnection):
 
         retrieve_request = dict(CertificateDN=cert_request.id,
                                 Format="base64",
-                                IncludeChain='true')
+                                IncludeChain=True)
 
         if cert_request.csr_origin == CSR_ORIGIN_SERVICE:
             retrieve_request["IncludePrivateKey"] = cert_request.include_private_key
