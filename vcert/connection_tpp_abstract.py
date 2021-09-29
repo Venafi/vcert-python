@@ -137,7 +137,7 @@ class AbstractTPPConnection(CommonConnection):
                                 IncludeChain=True)
 
         if cert_request.csr_origin == CSR_ORIGIN_SERVICE:
-            retrieve_request['IncludePrivateKey'] = 'true'
+            retrieve_request['IncludePrivateKey'] = cert_request.include_private_key
             if cert_request.key_password:
                 retrieve_request['Password'] = cert_request.key_password
 

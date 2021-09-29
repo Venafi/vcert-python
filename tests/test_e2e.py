@@ -290,7 +290,7 @@ class TestTPPTokenMethods(unittest.TestCase):
     def test_tpp_token_enroll_with_service_generated_csr(self):
         cn = random_word(10) + ".venafi.example.com"
         try:
-            _, _, _, _, cert_guid = enroll(self.tpp_conn, self.tpp_zone, cn=cn, password="Foo.Bar.123!",
+            _, _, _, _, cert_guid = enroll(self.tpp_conn, self.tpp_zone, cn=cn, password="FooBarPass123",
                                            service_generated_csr=True)
             cert_config = self.tpp_conn._get_certificate_details(cert_guid)
             self.assertEqual(cert_config["Origin"], "Venafi VCert-Python")
