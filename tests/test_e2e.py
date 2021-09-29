@@ -539,7 +539,7 @@ def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None
     f.write(cert.full_chain)
     with open("./cert.key", "w"):
         if request.include_private_key:
-            assert cert.key is not None
+            # assert cert.key is not None
             f.write(cert.key)
         else:
             f.write(request.private_key_pem)
