@@ -535,14 +535,14 @@ def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None
     # print("Certificate is:\n %s" % cert_pem)
     # print("Private key is:\n %s:" % request.private_key_pem)
     # and save into file
-    f = open("./cert.pem", "w")
-    f.write(cert.full_chain)
-    with open("./cert.key", "w"):
-        if request.include_private_key:
-            # assert cert.key is not None
-            f.write(cert.key)
-        else:
-            f.write(request.private_key_pem)
+    with open("./cert.pem", "w") as f:
+        f.write(cert.full_chain)
+    # with open("./cert.key", "w") as f2:
+    #     if request.include_private_key:
+    #         assert cert.key is not None
+    #         f2.write(cert.key)
+    #     else:
+    #         f2.write(request.private_key_pem)
 
     cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
     assert isinstance(cert, x509.Certificate)
