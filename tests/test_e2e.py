@@ -295,7 +295,7 @@ class TestTPPTokenMethods(unittest.TestCase):
             cert_config = self.tpp_conn._get_certificate_details(cert_guid)
             self.assertEqual(cert_config["Origin"], "Venafi VCert-Python")
         except Exception as err:
-            self.fail("Error in test: %s" % err)
+            self.fail("Error in test: %s" % err.message)
 
     def test_tpp_token_enroll_with_custom_fields(self):
         cn = random_word(10) + ".venafi.example.com"
