@@ -290,7 +290,8 @@ class TestTPPTokenMethods(unittest.TestCase):
     def test_tpp_token_enroll_with_service_generated_csr(self):
         cn = random_word(10) + ".venafi.example.com"
         try:
-            _, _, _, _, cert_guid = enroll(self.tpp_conn, self.tpp_zone, cn=cn, service_generated_csr=True)
+            _, _, _, _, cert_guid = enroll(self.tpp_conn, self.tpp_zone, cn=cn, password="FooBarPass123",
+                                           service_generated_csr=True)
             cert_config = self.tpp_conn._get_certificate_details(cert_guid)
             self.assertEqual(cert_config["Origin"], "Venafi VCert-Python")
         except Exception as err:
@@ -527,18 +528,21 @@ def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None
         request.csr = csr
     elif service_generated_csr:
         request.csr_origin = CSR_ORIGIN_SERVICE
+        request.include_private_key = True
 
     conn.request_cert(request, zone)
     cert = conn.retrieve_cert(request)
     # print("Certificate is:\n %s" % cert_pem)
     # print("Private key is:\n %s:" % request.private_key_pem)
     # and save into file
-    f = open("./cert.pem", "w")
-    f.write(cert.full_chain)
-    if not service_generated_csr:
-        f = open("./cert.key", "w")
-        f.write(request.private_key_pem)
-        f.close()
+    with open("./cert.pem", "w") as f:
+        f.write(cert.full_chain)
+    with open("./cert.key", "w") as f2:
+        if request.include_private_key:
+            assert cert.key is not None
+            f2.write(cert.key)
+        else:
+            f2.write(request.private_key_pem)
 
     cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
     assert isinstance(cert, x509.Certificate)

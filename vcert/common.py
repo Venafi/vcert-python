@@ -38,7 +38,6 @@ from .http import HTTPStatus
 from .policy import PolicySpecification
 from .ssh_utils import SSHCertRequest, SSHRetrieveResponse
 
-
 MIME_JSON = "application/json"
 MIME_HTML = "text/html"
 MIME_TEXT = "text/plain"
@@ -264,7 +263,8 @@ class CertificateRequest:
                  origin=None,
                  custom_fields=None,
                  timeout=DEFAULT_TIMEOUT,
-                 csr_origin=CSR_ORIGIN_LOCAL
+                 csr_origin=CSR_ORIGIN_LOCAL,
+                 include_private_key=False
                  ):
         """
         :param str cert_id: Certificate request id. Generating by server.
@@ -285,6 +285,7 @@ class CertificateRequest:
         :param list[CustomField] custom_fields: list of custom fields values to be added to the certificate.
         :param int timeout: Timeout for the certificate to be retrieved from server. Measured in seconds.
         :param str csr_origin: The origin of the CSR, either user provided, locally generated or service generated.
+        :param bool include_private_key: Indicates if the private key should be returned by the server or not.
         """
 
         self.chain_option = CHAIN_OPTION_LAST  # "last"
@@ -318,6 +319,7 @@ class CertificateRequest:
         self.custom_fields = custom_fields
         self.cert_guid = None
         self.timeout = timeout
+        self.include_private_key = include_private_key
 
     def __setattr__(self, key, value):
         if key == "key_password":

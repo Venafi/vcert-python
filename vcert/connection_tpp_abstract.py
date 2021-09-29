@@ -13,16 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import base64
 import logging as log
 import re
 import time
+from pprint import pprint
+
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.x509 import SignatureAlgorithmOID as AlgOID
-from pprint import pprint
 
+from vcert.pem import parse_pem
 from vcert.common import CertField, CommonConnection, CertificateRequest, CSR_ORIGIN_LOCAL, CSR_ORIGIN_PROVIDED, \
-    CSR_ORIGIN_SERVICE, KeyType
+    CSR_ORIGIN_SERVICE, KeyType, CHAIN_OPTION_LAST, CHAIN_OPTION_FIRST, CHAIN_OPTION_IGNORE
 from vcert.errors import VenafiError, ServerUnexptedBehavior, ClientBadData, RetrieveCertificateTimeoutError, \
     CertificateRequestError, CertificateRenewError
 from vcert.http import HTTPStatus
@@ -125,6 +128,56 @@ class AbstractTPPConnection(CommonConnection):
 
         log.error("Request status is not %s. %s." % HTTPStatus.OK, status)
         raise CertificateRequestError
+
+    def retrieve_cert(self, cert_request):
+        log.debug("Getting certificate status for id %s" % cert_request.id)
+
+        retrieve_request = dict(CertificateDN=cert_request.id,
+                                Format="base64",
+                                IncludeChain=True)
+
+        if cert_request.csr_origin == CSR_ORIGIN_SERVICE:
+            retrieve_request['IncludePrivateKey'] = cert_request.include_private_key
+            if cert_request.key_password:
+                # The password is encoded when assigned (for local use, I suppose).
+                # decode is needed to send a raw string
+                retrieve_request['Password'] = cert_request.key_password.decode()
+
+        if cert_request.chain_option == CHAIN_OPTION_LAST:
+            retrieve_request['RootFirstOrder'] = 'false'
+            retrieve_request['IncludeChain'] = 'true'
+        elif cert_request.chain_option == CHAIN_OPTION_FIRST:
+            retrieve_request['RootFirstOrder'] = 'true'
+            retrieve_request['IncludeChain'] = 'true'
+        elif cert_request.chain_option == CHAIN_OPTION_IGNORE:
+            retrieve_request['IncludeChain'] = 'false'
+        else:
+            log.error("chain option %s is not valid" % cert_request.chain_option)
+            raise ClientBadData
+
+        time_start = time.time()
+        while True:
+            try:
+                status, data = self._post(URLS.CERTIFICATE_RETRIEVE, data=retrieve_request)
+            except VenafiError:
+                log.debug("Certificate with id %s not found." % cert_request.id)
+                status = 0
+
+            if status == HTTPStatus.OK:
+                pem64 = data['CertificateData']
+                pem = base64.b64decode(pem64)
+                cert_response = parse_pem(pem.decode(), cert_request.chain_option)
+                if cert_response.key is None and cert_request.private_key is not None:
+                    log.debug("Adding private key to response...")
+                    cert_response.key = cert_request.private_key_pem
+                return cert_response
+            elif (time.time() - time_start) < cert_request.timeout:
+                log.debug("Waiting for certificate...")
+                time.sleep(2)
+            else:
+                raise RetrieveCertificateTimeoutError(
+                    'Operation timed out at %d seconds while retrieving certificate with id %s'
+                    % (cert_request.timeout, cert_request.id))
 
     def renew_cert(self, request, reuse_key=False):
         if not request.id and not request.thumbprint:
