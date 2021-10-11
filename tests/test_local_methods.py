@@ -20,10 +20,10 @@ import unittest
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 
-import logger
 from assets import POLICY_CLOUD1, POLICY_TPP1, EXAMPLE_CSR, EXAMPLE_CHAIN
 from pem import parse_pem, Certificate
-from vcert import CloudConnection, KeyType, TPPConnection, CertificateRequest, ZoneConfig, CertField, FakeConnection
+from vcert import CloudConnection, KeyType, TPPConnection, CertificateRequest, ZoneConfig, CertField, FakeConnection, \
+    logger
 
 pkcs12_enc_cert = """-----BEGIN CERTIFICATE-----
 MIICljCCAX6gAwIBAgIRAO8Qp6LUsgVDQrxHXX1LUV4wDQYJKoZIhvcNAQENBQAw
