@@ -26,8 +26,8 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.serialization import pkcs12, load_pem_private_key, BestAvailableEncryption
 
-from errors import VenafiError
-from logger import get_logger
+from .errors import VenafiError
+from .logger import get_logger
 
 _PEM_TYPES = [
     "CERTIFICATE",
