@@ -122,4 +122,4 @@ class Certificate:
 
 def random_word(length):
     letters = string.ascii_lowercase
-    return ''.join(random.choice(letters) for _ in range(length))
+    return ''.join(random.choice(letters) for _ in range(length))  # nosec
