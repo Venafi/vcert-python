@@ -17,7 +17,7 @@
 import binascii
 import random
 import string
-from datetime import time
+import time
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend

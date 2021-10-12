@@ -83,7 +83,7 @@ class TestSSHUtils(unittest.TestCase):
         with open(full_path, "r") as priv_key_file:
             s_priv_key = priv_key_file.read()
             expected_priv_key = SSH_PRIVATE_KEY
-            if platform.system() is not "Windows":
+            if platform.system() != "Windows":
                 expected_priv_key = expected_priv_key.replace("\r\n", "\n")
 
             self.assertTrue(expected_priv_key == s_priv_key, err_msg % "SSH Private Key")
