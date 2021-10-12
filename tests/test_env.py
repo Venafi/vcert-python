@@ -14,11 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import random
-import string
 from os import environ
 
-from future.backports.datetime import datetime
 from six import text_type
 
 FAKE = environ.get("FAKE")
@@ -43,12 +40,3 @@ TPP_SSH_CADN = environ.get("TPP_SSH_CADN")
 
 if RANDOM_DOMAIN and not isinstance(RANDOM_DOMAIN, text_type):
     RANDOM_DOMAIN = RANDOM_DOMAIN.decode()
-
-
-def random_word(length):
-    letters = string.ascii_lowercase
-    return ''.join(random.choice(letters) for _ in range(length))
-
-
-def timestamp():
-    return datetime.today().strftime('%Y.%m.%d-%Hh%Mm%Ss')

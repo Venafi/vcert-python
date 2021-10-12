@@ -161,7 +161,7 @@ lriDCQa4FOwP9/x1OJRXEsSl5YFqBppX5A==
 
 chain = [ca_cert, ca_cert]
 
-log = logger.get_child("test-local-methods")
+log = logger.get_child("test-local")
 
 
 class TestLocalMethods(unittest.TestCase):
@@ -347,4 +347,3 @@ class TestLocalMethods(unittest.TestCase):
         cert = Certificate(cert=pkcs12_plain_cert, chain=chain, key=pkcs12_plain_pk)
         output = cert.as_pkcs12()
         log.info("PKCS12 created successfully:\n%s" % output)
-        pass

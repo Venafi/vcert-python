@@ -17,23 +17,25 @@ import base64
 import logging as log
 import re
 import time
+from datetime import datetime, timedelta
 from pprint import pprint
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.x509 import SignatureAlgorithmOID as AlgOID
 
-from vcert.pem import parse_pem
-from vcert.common import CertField, CommonConnection, CertificateRequest, CSR_ORIGIN_LOCAL, CSR_ORIGIN_PROVIDED, \
-    CSR_ORIGIN_SERVICE, KeyType, CHAIN_OPTION_LAST, CHAIN_OPTION_FIRST, CHAIN_OPTION_IGNORE
-from vcert.errors import VenafiError, ServerUnexptedBehavior, ClientBadData, RetrieveCertificateTimeoutError, \
+from .pem import parse_pem
+from .common import CertField, CommonConnection, CertificateRequest, CSR_ORIGIN_LOCAL, CSR_ORIGIN_PROVIDED, \
+    CSR_ORIGIN_SERVICE, KeyType, CHAIN_OPTION_LAST, CHAIN_OPTION_FIRST, CHAIN_OPTION_IGNORE, Policy, ZoneConfig
+from .errors import VenafiError, ServerUnexptedBehavior, ClientBadData, RetrieveCertificateTimeoutError, \
     CertificateRequestError, CertificateRenewError
-from vcert.http import HTTPStatus
-from vcert.policy import RPA, SPA
-from vcert.policy.pm_tpp import TPPPolicy, is_service_generated_csr, SetAttrResponse, validate_policy_spec, \
+from .http import HTTPStatus
+from .policy import RPA, SPA
+from .policy.pm_tpp import TPPPolicy, is_service_generated_csr, SetAttrResponse, validate_policy_spec, \
     get_int_value
-from vcert.ssh_utils import SSHCertRequest, SSHCertResponse, build_tpp_retrieve_request, SSHResponse, \
+from .ssh_utils import SSHCertRequest, SSHCertResponse, build_tpp_retrieve_request, SSHResponse, \
     SSHRetrieveResponse, build_tpp_request
+from .tpp_utils import IssuerHint
 
 POLICY_ATTR_CLASS = "X509 Certificate"  # type: str
 ROOT_PATH = "\\VED\\Policy\\"  # type: str
@@ -100,6 +102,25 @@ class AbstractTPPConnection(CommonConnection):
             else:
                 request_data['CASpecificAttributes'] = [ca_origin]
 
+        if request.validity_hours is not None:
+            if request.issuer_hint == IssuerHint.MICROSOFT:
+                exp_date_attr = IssuerHint.MICROSOFT.json_value
+            elif request.issuer_hint == IssuerHint.DIGICERT:
+                exp_date_attr = IssuerHint.DIGICERT.json_value
+            elif request.issuer_hint == IssuerHint.ENTRUST:
+                exp_date_attr = IssuerHint.ENTRUST.json_value
+            else:
+                exp_date_attr = IssuerHint.DEFAULT.json_value
+
+            expiration_date = datetime.utcnow() + timedelta(hours=request.validity_hours)
+            formatted_expiration_date = expiration_date.strftime("%Y-%m-%d %H:%M:%S")
+
+            expiration_date = {'Name': exp_date_attr, 'Value': formatted_expiration_date}
+            if request_data.get('CASpecificAttributes'):
+                request_data['CASpecificAttributes'].append(expiration_date)
+            else:
+                request_data['CASpecificAttributes'] = [expiration_date]
+
         if request.custom_fields:
             custom_fields_map = {}
             for c_field in request.custom_fields:
@@ -117,6 +138,7 @@ class AbstractTPPConnection(CommonConnection):
                     request_data['CustomFields'].append(custom_field_json)
                 else:
                     request_data['CustomFields'] = [custom_field_json]
+
 
         status, data = self._post(URLS.CERTIFICATE_REQUESTS, data=request_data)
         if status == HTTPStatus.OK:
@@ -269,6 +291,31 @@ class AbstractTPPConnection(CommonConnection):
 
         log.error("Request status is not %s. %s." % HTTPStatus.OK, status)
         raise CertificateRequestError
+
+    def revoke_cert(self, request):
+        if not (request.id or request.thumbprint):
+            raise ClientBadData
+        d = {
+            "Disable": request.disable
+        }
+        if request.reason:
+            d["Reason"] = request.reason
+        if request.id:
+            d["CertificateDN"] = request.id
+        elif request.thumbprint:
+            d["Thumbprint"] = request.thumbprint
+        else:
+            raise ClientBadData
+        if request.comments:
+            d["Comments"] = request.comments
+        status, data = self._post(URLS.CERTIFICATE_REVOKE, data=d)
+        if status in (HTTPStatus.OK, HTTPStatus.ACCEPTED):
+            return data
+
+        raise ServerUnexptedBehavior
+
+    def import_cert(self, request):
+        raise NotImplementedError
 
     def get_policy(self, zone):
         # get policy spec from name
@@ -713,3 +760,66 @@ class AbstractTPPConnection(CommonConnection):
         if not data['Certificates']:
             raise ClientBadData("Certificate not found by thumbprint")
         return data['Certificates'][0]['DN']
+
+    @staticmethod
+    def _parse_zone_config_to_policy(data):
+        # todo: parse over values to regexps (dont forget tests!)
+        p = data['Policy']
+        if p['KeyPair']['KeyAlgorithm']['Locked']:
+            if p['KeyPair']['KeyAlgorithm']['Value'] == 'RSA':
+                if p['KeyPair']['KeySize']['Locked']:
+                    key_types = [KeyType(KeyType.RSA, p['KeyPair']['KeySize']['Value'])]
+                else:
+                    key_types = [KeyType(KeyType.RSA, x) for x in KeyType.ALLOWED_SIZES]
+            elif p['KeyPair']['KeyAlgorithm']['Value'] == 'ECC':
+                if p['KeyPair']['EllipticCurve']['Locked']:
+                    key_types = [KeyType(KeyType.ECDSA, p['KeyPair']['EllipticCurve']['Value'])]
+                else:
+                    key_types = [KeyType(KeyType.ECDSA, x) for x in KeyType.ALLOWED_CURVES]
+            else:
+                raise ServerUnexptedBehavior
+        else:
+            key_types = []
+            if p['KeyPair'].get('KeySize', {}).get('Locked'):
+                key_types += [KeyType(KeyType.RSA, p['KeyPair']['KeySize']['Value'])]
+            else:
+                key_types += [KeyType(KeyType.RSA, x) for x in KeyType.ALLOWED_SIZES]
+            if p['KeyPair'].get('EllipticCurve', {}).get('Locked'):
+                key_types += [KeyType(KeyType.ECDSA, p['KeyPair']['EllipticCurve']['Value'])]
+            else:
+                key_types += [KeyType(KeyType.ECDSA, x) for x in KeyType.ALLOWED_CURVES]
+        return Policy(key_types=key_types)
+
+    @staticmethod
+    def _parse_zone_data_to_object(data):
+        s = data['Policy']['Subject']
+        ou = s['OrganizationalUnit'].get('Values')
+        policy = AbstractTPPConnection._parse_zone_config_to_policy(data)
+        if data['Policy']['KeyPair']['KeyAlgorithm']['Value'] == 'RSA':
+            key_type = KeyType(KeyType.RSA, data['Policy']['KeyPair']['KeySize']['Value'])
+        elif data['Policy']['KeyPair']['KeyAlgorithm']['Value'] == 'ECC':
+            key_type = KeyType(KeyType.ECDSA, data['Policy']['KeyPair']['EllipticCurve']['Value'])
+        else:
+            key_type = None
+        z = ZoneConfig(
+            organization=CertField(s['Organization']['Value'], locked=s['Organization']['Locked']),
+            organizational_unit=CertField(ou, locked=s['OrganizationalUnit']['Locked']),
+            country=CertField(s['Country']['Value'], locked=s['Country']['Locked']),
+            province=CertField(s['State']['Value'], locked=s['State']['Locked']),
+            locality=CertField(s['City']['Value'], locked=s['City']['Locked']),
+            policy=policy,
+            key_type=key_type,
+        )
+        return z
+
+    def read_zone_conf(self, tag):
+        status, data = self._post(URLS.ZONE_CONFIG, {'PolicyDN': self._normalize_zone(tag)})
+        if status != HTTPStatus.OK:
+            raise ServerUnexptedBehavior("Server returns %d status on reading zone configuration." % status)
+        return self._parse_zone_data_to_object(data)
+
+    def _get_certificate_details(self, cert_guid):
+        status, data = self._get(URLS.CERTIFICATE_SEARCH + cert_guid)
+        if status != HTTPStatus.OK:
+            raise ServerUnexptedBehavior("")
+        return data

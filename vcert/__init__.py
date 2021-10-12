@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-from .logger import setup_logger
+from .logger import setup_logger, get_logger, get_child
 from .common import CertificateRequest, CommonConnection, RevocationRequest, ZoneConfig, CertField, KeyType, \
     CustomField, Authentication, SCOPE_CM, SCOPE_PM, SCOPE_SSH, CSR_ORIGIN_LOCAL, CSR_ORIGIN_PROVIDED, \
     CSR_ORIGIN_SERVICE, CHAIN_OPTION_FIRST, CHAIN_OPTION_IGNORE, CHAIN_OPTION_LAST
@@ -24,6 +24,7 @@ from .connection_tpp_token import TPPTokenConnection
 from .connection_fake import FakeConnection
 from .pem import Certificate
 from .ssh_utils import SSHCertRequest, SSHKeyPair, write_ssh_files
+from .tpp_utils import IssuerHint
 
 setup_logger()
 

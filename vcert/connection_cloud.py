@@ -311,15 +311,19 @@ class CloudConnection(CommonConnection):
             request.build_csr()
 
         ip_address = get_ip_address()
-        status, data = self._post(URLS.CERTIFICATE_REQUESTS, data={
-            "certificateSigningRequest": request.csr,
-            "applicationId": details.app_id,
-            "certificateIssuingTemplateId": cit_id,
-            "apiClientInformation": {
-                "type": request.origin,
-                "identifier": ip_address
+        request_data = {
+            'certificateSigningRequest': request.csr,
+            'applicationId': details.app_id,
+            'certificateIssuingTemplateId': cit_id,
+            'apiClientInformation': {
+                'type': request.origin,
+                'identifier': ip_address
             }
-        })
+        }
+        if request.validity_hours is not None:
+            request_data['validityPeriod'] = "PT%dH" % request.validity_hours
+
+        status, data = self._post(URLS.CERTIFICATE_REQUESTS, data=request_data)
         if status == HTTPStatus.CREATED:
             request.id = data['certificateRequests'][0]['id']
             request.cert_guid = data['certificateRequests'][0]['certificateIds'][0]
