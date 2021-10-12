@@ -14,6 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import absolute_import, division, generators, unicode_literals, print_function, nested_scopes, \
+    with_statement
+
 import binascii
 import random
 import string
