@@ -18,6 +18,16 @@ from __future__ import (absolute_import, division, generators, unicode_literals,
                         with_statement)
 
 import re
+import string
+import random
+
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.serialization import pkcs12, load_pem_private_key, BestAvailableEncryption
+
+from .errors import VenafiError
+from .logger import get_logger
 
 _PEM_TYPES = [
     "CERTIFICATE",
@@ -57,13 +67,59 @@ def parse_pem(pem_str, order):
 
 class Certificate:
     def __init__(self, cert=None, chain=None, key=None):
+        """
+
+        :param str cert:
+        :param list chain:
+        :param str key:
+        """
         self.cert = cert
         self.chain = chain
         self.key = key
 
     @property
     def full_chain(self):
+        """
+
+        :rtype: str
+        """
         if not self.chain:
             return self.cert
         return self.cert + "\n" + "\n".join(self.chain)
 
+    def as_pkcs12(self, passphrase=None):
+        """
+
+        :param str passphrase:
+        :rtype: str
+        """
+        if not self.cert or not self.key:
+            get_logger().error("PKCS12 output: Certificate or Private Key is None.")
+            raise VenafiError("Certificate and Private Key are required for PKCS12 output.")
+
+        certificate = x509.load_pem_x509_certificate(self.cert.encode(), default_backend())
+        cas = []
+        if self.chain:
+            for x in self.chain:
+                chain_x509 = x509.load_pem_x509_certificate(x.encode(), default_backend())
+                cas.append(chain_x509)
+        if passphrase:
+            b_pass = passphrase.encode()
+            encryption = serialization.BestAvailableEncryption(b_pass)
+        else:
+            encryption = serialization.NoEncryption()
+            b_pass = None
+        try:
+            p_key = load_pem_private_key(data=self.key.encode(), password=b_pass, backend=default_backend())
+        except Exception as e:
+            get_logger().error(msg="Error parsing Private Key: %s" % e.message)
+            return
+
+        name = random_word(10).encode()
+        output = pkcs12.serialize_key_and_certificates(name, p_key, certificate, cas, encryption)
+        return output
+
+
+def random_word(length):
+    letters = string.ascii_lowercase
+    return ''.join(random.choice(letters) for _ in range(length))  # nosec
