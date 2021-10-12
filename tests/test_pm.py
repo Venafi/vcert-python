@@ -15,14 +15,14 @@
 # limitations under the License.
 #
 
-import logging
 import os
 import unittest
 from pprint import pformat
 
 from test_env import TPP_TOKEN_URL, CLOUD_APIKEY, CLOUD_URL, TPP_PM_ROOT, CLOUD_ENTRUST_CA_NAME, \
-    CLOUD_DIGICERT_CA_NAME, TPP_CA_NAME, TPP_USER, TPP_PASSWORD, timestamp
-from vcert import TPPTokenConnection, CloudConnection, Authentication, SCOPE_PM
+    CLOUD_DIGICERT_CA_NAME, TPP_CA_NAME, TPP_USER, TPP_PASSWORD
+from test_utils import timestamp
+from vcert import TPPTokenConnection, CloudConnection, Authentication, SCOPE_PM, logger
 from vcert.parser import json_parser, yaml_parser
 from vcert.parser.utils import parse_policy_spec
 from vcert.policy import Policy, Subject, KeyPair, SubjectAltNames, Defaults, DefaultSubject, DefaultKeyPair, \
@@ -33,8 +33,7 @@ POLICY_SPEC_JSON = '/resources/policy_specification.json'
 POLICY_SPEC_YAML = '/resources/policy_specification.yaml'
 CA_TYPE_TPP = 'TPP'
 
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger('vcert-test')
+log = logger.get_child("test-pm")
 
 
 class TestParsers(unittest.TestCase):
@@ -167,8 +166,8 @@ def create_policy(connector, zone, policy_spec=None, policy=None, defaults=None)
     connector.set_policy(zone, policy_spec)
     resp = connector.get_policy(zone)
     data = parse_policy_spec(resp)
-    logger.debug('Created Policy at %s' % zone)
-    logger.debug(pformat(data))
+    log.debug('Created Policy at %s' % zone)
+    log.debug(pformat(data))
     return resp
 
 
@@ -251,7 +250,7 @@ def _get_tpp_policy_name():
 
 def _resolve_resources_path(path):
     resources_dir = os.path.dirname(__file__)
-    logger.debug('Testing root folder: [%s]' % resources_dir)
+    log.debug('Testing root folder: [%s]' % resources_dir)
     resolved_path = ('.%s' % path) if resources_dir.endswith('tests') else ('./tests%s' % path)
-    logger.debug('resolved path: [%s]' % resolved_path)
+    log.debug('resolved path: [%s]' % resolved_path)
     return resolved_path

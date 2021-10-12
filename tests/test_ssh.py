@@ -20,14 +20,13 @@ import re
 import unittest
 
 from assets import SSH_CERT_DATA, SSH_PRIVATE_KEY, SSH_PUBLIC_KEY
-from test_env import timestamp, TPP_TOKEN_URL, TPP_USER, TPP_PASSWORD, TPP_SSH_CADN
+from test_env import TPP_TOKEN_URL, TPP_USER, TPP_PASSWORD, TPP_SSH_CADN
+from test_utils import timestamp
 from vcert import CommonConnection, SSHCertRequest, TPPTokenConnection, Authentication, \
-    SCOPE_SSH, write_ssh_files
+    SCOPE_SSH, write_ssh_files, logger
 from vcert.ssh_utils import SSHRetrieveResponse, SSHKeyPair
 
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger('vcert-test')
-
+log = logger.get_child("test-ssh")
 
 SERVICE_GENERATED_NO_KEY_ERROR = "%s key data is %s empty for Certificate %s"  # type: str
 SSH_CERT_DATA_ERROR = "Certificate data is empty for Certificate %s"  # type: str
@@ -84,7 +83,7 @@ class TestSSHUtils(unittest.TestCase):
         with open(full_path, "r") as priv_key_file:
             s_priv_key = priv_key_file.read()
             expected_priv_key = SSH_PRIVATE_KEY
-            if platform.system() is not "Windows":
+            if platform.system() != "Windows":
                 expected_priv_key = expected_priv_key.replace("\r\n", "\n")
 
             self.assertTrue(expected_priv_key == s_priv_key, err_msg % "SSH Private Key")

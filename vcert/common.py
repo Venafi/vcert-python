@@ -37,6 +37,7 @@ from .errors import VenafiConnectionError, ServerUnexptedBehavior, BadData, Clie
 from .http import HTTPStatus
 from .policy import PolicySpecification
 from .ssh_utils import SSHCertRequest, SSHRetrieveResponse
+from .tpp_utils import IssuerHint
 
 MIME_JSON = "application/json"
 MIME_HTML = "text/html"
@@ -241,31 +242,12 @@ class RecommendedSettings:
 
 
 class CertificateRequest:
-    def __init__(self, cert_id=None,
-                 san_dns=None,
-                 email_addresses="",
-                 ip_addresses=None,
-                 user_principal_names=None,
-                 uniform_resource_identifiers=None,
-                 attributes=None,
-                 key_type=None,
-                 private_key=None,
-                 key_password=None,
-                 csr=None,
-                 friendly_name=None,
-                 common_name=None,
-                 thumbprint=None,
-                 organization=None,
-                 organizational_unit=None,
-                 country=None,
-                 province=None,
-                 locality=None,
-                 origin=None,
-                 custom_fields=None,
-                 timeout=DEFAULT_TIMEOUT,
-                 csr_origin=CSR_ORIGIN_LOCAL,
-                 include_private_key=False
-                 ):
+    def __init__(self, cert_id=None, san_dns=None, email_addresses="", ip_addresses=None, user_principal_names=None,
+                 uniform_resource_identifiers=None, attributes=None, key_type=None, private_key=None, key_password=None,
+                 csr=None, friendly_name=None, common_name=None, thumbprint=None, organization=None,
+                 organizational_unit=None, country=None, province=None, locality=None, origin=None, custom_fields=None,
+                 timeout=DEFAULT_TIMEOUT, csr_origin=CSR_ORIGIN_LOCAL, include_private_key=False, validity_hours=None,
+                 issuer_hint=IssuerHint.DEFAULT):
         """
         :param str cert_id: Certificate request id. Generating by server.
         :param list[str] san_dns: Alternative names for SNI.
@@ -286,6 +268,8 @@ class CertificateRequest:
         :param int timeout: Timeout for the certificate to be retrieved from server. Measured in seconds.
         :param str csr_origin: The origin of the CSR, either user provided, locally generated or service generated.
         :param bool include_private_key: Indicates if the private key should be returned by the server or not.
+        :param int validity_hours: time in hours before the certificate expires.
+        :param IssuerHint issuer_hint: Issuer of the certificate. Ignored when platform is not TPP.
         """
 
         self.chain_option = CHAIN_OPTION_LAST  # "last"
@@ -320,6 +304,8 @@ class CertificateRequest:
         self.cert_guid = None
         self.timeout = timeout
         self.include_private_key = include_private_key
+        self.validity_hours = validity_hours
+        self.issuer_hint = issuer_hint
 
     def __setattr__(self, key, value):
         if key == "key_password":
