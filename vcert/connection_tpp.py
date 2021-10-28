@@ -116,3 +116,8 @@ class TPPConnection(AbstractTPPConnection):
         if status != HTTPStatus.OK:
             raise ServerUnexptedBehavior("")
         return data
+
+    def _is_valid_auth(self):
+        if self._token:
+            return True
+        return False

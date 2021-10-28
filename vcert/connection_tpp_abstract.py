@@ -23,6 +23,7 @@ from pprint import pprint
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.x509 import SignatureAlgorithmOID as AlgOID
+from six.moves.urllib import parse as url_parse
 
 from .pem import parse_pem
 from .common import CertField, CommonConnection, CertificateRequest, CSR_ORIGIN_LOCAL, CSR_ORIGIN_PROVIDED, \
@@ -34,7 +35,8 @@ from .policy import RPA, SPA
 from .policy.pm_tpp import TPPPolicy, is_service_generated_csr, SetAttrResponse, validate_policy_spec, \
     get_int_value
 from .ssh_utils import SSHCertRequest, SSHCertResponse, build_tpp_retrieve_request, SSHResponse, \
-    SSHRetrieveResponse, build_tpp_request
+    SSHRetrieveResponse, build_tpp_request, SSHCATemplateRequest, SSHConfig, PATH_SEPARATOR, CA_ROOT_PATH, \
+    SSHTPPCADetails
 from .tpp_utils import IssuerHint
 
 POLICY_ATTR_CLASS = "X509 Certificate"  # type: str
@@ -69,6 +71,8 @@ class URLS:
     SSH_BASE_URL = API_BASE_URL + "SSHCertificates/"
     SSH_CERTIFICATE_REQUEST = SSH_BASE_URL + "request"
     SSH_CERTIFICATE_RETRIEVE = SSH_BASE_URL + "retrieve"
+    SSH_CA_DETAILS = SSH_BASE_URL + "Template/Retrieve"
+    SSH_CA_PUBLIC_KEY = SSH_CA_DETAILS + "/PublicKeyData"
 
     def __init__(self):
         pass
@@ -536,17 +540,18 @@ class AbstractTPPConnection(CommonConnection):
         log.info("Requesting SSH Certificate with id %s" % request.key_id)
         status, data = self._post(URLS.SSH_CERTIFICATE_REQUEST, json_request)
 
-        if status != HTTPStatus.OK:
+        if status == HTTPStatus.OK:
+            response_object = SSHResponse(data['Response'])
+            if response_object.success:
+                cert_req_response = SSHCertResponse(data)
+                request.pickup_id = cert_req_response.dn
+                request.guid = cert_req_response.guid
+                return True
+            else:
+                raise VenafiError("An error occurred with status %s. Message: %s"
+                                  % (response_object.error_code, response_object.error_msg))
+        else:
             raise ServerUnexptedBehavior("Server returns %d status on requesting SSH certificate." % status)
-
-        response = SSHCertResponse(data)
-        if not response.response.success:
-            raise VenafiError("An error occurred with status %s. Message: %s"
-                              % (response.response.error_code, response.response.error_msg))
-        request.pickup_id = response.dn
-        request.guid = response.guid
-
-        return True
 
     def retrieve_ssh_cert(self, request):
         """
@@ -566,7 +571,7 @@ class AbstractTPPConnection(CommonConnection):
                 status = 0
 
             if status == HTTPStatus.OK:
-                response_object = SSHResponse(data["Response"])
+                response_object = SSHResponse(data['Response'])
                 if response_object.success:
                     return SSHRetrieveResponse(data)
                 else:
@@ -582,6 +587,42 @@ class AbstractTPPConnection(CommonConnection):
                 raise RetrieveCertificateTimeoutError(
                     'Operation timed out at %d seconds while retrieving SSH certificate with id %s'
                     % (request.timeout, request.pickup_id))
+
+    def retrieve_ssh_config(self, ca_request):
+        """
+
+        :param SSHCATemplateRequest ca_request:
+        :rtype: SSHConfig
+        """
+        key = None
+        value = None
+        if ca_request.template:
+            key = 'DN'
+            value = "%s%s%s" % (CA_ROOT_PATH, PATH_SEPARATOR, ca_request.guid)
+        elif ca_request.guid:
+            key = 'guid'
+            value = ca_request.guid
+        else:
+            raise ClientBadData("CA Guid or CA template must be provided to retrieve SSH config.")
+
+        query = "%s=%s" % (key, value)
+        query = url_parse.quote(query)
+        url = "%s?%s" % (URLS.SSH_CA_PUBLIC_KEY, query)
+
+        status, data = self._get(url=url, params=None)
+        if status == HTTPStatus.OK:
+            ssh_config_response = SSHConfig()
+            ssh_config_response.ca_public_key = data
+            if self._is_valid_auth():
+                details = self._retrieve_ssh_ca_details(ca_request)
+                ssh_config_response.ca_principals = details.access_control.default_principals
+            return ssh_config_response
+        else:
+            raise ServerUnexptedBehavior("Server returns %d status on requesting SSH CA Public Key Data for %s = %s."
+                                         % (status, key, value))
+
+    # ======================================== API IMPLEMENTATION ENDS ======================================== #
+    # ========================================================================================================= #
 
     def _policy_exists(self, zone):
         """
@@ -823,3 +864,31 @@ class AbstractTPPConnection(CommonConnection):
         if status != HTTPStatus.OK:
             raise ServerUnexptedBehavior("")
         return data
+
+    def _is_valid_auth(self):
+        raise NotImplementedError
+
+    def _retrieve_ssh_ca_details(self, ca_request):
+        """
+
+        :param SSHCATemplateRequest ca_request:
+        :rtype: SSHTPPCADetails
+        """
+        json_request = dict()
+        if ca_request.template:
+            json_request['DN'] = "%s%s%s" % (CA_ROOT_PATH, PATH_SEPARATOR, ca_request.guid)
+        elif ca_request.guid:
+            json_request['Guid'] = ca_request.guid
+        else:
+            raise ClientBadData("CA Guid or CA template must be provided to retrieve SSH CA details.")
+
+        status, data = self._post(URLS.SSH_CA_DETAILS, json_request)
+        if status == HTTPStatus.OK:
+            response_object = SSHResponse(data['Response'])
+            if response_object.success:
+                return SSHTPPCADetails(data)
+            else:
+                raise VenafiError("An error occurred with status %s. Message: %s"
+                                  % (response_object.error_code, response_object.error_msg))
+        else:
+            raise ServerUnexptedBehavior("Server returns %d status on requesting SSH CA details." % status)

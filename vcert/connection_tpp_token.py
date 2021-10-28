@@ -185,3 +185,8 @@ class TPPTokenConnection(AbstractTPPConnection):
             refresh_token=data["refresh_token"],
         )
         return token_info
+
+    def _is_valid_auth(self):
+        if self._auth and self._auth.access_token:
+            return True
+        return False

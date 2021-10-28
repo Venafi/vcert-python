@@ -36,7 +36,7 @@ from six import string_types, binary_type
 from .errors import VenafiConnectionError, ServerUnexptedBehavior, BadData, ClientBadData
 from .http import HTTPStatus
 from .policy import PolicySpecification
-from .ssh_utils import SSHCertRequest, SSHRetrieveResponse
+from .ssh_utils import SSHCertRequest, SSHRetrieveResponse, SSHCATemplateRequest, SSHConfig
 from .tpp_utils import IssuerHint
 
 MIME_JSON = "application/json"
@@ -688,6 +688,14 @@ class CommonConnection:
 
         :param SSHCertRequest request:
         :rtype: SSHRetrieveResponse
+        """
+        raise NotImplementedError
+
+    def retrieve_ssh_config(self, ca_request):
+        """
+
+        :param SSHCATemplateRequest ca_request:
+        :rtype: SSHConfig
         """
         raise NotImplementedError
 

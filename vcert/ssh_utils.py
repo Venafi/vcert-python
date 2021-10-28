@@ -20,12 +20,13 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 
-from .errors import ClientBadData
+from .errors import ClientBadData, ServerUnexptedBehavior
 
 PATH_SEPARATOR = "\\"
 CA_ROOT_PATH = PATH_SEPARATOR + "VED" + PATH_SEPARATOR + "Certificate Authority" + PATH_SEPARATOR + "SSH" \
                + PATH_SEPARATOR + "Templates"
 DEFAULT_SSH_KEY_SIZE = 3072
+F_P_DETAILS = 'ProcessingDetails'
 
 
 class SSHCertRequest:
@@ -101,13 +102,17 @@ class SSHCertResponse:
         """
         :param dict response:
         """
+        self.status = None
+        self.status_description = None
+        p_details = response[F_P_DETAILS]
+        if p_details:
+            self.status = p_details['Status']  # type: str
+            self.status_description = p_details['StatusDescription']  # type: str
+        if not self.status:
+            raise ServerUnexptedBehavior("Unknown response status. Status field not found")
 
-        self.dn = response["DN"] if "DN" in response else None  # type: str
-        self.guid = response["Guid"] if "Guid" in response else None  # type: str
-        self.status = response["Status"] if "Status" in response else None  # type: str
-
-        resp = response["Response"] if "Response" in response else dict()
-        self.response = SSHResponse(resp)  # type: SSHResponse
+        self.dn = response['DN'] if 'DN' in response else None  # type: str
+        self.guid = response['Guid'] if 'Guid' in response else None  # type: str
 
 
 class SSHRetrieveResponse:
@@ -116,16 +121,24 @@ class SSHRetrieveResponse:
 
         :param dict response:
         """
-        self.status = response["Status"] if "Status" in response else None  # type: str
-        self.guid = response["Guid"] if "Guid" in response else None  # type: str
-        self.dn = response["DN"] if "DN" in response else None  # type: str
-        self.certificate_data = response["CertificateData"] if "CertificateData" in response else None  # type: str
-        self.private_key_data = response["PrivateKeyData"] if "PrivateKeyData" in response else None  # type: str
-        self.public_key_data = response["PublicKeyData"] if "PublicKeyData" in response else None  # type: str
-        self.ca_guid = response["CAGuid"] if "CAGuid" in response else None  # type: str
-        self.ca_dn = response["CADN"] if "CADN" in response else None  # type: str
-        self.certificate_details = SSHCertDetails(response["CertificateDetails"]) if "CertificateDetails" in response else None
-        # type: SSHCertDetails
+        self.status = None
+        self.status_description = None
+        p_details = response[F_P_DETAILS]
+        if p_details:
+            self.status = p_details['Status']  # type: str
+            self.status_description = p_details['StatusDescription']  # type: str
+        if not self.status:
+            raise ServerUnexptedBehavior("Unknown response status. Status field not found")
+
+        self.guid = response['Guid'] if 'Guid' in response else None  # type: str
+        self.dn = response['DN'] if 'DN' in response else None  # type: str
+        self.certificate_data = response['CertificateData'] if 'CertificateData' in response else None  # type: str
+        self.private_key_data = response['PrivateKeyData'] if 'PrivateKeyData' in response else None  # type: str
+        self.public_key_data = response['PublicKeyData'] if 'PublicKeyData' in response else None  # type: str
+        self.ca_guid = response['CAGuid'] if "CAGuid" in response else None  # type: str
+        self.ca_dn = response['CADN'] if 'CADN' in response else None  # type: str
+        self.certificate_details = SSHCertDetails(response['CertificateDetails']) if 'CertificateDetails' in response \
+            else None  # type: SSHCertDetails
 
 
 class SSHCertDetails:
@@ -134,21 +147,21 @@ class SSHCertDetails:
 
         :param dict data:
         """
-        self.key_type = data["KeyType"] if "" in data else None  # type: str
-        self.cert_type = data["CertificateType"] if "CertificateType" in data else None  # type: str
-        self.cert_fingerprint_sha256 = data["CertificateFingerprintSHA256"] if "CertificateFingerprintSHA256" in data \
+        self.key_type = data['KeyType'] if 'KeyType' in data else None  # type: str
+        self.cert_type = data['CertificateType'] if 'CertificateType' in data else None  # type: str
+        self.cert_fingerprint_sha256 = data['CertificateFingerprintSHA256'] if 'CertificateFingerprintSHA256' in data \
             else None  # type: str
-        self.ca_fingerprint_sha256 = data["CAFingerprintSHA256"] if "CAFingerprintSHA256" in data else None  # type: str
-        self.key_id = data["KeyID"] if "KeyID" in data else None  # type: str
-        self.serial_number = data["SerialNumber"] if "SerialNumber" in data else None  # type: str
-        self.principals = data["Principals"] if "Principals" in data else None  # type: list[str]
-        self.valid_from = data["ValidFrom"] if "ValidFrom" in data else None  # type: int
-        self.valid_to = data["ValidTo"] if "ValidTo" in data else None  # type: int
-        self.force_command = data["ForceCommand"] if "ForceCommand" in data else None  # type: str
-        self.source_addresses = data["SourceAddresses"] if "SourceAddresses" in data else None  # type: list[str]
-        self.public_key_fingerprint_sha256 = data["PublicKeyFingerprintSHA256"] \
-            if "PublicKeyFingerprintSHA256" in data else None  # type: str
-        self.extensions = data["Extensions"] if "Extensions" in data else None  # type: dict[str, Any]
+        self.ca_fingerprint_sha256 = data['CAFingerprintSHA256'] if 'CAFingerprintSHA256' in data else None  # type: str
+        self.key_id = data['KeyID'] if 'KeyID' in data else None  # type: str
+        self.serial_number = data['SerialNumber'] if 'SerialNumber' in data else None  # type: str
+        self.principals = data['Principals'] if 'Principals' in data else None  # type: list[str]
+        self.valid_from = data['ValidFrom'] if 'ValidFrom' in data else None  # type: int
+        self.valid_to = data['ValidTo'] if 'ValidTo' in data else None  # type: int
+        self.force_command = data['ForceCommand'] if 'ForceCommand' in data else None  # type: str
+        self.source_addresses = data['SourceAddresses'] if 'SourceAddresses' in data else None  # type: list[str]
+        self.public_key_fingerprint_sha256 = data['PublicKeyFingerprintSHA256'] \
+            if 'PublicKeyFingerprintSHA256' in data else None  # type: str
+        self.extensions = data['Extensions'] if 'Extensions' in data else None  # type: dict[str, Any]
 
 
 class SSHResponse:
@@ -157,9 +170,54 @@ class SSHResponse:
 
         :param dict response:
         """
-        self.success = response["Success"] if "Success" in response else None  # type: bool
-        self.error_code = response["ErrorCode"] if "ErrorCode" in response else None  # type: int
-        self.error_msg = response["ErrorMessage"] if "ErrorMessage" in response else None  # type: str
+        self.success = response['Success'] if 'Success' in response else None  # type: bool
+        self.error_code = response['ErrorCode'] if 'ErrorCode' in response else None  # type: int
+        self.error_msg = response['ErrorMessage'] if 'ErrorMessage' in response else None  # type: str
+
+
+class SSHCATemplateRequest:
+    def __init__(self, ca_template, ca_guid):
+        """
+
+        :param str ca_template:
+        :param str ca_guid:
+        """
+        self.template = ca_template
+        self.guid = ca_guid
+
+
+class SSHTPPCADetails:
+    def __init__(self, data):
+        """
+
+        :param dict data:
+        """
+        # TODO: Right now we are just extracting the necessary data from the response.
+        #  If more details are required, extract them here.
+        self.access_control = SSHAccessControl(data['AccessControl']) if 'AccessControl' in data \
+            else None  # type: SSHAccessControl
+
+
+class SSHAccessControl:
+    def __init__(self, data):
+        """
+
+        :param dict data:
+        """
+        # TODO: Right now we are just extracting the necessary data from the response.
+        #  If more details are required, extract them here.
+        self.default_principals = data['DefaultPrincipals'] if 'DefaultPrincipals' in data else None  # type: dict
+
+
+class SSHConfig:
+    def __init__(self, ca_public_key=None, ca_principals=None):
+        """
+
+        :param str ca_public_key:
+        :param list[str] ca_principals:
+        """
+        self.ca_public_key = ca_public_key
+        self.ca_principals = ca_principals
 
 
 class SSHKeyPair:
@@ -217,28 +275,28 @@ def build_tpp_request(request):
             full_cadn = PATH_SEPARATOR + request.cadn
         if not full_cadn.startswith(CA_ROOT_PATH):
             full_cadn = CA_ROOT_PATH + full_cadn
-        data["CADN"] = full_cadn
+        data['CADN'] = full_cadn
 
     if request.policy_dn:
-        data["PolicyDN"] = request.policy_dn
+        data['PolicyDN'] = request.policy_dn
     if request.object_name:
-        data["ObjectName"] = request.object_name
+        data['ObjectName'] = request.object_name
     if request.destination_addresses:
-        data["DestinationAddresses"] = request.destination_addresses
+        data['DestinationAddresses'] = request.destination_addresses
     if request.key_id:
-        data["KeyId"] = request.key_id
+        data['KeyId'] = request.key_id
     if request.principals:
-        data["Principals"] = request.principals
+        data['Principals'] = request.principals
     if request.validity_period:
-        data["ValidityPeriod"] = request.validity_period
+        data['ValidityPeriod'] = request.validity_period
     if request.get_public_key_data():
-        data["PublicKeyData"] = request.get_public_key_data()
+        data['PublicKeyData'] = request.get_public_key_data()
     if request.extensions:
-        data["Extensions"] = request.extensions
+        data['Extensions'] = request.extensions
     if request.force_command:
-        data["ForceCommand"] = request.force_command
+        data['ForceCommand'] = request.force_command
     if request.source_addresses:
-        data["SourceAddresses"] = request.source_addresses
+        data['SourceAddresses'] = request.source_addresses
 
     return data
 
@@ -254,14 +312,14 @@ def build_tpp_retrieve_request(request):
 
     data = dict()
     if request.pickup_id:
-        data["DN"] = request.pickup_id
+        data['DN'] = request.pickup_id
     if request.guid:
-        data["Guid"] = request.guid
+        data['Guid'] = request.guid
     if request.private_key_passphrase:
-        data["PrivateKeyPassphrase"] = request.private_key_passphrase
+        data['PrivateKeyPassphrase'] = request.private_key_passphrase
 
-    data["IncludePrivateKeyData"] = True
-    data["IncludeCertificateDetails"] = True
+    data['IncludePrivateKeyData'] = True
+    data['IncludeCertificateDetails'] = True
 
     return data
 
