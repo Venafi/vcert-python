@@ -63,26 +63,58 @@ class TPPTokenConnection(AbstractTPPConnection):
     def __str__(self):
         return "[TPP] %s" % self._base_url
 
-    def _get(self, url=None, params=None, check_token=True, include_headers=True):
+    def get(self, args):
+        """
+
+        :param dict args:
+        :rtype: tuple[Any, Any]
+        """
+        url = args[self.ARG_URL] if self.ARG_URL in args else None
+        params = args[self.ARG_PARAMS] if self.ARG_PARAMS in args else None
+        check_token = args[self.ARG_CHECK_TOKEN] if self.ARG_CHECK_TOKEN in args else True
+        include_token_header = args[self.ARG_INCLUDE_TOKEN_HEADER] if self.ARG_INCLUDE_TOKEN_HEADER in args else True
+
+        return self._get(url=url, params=params, check_token=check_token, include_token_header=include_token_header)
+
+    def post(self, args):
+        """
+
+        :param dict args:
+        :rtype: tuple[Any, Any]
+        """
+        url = args[self.ARG_URL] if self.ARG_URL in args else None
+        data = args[self.ARG_DATA] if self.ARG_DATA in args else None
+        check_token = args[self.ARG_CHECK_TOKEN] if self.ARG_CHECK_TOKEN in args else True
+        include_token_header = args[self.ARG_INCLUDE_TOKEN_HEADER] if self.ARG_INCLUDE_TOKEN_HEADER in args else True
+
+        return self._post(url=url, data=data, check_token=check_token, include_token_header=include_token_header)
+
+    def _get(self, url=None, params=None, check_token=True, include_token_header=True):
         if check_token:
             self._check_token()
 
-        headers = {}
-        if include_headers:
+        headers = {
+            'content-type': MIME_JSON,
+            'cache-control': "no-cache"
+        }
+        if include_token_header:
             token = self._get_auth_header_value(self._auth.access_token)
-            headers = {HEADER_AUTHORIZATION: token, 'content-type': MIME_JSON, 'cache-control': 'no-cache'}
+            headers[HEADER_AUTHORIZATION] = token
 
         r = requests.get(self._base_url + url, headers=headers, params=params, **self._http_request_kwargs)
         return self.process_server_response(r)
 
-    def _post(self, url=None, data=None, check_token=True, include_headers=True):
+    def _post(self, url=None, data=None, check_token=True, include_token_header=True):
         if check_token:
             self._check_token()
 
-        headers = {}
-        if include_headers:
+        headers = {
+            'content-type': MIME_JSON,
+            'cache-control': "no-cache"
+        }
+        if include_token_header:
             token = self._get_auth_header_value(self._auth.access_token)
-            headers = {HEADER_AUTHORIZATION: token, 'content-type': MIME_JSON, "cache-control": "no-cache"}
+            headers[HEADER_AUTHORIZATION] = token
 
         if isinstance(data, dict):
             log.debug("POST Request\n\tURL: %s\n\tHeaders:%s\n\tBody:%s\n" % (self._base_url+url, headers, data))
@@ -185,3 +217,8 @@ class TPPTokenConnection(AbstractTPPConnection):
             refresh_token=data["refresh_token"],
         )
         return token_info
+
+    def _is_valid_auth(self):
+        if self._auth and self._auth.access_token:
+            return True
+        return False

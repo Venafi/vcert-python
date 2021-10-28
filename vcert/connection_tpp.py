@@ -57,6 +57,28 @@ class TPPConnection(AbstractTPPConnection):
     def __str__(self):
         return "[TPP] %s" % self._base_url
 
+    def get(self, args):
+        """
+
+        :param dict args:
+        :rtype: tuple[Any, Any]
+        """
+        url = args[self.ARG_URL] if self.ARG_URL in args else None
+        params = args[self.ARG_PARAMS] if self.ARG_PARAMS in args else None
+
+        return self._get(url=url, params=params)
+
+    def post(self, args):
+        """
+
+        :param dict args:
+        :rtype: tuple[Any, Any]
+        """
+        url = args[self.ARG_URL] if self.ARG_URL in args else None
+        data = args[self.ARG_DATA] if self.ARG_DATA in args else None
+
+        return self._post(url=url, data=data)
+
     def _get(self, url="", params=None):
         if not self._token or self._token[1] < time.time() + 1:
             self.auth()
@@ -116,3 +138,8 @@ class TPPConnection(AbstractTPPConnection):
         if status != HTTPStatus.OK:
             raise ServerUnexptedBehavior("")
         return data
+
+    def _is_valid_auth(self):
+        if self._token:
+            return True
+        return False
