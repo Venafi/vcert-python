@@ -15,12 +15,9 @@
 # limitations under the License.
 #
 import logging
-import random
-import string
 from os import environ
 
-from vcert import venafi_connection, Authentication, SCOPE_SSH, SSHKeyPair, SSHCertRequest, write_ssh_files, \
-    VenafiPlatform, SSHCATemplateRequest
+from vcert import venafi_connection, Authentication, SCOPE_SSH, VenafiPlatform, SSHCATemplateRequest
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("urllib3").setLevel(logging.ERROR)
@@ -37,7 +34,8 @@ def main():
 
     # A Connector can be instantiated with no values by using the platform argument.
     # url argument is always required for TPP.
-    connector = venafi_connection(platform=VenafiPlatform.TPP, url=url, http_request_kwargs={"verify": False})
+    connector = venafi_connection(platform=VenafiPlatform.TPP, url=url,
+                                  http_request_kwargs={"verify": "/tmp/chain.pem"})
     # Optionally, the connector can be instantiated passing the specific arguments:
     # connector = venafi_connection(url=url, user=user, password=password, http_request_kwargs={"verify": False})
 
@@ -72,9 +70,7 @@ def main():
     ssh_config = connector.retrieve_ssh_config(ca_request=request)
     with open("./ca2-pub.key", 'w') as ca_file:
         ca_file.write(pub_key_data)
-
-    print("CA principals:\n")
-    print(ssh_config.ca_principals)
+    print("Certificate Authority principals: %s" % ssh_config.ca_principals)
 
 
 if __name__ == '__main__':

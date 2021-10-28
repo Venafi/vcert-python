@@ -598,18 +598,27 @@ class AbstractTPPConnection(CommonConnection):
         value = None
         if ca_request.template:
             key = 'DN'
-            value = "%s%s%s" % (CA_ROOT_PATH, PATH_SEPARATOR, ca_request.guid)
+            value = ca_request.template
+            if not value.startswith(PATH_SEPARATOR):
+                value = "%s%s" % (PATH_SEPARATOR, value)
+            if not value.startswith(CA_ROOT_PATH):
+                value = "%s%s" % (CA_ROOT_PATH, value)
         elif ca_request.guid:
             key = 'guid'
             value = ca_request.guid
         else:
             raise ClientBadData("CA Guid or CA template must be provided to retrieve SSH config.")
 
+        value = url_parse.quote(value)
         query = "%s=%s" % (key, value)
-        query = url_parse.quote(query)
         url = "%s?%s" % (URLS.SSH_CA_PUBLIC_KEY, query)
 
-        status, data = self._get(url=url, params=None)
+        args = {
+            self.ARG_URL: url,
+            self.ARG_CHECK_TOKEN: False,
+            self.ARG_INCLUDE_TOKEN_HEADER: False
+        }
+        status, data = self.get(args=args)
         if status == HTTPStatus.OK:
             ssh_config_response = SSHConfig()
             ssh_config_response.ca_public_key = data
@@ -620,6 +629,28 @@ class AbstractTPPConnection(CommonConnection):
         else:
             raise ServerUnexptedBehavior("Server returns %d status on requesting SSH CA Public Key Data for %s = %s."
                                          % (status, key, value))
+
+    ARG_URL = 'url'
+    ARG_PARAMS = 'params'
+    ARG_CHECK_TOKEN = 'check_token'
+    ARG_INCLUDE_TOKEN_HEADER = 'include_token_header'
+    ARG_DATA = 'data'
+
+    def get(self, args):
+        """
+
+        :param dict args:
+        :rtype: tuple[Any, Any]
+        """
+        raise NotImplementedError
+
+    def post(self, args):
+        """
+
+        :param dict args:
+        :rtype: tuple[Any, Any]
+        """
+        raise NotImplementedError
 
     # ======================================== API IMPLEMENTATION ENDS ======================================== #
     # ========================================================================================================= #
@@ -876,13 +907,22 @@ class AbstractTPPConnection(CommonConnection):
         """
         json_request = dict()
         if ca_request.template:
-            json_request['DN'] = "%s%s%s" % (CA_ROOT_PATH, PATH_SEPARATOR, ca_request.guid)
+            value = ca_request.template
+            if not value.startswith(PATH_SEPARATOR):
+                value = "%s%s" % (PATH_SEPARATOR, value)
+            if not value.startswith(CA_ROOT_PATH):
+                value = "%s%s" % (CA_ROOT_PATH, value)
+            json_request['DN'] = value
         elif ca_request.guid:
             json_request['Guid'] = ca_request.guid
         else:
             raise ClientBadData("CA Guid or CA template must be provided to retrieve SSH CA details.")
 
-        status, data = self._post(URLS.SSH_CA_DETAILS, json_request)
+        args = {
+            self.ARG_URL: URLS.SSH_CA_DETAILS,
+            self.ARG_DATA: json_request
+        }
+        status, data = self.post(args=args)
         if status == HTTPStatus.OK:
             response_object = SSHResponse(data['Response'])
             if response_object.success:

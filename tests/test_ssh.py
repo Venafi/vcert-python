@@ -23,8 +23,8 @@ from assets import SSH_CERT_DATA, SSH_PRIVATE_KEY, SSH_PUBLIC_KEY
 from test_env import TPP_TOKEN_URL, TPP_USER, TPP_PASSWORD, TPP_SSH_CADN
 from test_utils import timestamp
 from vcert import CommonConnection, SSHCertRequest, TPPTokenConnection, Authentication, \
-    SCOPE_SSH, write_ssh_files, logger
-from vcert.ssh_utils import SSHRetrieveResponse, SSHKeyPair
+    SCOPE_SSH, write_ssh_files, logger, venafi_connection, VenafiPlatform
+from vcert.ssh_utils import SSHRetrieveResponse, SSHKeyPair, SSHCATemplateRequest
 
 log = logger.get_child("test-ssh")
 
@@ -34,7 +34,7 @@ SSH_CERT_DATA_ERROR = "Certificate data is empty for Certificate %s"  # type: st
 
 class TestTPPSSHCertificate(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        self.tpp_conn = TPPTokenConnection(url=TPP_TOKEN_URL, http_request_kwargs={"verify": False})
+        self.tpp_conn = TPPTokenConnection(url=TPP_TOKEN_URL, http_request_kwargs={"verify": "/tmp/chain.pem"})
         auth = Authentication(user=TPP_USER, password=TPP_PASSWORD, scope=SCOPE_SSH)
         self.tpp_conn.get_access_token(auth)
         super(TestTPPSSHCertificate, self).__init__(*args, **kwargs)
@@ -65,9 +65,25 @@ class TestTPPSSHCertificate(unittest.TestCase):
         self.assertTrue(response.public_key_data, SERVICE_GENERATED_NO_KEY_ERROR % ("Public", "", request.key_id))
         self.assertTrue(response.certificate_data, SSH_CERT_DATA_ERROR % request.key_id)
 
+    def test_retrieve_ca_public_key(self):
+        tpp_connector = venafi_connection(platform=VenafiPlatform.TPP, url=TPP_TOKEN_URL,
+                                          http_request_kwargs={"verify": "/tmp/chain.pem"})
+        request = SSHCATemplateRequest(ca_template=TPP_SSH_CADN)
+        ssh_config = tpp_connector.retrieve_ssh_config(ca_request=request)
+        self.assertIsNotNone(ssh_config.ca_public_key, "%s Public Key data is empty" % TPP_SSH_CADN)
+        self.assertIsNone(ssh_config.ca_principals, "%s default principals is not empty" % TPP_SSH_CADN)
+        log.debug("%s Public Key data:\n%s" % (TPP_SSH_CADN, ssh_config.ca_public_key))
+
+    def test_retrieve_ca_public_key_and_principals(self):
+        request = SSHCATemplateRequest(ca_template=TPP_SSH_CADN)
+        ssh_config = self.tpp_conn.retrieve_ssh_config(ca_request=request)
+        self.assertIsNotNone(ssh_config.ca_public_key, "%s Public Key data is empty" % TPP_SSH_CADN)
+        self.assertIsNotNone(ssh_config.ca_principals, "%s default principals is empty" % TPP_SSH_CADN)
+        log.debug("%s Public Key data: %s" % (TPP_SSH_CADN, ssh_config.ca_public_key))
+        log.debug("%s default principals: %s" % (TPP_SSH_CADN, ssh_config.ca_principals))
+
 
 class TestSSHUtils(unittest.TestCase):
-
     def test_write_ssh_files(self):
         key_id = _random_key_id()
         normalized_name = re.sub(r"[^A-Za-z0-9]+", "_", key_id)
