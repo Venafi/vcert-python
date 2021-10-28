@@ -632,8 +632,8 @@ class AbstractTPPConnection(CommonConnection):
 
     ARG_URL = 'url'
     ARG_PARAMS = 'params'
-    ARG_CHECK_TOKEN = 'check_token'
-    ARG_INCLUDE_TOKEN_HEADER = 'include_token_header'
+    ARG_CHECK_TOKEN = 'check_token'  # nosec
+    ARG_INCLUDE_TOKEN_HEADER = 'include_token_header'  # nosec
     ARG_DATA = 'data'
 
     def get(self, args):
