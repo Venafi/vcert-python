@@ -22,6 +22,7 @@ import logging as log
 import socket
 import sys
 
+import enum
 import ipaddress
 from builtins import bytes
 from cryptography import x509
@@ -729,3 +730,16 @@ class CommonConnection:
         else:
             log.error("Unexpected content type: %s for request %s" % (content_type, r.request.url))
             raise ServerUnexptedBehavior
+
+
+class VenafiPlatform(enum.IntEnum):
+    def __new__(cls, value, description):
+        obj = int.__new__(cls, value)
+        obj._value_ = value
+        obj.description = description
+
+        return obj
+
+    FAKE = 100, "Connector for testing purposes"
+    TPP = 200, "Trust Protection Platfom"
+    VAAS = 400, "Venafi as a Service"

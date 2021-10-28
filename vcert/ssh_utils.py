@@ -176,7 +176,7 @@ class SSHResponse:
 
 
 class SSHCATemplateRequest:
-    def __init__(self, ca_template, ca_guid):
+    def __init__(self, ca_template=None, ca_guid=None):
         """
 
         :param str ca_template:

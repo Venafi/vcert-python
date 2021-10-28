@@ -13,17 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-from .logger import setup_logger, get_logger, get_child
 from .common import CertificateRequest, CommonConnection, RevocationRequest, ZoneConfig, CertField, KeyType, \
     CustomField, Authentication, SCOPE_CM, SCOPE_PM, SCOPE_SSH, CSR_ORIGIN_LOCAL, CSR_ORIGIN_PROVIDED, \
-    CSR_ORIGIN_SERVICE, CHAIN_OPTION_FIRST, CHAIN_OPTION_IGNORE, CHAIN_OPTION_LAST
+    CSR_ORIGIN_SERVICE, CHAIN_OPTION_FIRST, CHAIN_OPTION_IGNORE, CHAIN_OPTION_LAST, VenafiPlatform
 from .connection_cloud import CloudConnection
 from .connection_tpp import TPPConnection
 from .connection_tpp_token import TPPTokenConnection
 from .connection_fake import FakeConnection
+from .errors import VenafiError
+from .logger import setup_logger, get_logger, get_child
 from .pem import Certificate
-from .ssh_utils import SSHCertRequest, SSHKeyPair, write_ssh_files
+from .ssh_utils import SSHCertRequest, SSHKeyPair, write_ssh_files, SSHCATemplateRequest, SSHConfig
 from .tpp_utils import IssuerHint
 
 setup_logger()
@@ -54,7 +54,7 @@ def Connection(url=None, token=None, user=None, password=None, fake=False, http_
 
 
 def venafi_connection(url=None, api_key=None, user=None, password=None, access_token=None, refresh_token=None,
-                      fake=False, http_request_kwargs=None):
+                      fake=False, http_request_kwargs=None, platform=None):
     """
     Return connection based on credentials list.
     Venafi Platform (TPP) requires URL and access_token (or user and password for getting a new access_token)
@@ -68,14 +68,26 @@ def venafi_connection(url=None, api_key=None, user=None, password=None, access_t
     :param str refresh_token: TPP refresh token (optional)
     :param bool fake: Use fake connection
     :param dict[str, Any] http_request_kwargs: Option for specifying trust bundle or to operate insecurely.
+    :param VenafiPlatform platform: The platform to be used with the Connector
     :rtype CommonConnection:
     """
-    if fake:
-        return FakeConnection()
-    if url and (access_token or refresh_token or (user and password)):
-        return TPPTokenConnection(url=url, user=user, password=password, access_token=access_token,
-                                  refresh_token=refresh_token, http_request_kwargs=http_request_kwargs)
-    if api_key:
-        return CloudConnection(token=api_key, url=url, http_request_kwargs=http_request_kwargs)
+    if platform:
+        if platform == VenafiPlatform.FAKE:
+            return FakeConnection()
+        elif platform == VenafiPlatform.TPP:
+            return TPPTokenConnection(url=url, user=user, password=password, access_token=access_token,
+                                      refresh_token=refresh_token, http_request_kwargs=http_request_kwargs)
+        elif platform == VenafiPlatform.VAAS:
+            return CloudConnection(token=api_key, url=url, http_request_kwargs=http_request_kwargs)
+        else:
+            raise VenafiError("Invalid Platform: %s. Cannot instantiate a Connector." % platform)
     else:
-        raise Exception("Bad credentials list")
+        if fake:
+            return FakeConnection()
+        if url and (access_token or refresh_token or (user and password)):
+            return TPPTokenConnection(url=url, user=user, password=password, access_token=access_token,
+                                      refresh_token=refresh_token, http_request_kwargs=http_request_kwargs)
+        if api_key:
+            return CloudConnection(token=api_key, url=url, http_request_kwargs=http_request_kwargs)
+        else:
+            raise VenafiError("Bad credentials list")
