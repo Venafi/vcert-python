@@ -16,8 +16,10 @@ test:
 	--env CLOUD_URL=$$CLOUD_URL \
 	 vcert-tests
 
-publish:
+package:
 	pip3 install twine setuptools wheel
 	rm -rf dist/
 	python3 setup.py sdist bdist_wheel
-	twine upload dist/*
+
+publish: package
+	 twine upload dist/*
