@@ -69,9 +69,9 @@ def main():
         #]
 
     # configure key type, RSA example
-    # request.key_type = KeyType(KeyType.RSA, 4096)
+    request.key_type = KeyType(KeyType.RSA, 2048)
     # or set it to ECDSA
-    request.key_type = KeyType(KeyType.ECDSA, "p521")
+    # request.key_type = KeyType(KeyType.ECDSA, "p521")
     # Update certificate request from zone
     zone_config = conn.read_zone_conf(zone)
     request.update_from_zone_config(zone_config)
