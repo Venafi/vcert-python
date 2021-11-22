@@ -6,3 +6,5 @@ ipaddress;python_version<'3.3'
 enum34;python_version<'3.4'
 future
 ruamel.yaml<0.17
+pynacl>=1.4.0
+pycryptodome>=3.11.0

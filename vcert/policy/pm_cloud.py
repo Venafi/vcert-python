@@ -13,11 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from vcert.common import Policy as Cit, AppDetails, KeyType
+from vcert.common import Policy as Cit, KeyType
 from vcert.errors import VenafiError
 from vcert.policy import RPA, DEFAULT_CA
 from vcert.policy.policy_spec import Policy, Subject, KeyPair, DefaultSubject, DefaultKeyPair, PolicySpecification, \
     Defaults, SubjectAltNames
+from vcert.vaas_utils import AppDetails
 
 supported_rsa_key_sizes = [1024, 2048, 4096]
 CA_TYPE_DIGICERT = 'DIGICERT'
@@ -30,10 +31,11 @@ DEFAULT_MAX_VALID_DAYS = 365
 DEFAULT_HASH_ALGORITHM = 'SHA256'
 
 
-def build_policy_spec(cit, ca_info):
+def build_policy_spec(cit, ca_info, subject_cn_to_str=True):
     """
     :param Cit cit:
     :param CertificateAuthorityInfo ca_info:
+    :param bool subject_cn_to_str: Indicates whether or not to remove the regex pattern from the Common Name values
     :rtype: PolicySpecification
     """
     if not cit:
@@ -43,8 +45,11 @@ def build_policy_spec(cit, ca_info):
     p = Policy()
     p.wildcard_allowed = is_wildcard_allowed(cit.SubjectCNRegexes)
     if len(cit.SubjectCNRegexes) > 0:
-        domains = convert_to_string(cit.SubjectCNRegexes, p.wildcard_allowed)
-        p.domains = domains
+        if subject_cn_to_str:
+            domains = convert_to_string(cit.SubjectCNRegexes, p.wildcard_allowed)
+            p.domains = domains
+        else:
+            p.domains = cit.SubjectCNRegexes
     else:
         p.domains = None
 

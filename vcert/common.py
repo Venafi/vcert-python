@@ -40,19 +40,20 @@ from .policy import PolicySpecification
 from .ssh_utils import SSHCertRequest, SSHRetrieveResponse, SSHCATemplateRequest, SSHConfig
 from .tpp_utils import IssuerHint
 
-MIME_JSON = "application/json"
-MIME_HTML = "text/html"
-MIME_TEXT = "text/plain"
-MIME_CSV = "text/csv"
-MIME_ANY = "*/*"
-LOCALHOST = "127.0.0.1"
+MIME_JSON = 'application/json'
+MIME_HTML = 'text/html'
+MIME_TEXT = 'text/plain'
+MIME_CSV = 'text/csv'
+MIME_ANY = '*/*'
+MIME_OCTET_STREAM = 'application/octet-stream'
+LOCALHOST = '127.0.0.1'
 DEFAULT_TIMEOUT = 180
-CSR_ORIGIN_PROVIDED = "provided"
-CSR_ORIGIN_LOCAL = "local"
-CSR_ORIGIN_SERVICE = "service"
-CHAIN_OPTION_FIRST = "first"
-CHAIN_OPTION_LAST = "last"
-CHAIN_OPTION_IGNORE = "ignore"
+CSR_ORIGIN_PROVIDED = 'provided'
+CSR_ORIGIN_LOCAL = 'local'
+CSR_ORIGIN_SERVICE = 'service'
+CHAIN_OPTION_FIRST = 'first'
+CHAIN_OPTION_LAST = 'last'
+CHAIN_OPTION_IGNORE = 'ignore'
 
 
 class CertField:
@@ -221,33 +222,32 @@ class Policy:
         return self.name
 
 
-class RecommendedSettings:
-    def __init__(self, subject_o_value=None, subject_ou_value=None, subject_l_value=None, subject_st_value=None,
-                 subject_c_value=None, key_type=None, key_reuse=None):
-        """
-        :param str subject_o_value:
-        :param str subject_ou_value:
-        :param str subject_l_value:
-        :param str subject_st_value:
-        :param str subject_c_value:
-        :param KeyType key_type:
-        :param bool key_reuse:
-        """
-        self.subjectOValue = subject_o_value
-        self.subjectOUValue = subject_ou_value
-        self.subjectLValue = subject_l_value
-        self.subjectSTValue = subject_st_value
-        self.subjectCValue = subject_c_value
-        self.keyType = key_type
-        self.keyReuse = key_reuse
-
-
 class CertificateRequest:
-    def __init__(self, cert_id=None, san_dns=None, email_addresses="", ip_addresses=None, user_principal_names=None,
-                 uniform_resource_identifiers=None, attributes=None, key_type=None, private_key=None, key_password=None,
-                 csr=None, friendly_name=None, common_name=None, thumbprint=None, organization=None,
-                 organizational_unit=None, country=None, province=None, locality=None, origin=None, custom_fields=None,
-                 timeout=DEFAULT_TIMEOUT, csr_origin=CSR_ORIGIN_LOCAL, include_private_key=False, validity_hours=None,
+    def __init__(self, cert_id=None,
+                 san_dns=None,
+                 email_addresses="",
+                 ip_addresses=None,
+                 user_principal_names=None,
+                 uniform_resource_identifiers=None,
+                 attributes=None,
+                 key_type=None,
+                 private_key=None,
+                 key_password=None,
+                 csr=None,
+                 friendly_name=None,
+                 common_name=None,
+                 thumbprint=None,
+                 organization=None,
+                 organizational_unit=None,
+                 country=None,
+                 province=None,
+                 locality=None,
+                 origin=None,
+                 custom_fields=None,
+                 timeout=DEFAULT_TIMEOUT,
+                 csr_origin=CSR_ORIGIN_LOCAL,
+                 include_private_key=False,
+                 validity_hours=None,
                  issuer_hint=IssuerHint.DEFAULT):
         """
         :param str cert_id: Certificate request id. Generating by server.
@@ -259,11 +259,16 @@ class CertificateRequest:
         :param attributes:
         :param KeyType key_type: Type of asymmetric cryptography algorithm. Default is RSA 2048.
         :param asymmetric.PrivateKey private_key: String with pem encoded private key or  asymmetric.PrivateKey
-        :param str key_password: Password for encrypted private key. Not supported at this moment.
+        :param str key_password: Password for encrypted private key.
         :param str csr: Certificate Signing Request in pem format
         :param str friendly_name: Name for certificate in the platform. If not specified common name will be used.
         :param str common_name: Common name of certificate. Usually domain name.
         :param str thumbprint: Certificate thumbprint. Can be used for identifying certificate on the platform.
+        :param organization:
+        :param organizational_unit:
+        :param country:
+        :param province:
+        :param locality:
         :param str origin: application identifier
         :param list[CustomField] custom_fields: list of custom fields values to be added to the certificate.
         :param int timeout: Timeout for the certificate to be retrieved from server. Measured in seconds.
@@ -582,32 +587,6 @@ class Authentication:
         self.state = state
 
 
-class AppDetails:
-    def __init__(self, app_id=None, cit_map=None, company_id=None, name=None, description=None,
-                 owner_ids_and_types=None, fq_dns=None, internal_fq_dns=None, external_ip_ranges=None,
-                 internal_ip_ranges=None, internal_ports=None, fully_qualified_domain_names=None, ip_ranges=None,
-                 ports=None, org_unit_id=None):
-        """
-        :param str app_id:
-        :param dict cit_map:
-        """
-        self.app_id = app_id
-        self.cit_alias_id_map = cit_map
-        self.company_id = company_id
-        self.name = name
-        self.description = description
-        self.owner_ids_and_types = owner_ids_and_types
-        self.fq_dns = fq_dns
-        self.internal_fq_dns = internal_fq_dns
-        self.external_ip_ranges = external_ip_ranges
-        self.internal_ip_ranges = internal_ip_ranges
-        self.internal_ports = internal_ports
-        self.fully_qualified_domain_names = fully_qualified_domain_names
-        self.ip_ranges = ip_ranges
-        self.ports = ports
-        self.org_unit_id = org_unit_id
-
-
 class CommonConnection:
 
     def auth(self):
@@ -702,6 +681,11 @@ class CommonConnection:
 
     @staticmethod
     def process_server_response(r):
+        """
+
+        :param requests.Response r:
+        :rtype: str or dict
+        """
         if r.status_code not in (HTTPStatus.OK, HTTPStatus.ACCEPTED, HTTPStatus.CREATED, HTTPStatus.CONFLICT):
             try:
                 log_errors(r.json())
@@ -727,6 +711,9 @@ class CommonConnection:
         elif content_type.startswith(MIME_CSV):
             log.debug(r.content.decode())
             return r.status_code, r.content.decode()
+        elif content_type.startswith(MIME_OCTET_STREAM):
+            log.debug(r.content)
+            return r.status_code, r.content
         else:
             log.error("Unexpected content type: %s for request %s" % (content_type, r.request.url))
             raise ServerUnexptedBehavior

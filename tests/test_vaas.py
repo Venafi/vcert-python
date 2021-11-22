@@ -22,12 +22,47 @@ from datetime import datetime, timedelta
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
+from cryptography.x509.oid import NameOID
 
-from test_env import CLOUD_ZONE, CLOUD_APIKEY, CLOUD_URL
+from test_env import CLOUD_ZONE, CLOUD_APIKEY, CLOUD_URL, RANDOM_DOMAIN
 from test_utils import random_word, enroll, renew, renew_by_thumbprint, renew_without_key_reuse, simple_enroll
-from vcert import CloudConnection, KeyType, CertificateRequest, CustomField, logger
+from vcert import CloudConnection, KeyType, CertificateRequest, CustomField, logger, CSR_ORIGIN_SERVICE
+from vcert.pem import pkcs8_to_pem_private_key
 
 log = logger.get_child("test-vaas")
+
+p8_key = """
+-----BEGIN ENCRYPTED PRIVATE KEY-----
+MIIFLTBXBgkqhkiG9w0BBQ0wSjApBgkqhkiG9w0BBQwwHAQIPLsOsD8egf4CAicQ
+MAwGCCqGSIb3DQIJBQAwHQYJYIZIAWUDBAEqBBCGU0yCgxPiFpL/l+F5/wmzBIIE
+0B2QHY6GoIj204ovABzvhgu6DPt3qvMtxWUhparQoOirf6IWpgPs5yIEVYzm33vb
+I0yWb4DTTLQc0k+s1e1whDkhEDyeZ0GGHzHu2LHnsLLUKbUW9wsod9GlQ61IACnr
+i8ehxgAAyYAB/PIcwpuF+nzyRHx9bud/916DYQ7Y/DWmCpSHB1/O9vkY1RZJjOqc
+XrmzVqL+FBWjPzXk5FfWkRoVIUWsB/yWaP4ZYb5o8xgcAvvyXeofhum9vmiRlRB+
+ii6SH7lgFE7BL1qZPnNCjFeBbDv9OryR1h3FbGnNaKJGOrlA1sirg0lMyi2zsaBe
+M0B8y8AVnU8q5JnToIFFo4BnimK7jXPspQ/opu9IaZDWKf3wbwUiC+IfytlelVpT
+lMTLvYPPypsjqhInDRrPbdlmx1WN9bfHdkwzRm3x4UuAKTcQKX/5s8AdNDTRx4Kv
+UZ2wLylEQcCWYWm3m+YL0PcsnUX301dmKHGG0ub/CwIFO1GYI9+Eb1azsS3h+fx7
+Ec4rOzZ4Q5h1HWnV3P7CVqyq4hSqJ3f7DMThCgW0up2woCMZnZqQcg4+VUYH1oFg
+YvrCV0N4W9woHWS6v0HDhMAR9HadUAvDetljrp1ygiPGAe+giNF9AZ+7+MTVwT/M
+YEcDzxCrKWQ57KdxnZL2cVELx0pihmqEs0jvh++YShszE39S/Pk58BqFLaS+/eAy
+42fXlih2FE+Pj5dTrxY3wY759SOZy+AlHytd3PkYHvCd7qgYTCUo+y8Gd2tIVW2g
+pwx59953QhCoyPFMvm97pkHi9IMLLoBobdngV2FKzj3lch1V8iujqNdA8W0Zny0S
+6KQgSn6GvW/EVVVIckS41uoKxTJVnCNsI8jpBa4/bUvZzx8s6gDHSZqTFgh+jssu
+8rI8nGRsFa3+ynoR3rFcaRFi733BjPHdCYlEYLxfPwhpQ5wYAU2NCMJbCkiakPSR
+ywNbIhxJhdmhD8zbNifLaXUB/iFhbW4e+QcZZNo8im/ty0J3OSj9OqNIAAP8k7CV
+MdQbI4yu09hDPKIw7YBS+R5pmOjiuQOL4mzeOb8MN4i4AHCUiH/K63pVDqkT1yNM
+rIIFjljg1loosubHTU59vWKE/OPuY+BFviK49rw0xGyPdHECgkpS6/CPfzIEkr8U
+RsNxRVW/fjTdSw3YaqlrTNEN6tLuddq2R/rMvyXlzhcGB2H81V8ZgJ4bqTgfUdH4
+iAv49PCCIClPQYD4W1HzuSFlNwT4Cy29QgSjw0bHFmvmNvfInidBH5DoJeMovMsy
+OROtIuCG0QZjfIcsreU7gcbUvwPNB+nQaDA3IA7fkYmE1xvj38YMIimDRWFKN5Q6
+f67kAGgkFcBlKGh6J+iGNIMscGkRbPRlNHtefE/vaAMHNUBfNxuVk6ylf2Hj2YC9
+gXSp4S0pq5RUvt8KPzeba0mtNlmuFSK9ZfOOu/eBIGvHwA7+HWG4ogTpER1IXbnE
+ZzcdVwYponiGL/dtKZIyibxxEUOHjoM9XyoopE9wFq/kQXEgVDCFLdyPAxFS7WA+
+NRqtgX8X41i/zQ72ZvM+bHrq2gk2OnDJ4jyDTBLBQezdOX4rLrWvzIcqh7hmWC1L
+KrcsYl3EZcK4zmMgSTTCgEJGKJsgClqUh6TS7atxgIjr
+-----END ENCRYPTED PRIVATE KEY-----
+"""
 
 
 class TestCloudMethods(unittest.TestCase):
@@ -135,3 +170,37 @@ class TestCloudMethods(unittest.TestCase):
                                    "Expected_delta: %s seconds."
                                    % (expected_date.strftime(date_format), expiration_date.strftime(date_format),
                                       delta.total_seconds()))
+
+    def test_cloud_enroll_service_generated_csr(self):
+        cn = random_word(10) + ".venafi.example.com"
+        password = 'FooBarPass123'
+
+        request = CertificateRequest(
+            common_name=cn,
+            key_password=password,
+            country='US'
+        )
+
+        request.san_dns = ["www.client.venafi.example.com", "ww1.client.venafi.example.com"]
+        request.csr_origin = CSR_ORIGIN_SERVICE
+
+        self.cloud_conn.request_cert(request, self.cloud_zone)
+        cert_object = self.cloud_conn.retrieve_cert(request)
+
+        cert = x509.load_pem_x509_certificate(cert_object.cert.encode(), default_backend())
+        assert isinstance(cert, x509.Certificate)
+        t1 = cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
+        t2 = [
+            x509.NameAttribute(
+                NameOID.COMMON_NAME, cn or RANDOM_DOMAIN
+            )
+        ]
+        assert t1 == t2
+
+        output = cert_object.as_pkcs12('FooBarPass123')
+        log.info("PKCS12 created successfully:\n%s" % output)
+
+    def test_cloud_parse_key_p8_to_p12(self):
+        passphrase = 'FooBarPass123'
+        pem_pk = pkcs8_to_pem_private_key(self.p8_key, passphrase)
+        log.info("PEM Private Key is: %s" % pem_pk)
