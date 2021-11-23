@@ -21,7 +21,6 @@ import re
 import string
 import random
 
-from Crypto.IO import PKCS8, PEM
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
@@ -120,27 +119,6 @@ class Certificate:
         name = random_word(10).encode()
         output = pkcs12.serialize_key_and_certificates(name, p_key, certificate, cas, encryption)
         return output
-
-
-def pkcs8_to_pem_private_key(private_key, passphrase):
-    """
-
-    :param str private_key:
-    :param str passphrase:
-    :rtype: str
-    """
-    b_passphrase = passphrase.encode()
-
-    b_pem, marker, decrypted = PEM.decode(private_key.encode(), b_passphrase)
-    oid, private_key_der, _ = PKCS8.unwrap(b_pem, b_passphrase)
-    key = serialization.load_der_private_key(data=private_key_der, password=None, backend=default_backend())
-    encryption = serialization.BestAvailableEncryption(b_passphrase)
-    private_key_pem = key.private_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PrivateFormat.TraditionalOpenSSL,
-        encryption_algorithm=encryption
-    )
-    return private_key_pem.decode()
 
 
 def random_word(length):

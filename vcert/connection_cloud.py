@@ -33,7 +33,7 @@ from .errors import (VenafiConnectionError, ServerUnexptedBehavior, ClientBadDat
                      CertificateRenewError, VenafiError, RetrieveCertificateTimeoutError)
 from .http import HTTPStatus
 from .logger import get_child
-from .pem import parse_pem, pkcs8_to_pem_private_key, Certificate
+from .pem import parse_pem, Certificate
 from .policy import PolicySpecification
 from .policy.pm_cloud import (build_policy_spec, validate_policy_spec, AccountDetails, build_cit_request, build_user,
                               UserDetails, build_company, build_apikey, build_app_update_request, get_ca_info,
@@ -864,5 +864,4 @@ class CloudConnection(CommonConnection):
             raise VenafiError
 
         cert, chain, private_key = zip_to_pem(data, request.chain_option)
-        pem_private_key = pkcs8_to_pem_private_key(private_key=private_key, passphrase=request.key_password)
-        return Certificate(cert=cert, chain=chain, key=pem_private_key)
+        return Certificate(cert=cert, chain=chain, key=private_key)
