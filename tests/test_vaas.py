@@ -22,10 +22,11 @@ from datetime import datetime, timedelta
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
+from cryptography.x509.oid import NameOID
 
-from test_env import CLOUD_ZONE, CLOUD_APIKEY, CLOUD_URL
+from test_env import CLOUD_ZONE, CLOUD_APIKEY, CLOUD_URL, RANDOM_DOMAIN
 from test_utils import random_word, enroll, renew, renew_by_thumbprint, renew_without_key_reuse, simple_enroll
-from vcert import CloudConnection, KeyType, CertificateRequest, CustomField, logger
+from vcert import CloudConnection, KeyType, CertificateRequest, CustomField, logger, CSR_ORIGIN_SERVICE
 
 log = logger.get_child("test-vaas")
 
@@ -135,3 +136,32 @@ class TestCloudMethods(unittest.TestCase):
                                    "Expected_delta: %s seconds."
                                    % (expected_date.strftime(date_format), expiration_date.strftime(date_format),
                                       delta.total_seconds()))
+
+    def test_cloud_enroll_service_generated_csr(self):
+        cn = random_word(10) + ".venafi.example.com"
+        password = 'FooBarPass123'
+
+        request = CertificateRequest(
+            common_name=cn,
+            key_password=password,
+            country='US'
+        )
+
+        request.san_dns = ["www.client.venafi.example.com", "ww1.client.venafi.example.com"]
+        request.csr_origin = CSR_ORIGIN_SERVICE
+
+        self.cloud_conn.request_cert(request, self.cloud_zone)
+        cert_object = self.cloud_conn.retrieve_cert(request)
+
+        cert = x509.load_pem_x509_certificate(cert_object.cert.encode(), default_backend())
+        assert isinstance(cert, x509.Certificate)
+        t1 = cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
+        t2 = [
+            x509.NameAttribute(
+                NameOID.COMMON_NAME, cn or RANDOM_DOMAIN
+            )
+        ]
+        assert t1 == t2
+
+        output = cert_object.as_pkcs12('FooBarPass123')
+        log.info("PKCS12 created successfully for certificate with CN: %s" % cn)

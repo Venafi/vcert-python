@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright 2019 Venafi, Inc.
+# Copyright 2022 Venafi, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ from parser.utils import parse_policy_spec
 from policy.policy_spec import PolicySpecification, Policy, Subject, KeyPair, SubjectAltNames, Defaults, \
     DefaultSubject, DefaultKeyPair
 from vcert import venafi_connection
+from vcert.common import Authentication, SCOPE_PM
 import logging
 from os import environ
 
@@ -30,11 +31,26 @@ logging.getLogger("urllib3").setLevel(logging.ERROR)
 
 def main():
     # Get credentials from environment variables
-    zone = environ.get('VAAS_ZONE')
-    api_key = environ.get('VAAS_APIKEY')
+    url = environ.get('TPP_TOKEN_URL')
+    user = environ.get('TPP_USER')
+    password = environ.get('TPP_PASSWORD')
+    zone = environ.get('TPP_ZONE')
+    server_trust_bundle = environ.get('TPP_TRUST_BUNDLE')
 
-    # Get connector object
-    connector = venafi_connection(api_key=api_key)
+    # Get connector object.
+    # The default state of this connection only allows for certificate management.
+    connector = venafi_connection(url=url, user=user, password=password,
+                                  http_request_kwargs={"verify": server_trust_bundle})
+
+    # Create Authentication object with required scope for policy management.
+    auth = Authentication(user=user, password=password, scope=SCOPE_PM)
+    # Additionally, change the client id for a custom one.
+    # Make sure this id has been registered on the TPP instance beforehand.
+    auth.client_id = 'vcert-tpp-demo'
+
+    # Request access token with values specified in auth object.
+    # After the request is successful, subsequent api calls will use the same token.
+    connector.get_access_token(auth)
 
     # Define policy specification object to create a new policy
     ps = PolicySpecification()

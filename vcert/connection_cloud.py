@@ -17,24 +17,45 @@
 from __future__ import (absolute_import, division, generators, unicode_literals, print_function, nested_scopes,
                         with_statement)
 
-import logging as log
+import base64
 import re
 import time
 from pprint import pprint
 
 import requests
 import six.moves.urllib.parse as urlparse
+from nacl.public import SealedBox
 
 from .common import (ZoneConfig, CertificateRequest, CommonConnection, Policy, get_ip_address, log_errors, MIME_JSON,
-                     MIME_TEXT, MIME_ANY, CertField, KeyType, AppDetails, RecommendedSettings, DEFAULT_TIMEOUT)
+                     MIME_TEXT, MIME_ANY, CertField, KeyType, DEFAULT_TIMEOUT,
+                     CSR_ORIGIN_SERVICE, CHAIN_OPTION_FIRST, CHAIN_OPTION_LAST)
 from .errors import (VenafiConnectionError, ServerUnexptedBehavior, ClientBadData, CertificateRequestError,
                      CertificateRenewError, VenafiError, RetrieveCertificateTimeoutError)
 from .http import HTTPStatus
-from .pem import parse_pem
-from .policy.pm_cloud import build_policy_spec, validate_policy_spec, \
-    AccountDetails, build_cit_request, build_user, UserDetails, build_company, build_apikey, build_app_update_request, \
-    get_ca_info, CertificateAuthorityDetails, CertificateAuthorityInfo, build_account_details, \
-    build_app_create_request
+from .logger import get_child
+from .pem import parse_pem, Certificate
+from .policy import PolicySpecification
+from .policy.pm_cloud import (build_policy_spec, validate_policy_spec, AccountDetails, build_cit_request, build_user,
+                              UserDetails, build_company, build_apikey, build_app_update_request, get_ca_info,
+                              CertificateAuthorityDetails, CertificateAuthorityInfo, build_account_details,
+                              build_app_create_request)
+from .vaas_utils import AppDetails, RecommendedSettings, EdgeEncryptionKey, zip_to_pem, value_matches_regex
+
+TOKEN_HEADER_NAME = "tppl-api-key"  # nosec
+APPLICATION_SERVER_TYPE_ID = "784938d1-ef0d-11eb-9461-7bb533ba575b"
+MSG_VALUE_NOT_MATCH_POLICY = "Error while requesting certificate using service generated CSR on VaaS. " \
+                             "Request %s does not match CIT valid %s:\n\tRequest value: %s,\n\tCIT values: %s"
+
+CSR_ATTR_CN = 'commonName'
+CSR_ATTR_ORG = 'organization'
+CSR_ATTR_ORG_UNIT = 'organizationalUnits'
+CSR_ATTR_LOCALITY = 'locality'
+CSR_ATTR_PROVINCE = 'state'
+CSR_ATTR_COUNTRY = 'country'
+CSR_ATTR_SANS_BY_TYPE = 'subjectAlternativeNamesByType'
+CSR_ATTR_SANS_DNS = 'dnsNames'
+
+log = get_child("connection-vaas")
 
 
 class CertStatuses:
@@ -65,11 +86,13 @@ class URLS:
     CERTIFICATE_TEMPLATE_BY_ID = APP_BY_ID + "/certificateissuingtemplates/%s"
     APP_DETAILS_BY_NAME = APPLICATIONS + "/name/%s"
     CERTIFICATE_BY_ID = API_BASE_PATH + "certificates/%s"
+    CERTIFICATE_KEYSTORE_BY_ID = CERTIFICATE_BY_ID + "/keystore"
     CA_ACCOUNTS = API_VERSION + "certificateauthorities/%s/accounts"
     CA_ACCOUNT_DETAILS = CA_ACCOUNTS + "/%s"
     ISSUING_TEMPLATES = API_VERSION + "certificateissuingtemplates"
     ISSUING_TEMPLATES_UPDATE = ISSUING_TEMPLATES + "/%s"
     USER_ACCOUNTS = API_VERSION + "useraccounts"
+    DEK_PUBLIC_KEY = API_VERSION + "edgeencryptionkeys/%s"
 
 
 class CondorChainOptions:
@@ -78,9 +101,6 @@ class CondorChainOptions:
 
     ROOT_FIRST = "ROOT_FIRST"
     ROOT_LAST = "EE_FIRST"
-
-
-TOKEN_HEADER_NAME = "tppl-api-key"  # nosec
 
 
 class CertificateStatusResponse:
@@ -122,33 +142,53 @@ class CloudConnection(CommonConnection):
         return "[Cloud] %s" % self._base_url
 
     def _get(self, url, params=None):
-        r = requests.get(self._base_url + url, params=params,
-                         headers={TOKEN_HEADER_NAME: self._token, "Accept": MIME_ANY, "cache-control": "no-cache"},
-                         **self._http_request_kwargs
-                         )
+        """
+
+        :param url:
+        :param params:
+        :rtype: str or dict
+        """
+        headers = {
+            TOKEN_HEADER_NAME: self._token,
+            'accept': MIME_ANY,
+            'cache-control': "no-cache"
+        }
+        r = requests.get(self._base_url + url, params=params, headers=headers, **self._http_request_kwargs)
         return self.process_server_response(r)
 
     def _post(self, url, data=None):
+        """
+
+        :param url:
+        :param data:
+        :rtype: str or dict
+        """
+        headers = {
+            TOKEN_HEADER_NAME: self._token,
+            'accept': MIME_JSON,
+            'cache-control': "no-cache"
+        }
         if isinstance(data, dict):
-            r = requests.post(self._base_url + url, json=data,
-                              headers={TOKEN_HEADER_NAME: self._token,
-                                       "cache-control": "no-cache",
-                                       "Accept": MIME_JSON},
-                              **self._http_request_kwargs
-                              )
+            r = requests.post(self._base_url + url, json=data, headers=headers, **self._http_request_kwargs)
         else:
             log.error("Unexpected client data type: %s for %s" % (type(data), url))
             raise ClientBadData
         return self.process_server_response(r)
 
     def _put(self, url, data=None):
+        """
+
+        :param url:
+        :param data:
+        :rtype:str or dict
+        """
+        headers = {
+            TOKEN_HEADER_NAME: self._token,
+            'cache-control': "no-cache",
+            'accept': MIME_JSON
+        }
         if isinstance(data, dict):
-            r = requests.put(self._base_url + url, json=data,
-                             headers={TOKEN_HEADER_NAME: self._token,
-                                      "cache-control": "no-cache",
-                                      "Accept": MIME_JSON},
-                             **self._http_request_kwargs
-                             )
+            r = requests.put(self._base_url + url, json=data, headers=headers, **self._http_request_kwargs)
         else:
             log.error("Unexpected client data type: %s for %s" % (type(data), url))
             raise ClientBadData
@@ -307,12 +347,9 @@ class CloudConnection(CommonConnection):
         app_name, cit_alias = _parse_zone(zone)
         details = self._get_app_details_by_name(app_name)
         cit_id = details.cit_alias_id_map.get(cit_alias)
-        if not request.csr:
-            request.build_csr()
 
         ip_address = get_ip_address()
         request_data = {
-            'certificateSigningRequest': request.csr,
             'applicationId': details.app_id,
             'certificateIssuingTemplateId': cit_id,
             'apiClientInformation': {
@@ -320,6 +357,15 @@ class CloudConnection(CommonConnection):
                 'identifier': ip_address
             }
         }
+        if request.csr_origin != CSR_ORIGIN_SERVICE:
+            if not request.csr:
+                request.build_csr()
+            request_data['certificateSigningRequest'] = request.csr
+        else:
+            request_data['isVaaSGenerated'] = True
+            request_data['applicationServerTypeId'] = APPLICATION_SERVER_TYPE_ID
+            request_data['csrAttributes'] = self._get_service_generated_csr_attr(request, zone)
+
         if request.validity_hours is not None:
             request_data['validityPeriod'] = "PT%dH" % request.validity_hours
 
@@ -338,13 +384,18 @@ class CloudConnection(CommonConnection):
             log.info("Certificate status is %s." % cert_status.status)
             return None
         elif cert_status.status == CertStatuses.FAILED:
-            log.debug("Status is %s. Returning data for debug" % cert_status.status)
+            log.debug("Certificate status is %s. Returning data for debug" % cert_status.status)
             return "Certificate FAILED"
         elif cert_status.status == CertStatuses.ISSUED:
-            url = URLS.CERTIFICATE_RETRIEVE % cert_status.certificateIds[0]
-            if request.chain_option == "first":
+            request.cert_guid = cert_status.certificateIds[0]
+            dek_info = self._get_dek_hash(request.cert_guid)
+            if dek_info and dek_info.public_key:
+                return self._retrieve_service_generated_cert(request, dek_info)
+
+            url = URLS.CERTIFICATE_RETRIEVE % request.cert_guid
+            if request.chain_option == CHAIN_OPTION_FIRST:
                 url += "?chainOrder=%s&format=PEM" % CondorChainOptions.ROOT_FIRST
-            elif request.chain_option == "last":
+            elif request.chain_option == CHAIN_OPTION_LAST:
                 url += "?chainOrder=%s&format=PEM" % CondorChainOptions.ROOT_LAST
             else:
                 log.error("chain option %s is not valid" % request.chain_option)
@@ -505,16 +556,7 @@ class CloudConnection(CommonConnection):
         raise NotImplementedError
 
     def get_policy(self, zone):
-        cit = self._get_template_by_id(zone)
-        if not cit:
-            raise VenafiError('Certificate issuing template not found for zone [%s]', zone)
-
-        info = self._get_ca_info(cit.cert_authority, cit.cert_authority_account_id, cit.cert_authority_product_option_id)
-        if not info:
-            raise VenafiError('Certificate Authority info not found.')
-
-        ps = build_policy_spec(cit, info)
-        return ps
+        return self._get_policy(zone=zone, subject_cn_to_str=True)
 
     def _policy_exists(self, zone):
         """
@@ -660,3 +702,166 @@ class CloudConnection(CommonConnection):
                 info.vendor_name = po.product_name
 
         return info
+
+    def _get_service_generated_csr_attr(self, request, zone):
+        """
+
+        :param CertificateRequest request:
+        :param str zone:
+        :rtype: dict[str, Any]
+        """
+        ps = self._get_policy(zone=zone, subject_cn_to_str=False)
+        csr_attr_map = {}
+
+        if request.common_name:
+            if ps.policy:
+                policy_domains = ps.policy.domains
+                valid = value_matches_regex(value=request.common_name, pattern_list=policy_domains)
+                if not valid:
+                    log.error(MSG_VALUE_NOT_MATCH_POLICY % ("Common Name", "domains", request.common_name,
+                                                            ps.policy.domains))
+                    raise ClientBadData()
+            csr_attr_map[CSR_ATTR_CN] = request.common_name
+
+        if request.organization:
+            if ps.policy and ps.policy.subject:
+                policy_orgs = ps.policy.subject.orgs
+                valid = value_matches_regex(value=request.organization,pattern_list=policy_orgs)
+                if not valid:
+                    org_str = "Organization"
+                    log.error(MSG_VALUE_NOT_MATCH_POLICY % (org_str, org_str+"s", request.organization, policy_orgs))
+                    raise ClientBadData
+            csr_attr_map[CSR_ATTR_ORG] = request.organization
+        elif ps.defaults and ps.defaults.subject and ps.defaults.subject.org:
+            csr_attr_map[CSR_ATTR_ORG] = ps.defaults.subject.org
+
+        if request.organizational_unit:
+            if ps.policy and ps.policy.subject:
+                policy_ous = ps.policy.subject.org_units
+                valid = value_matches_regex(value=request.organizational_unit, pattern_list=policy_ous)
+                if not valid:
+                    ou_str = "Organizational Unit"
+                    log.error(MSG_VALUE_NOT_MATCH_POLICY % (ou_str, ou_str+"s", request.organizational_unit,
+                                                            policy_ous))
+                    raise ClientBadData
+            csr_attr_map[CSR_ATTR_ORG_UNIT] = request.organizational_unit
+        elif ps.defaults and ps.defaults.subject and ps.defaults.subject.org_units:
+            csr_attr_map[CSR_ATTR_ORG_UNIT] = ps.defaults.subject.org_units
+
+        if request.locality:
+            if ps.policy and ps.policy.subject:
+                policy_localities = ps.policy.subject.localities
+                valid = value_matches_regex(value=request.locality, pattern_list=policy_localities)
+                if not valid:
+                    locality_str = "Localit"
+                    log.error(MSG_VALUE_NOT_MATCH_POLICY % (locality_str+"y", locality_str+"ies", request.locality,
+                                                            policy_localities))
+                    raise ClientBadData
+            csr_attr_map[CSR_ATTR_LOCALITY] = request.locality
+        elif ps.defaults and ps.defaults.subject and ps.defaults.subject.locality:
+            csr_attr_map[CSR_ATTR_LOCALITY] = ps.defaults.subject.locality
+
+        if request.province:
+            if ps.policy and ps.policy.subject:
+                policy_provinces = ps.policy.subject.localities
+                valid = value_matches_regex(value=request.province, pattern_list=policy_provinces)
+                if not valid:
+                    province_str = "Province"
+                    log.error(MSG_VALUE_NOT_MATCH_POLICY % (province_str, province_str+"s", request.province,
+                                                            policy_provinces))
+                    raise ClientBadData
+            csr_attr_map[CSR_ATTR_PROVINCE] = request.province
+        elif ps.defaults and ps.defaults.subject and ps.defaults.subject.state:
+            csr_attr_map[CSR_ATTR_PROVINCE] = ps.defaults.subject.state
+
+        if request.country:
+            if ps.policy and ps.policy.subject:
+                policy_countries = ps.policy.subject.countries
+                valid = value_matches_regex(value=request.country, pattern_list=policy_countries)
+                if not valid:
+                    country_str = "Countr"
+                    log.error(MSG_VALUE_NOT_MATCH_POLICY % (country_str+"y", country_str+"ies", request.country,
+                                                            policy_countries))
+                    raise ClientBadData
+            csr_attr_map[CSR_ATTR_COUNTRY] = request.country
+        elif ps.defaults and ps.defaults.subject and ps.defaults.subject.country:
+            csr_attr_map[CSR_ATTR_COUNTRY] = ps.defaults.subject.country
+
+        if len(request.san_dns) > 0:
+            sans = {
+                CSR_ATTR_SANS_DNS: request.san_dns
+                # TODO: Other sans should be added here
+            }
+            csr_attr_map[CSR_ATTR_SANS_BY_TYPE] = sans
+
+        return csr_attr_map
+
+    def _get_policy(self, zone, subject_cn_to_str):
+        """
+
+        :param str zone:
+        :param bool subject_cn_to_str:
+        :rtype: PolicySpecification
+        """
+        cit = self._get_template_by_id(zone)
+        if not cit:
+            raise VenafiError('Certificate issuing template not found for zone [%s]', zone)
+
+        info = self._get_ca_info(cit.cert_authority, cit.cert_authority_account_id, cit.cert_authority_product_option_id)
+        if not info:
+            raise VenafiError('Certificate Authority info not found.')
+
+        ps = build_policy_spec(cit, info, subject_cn_to_str)
+        return ps
+
+    def _get_dek_hash(self, cert_id):
+        """
+
+        :param str cert_id:
+        :rtype: EdgeEncryptionKey
+        """
+        url = URLS.CERTIFICATE_BY_ID % cert_id
+        status, data = self._get(url)
+        if status != HTTPStatus.OK:
+            log.error("Error retrieving Certificate details for id: %s" % cert_id)
+            raise ServerUnexptedBehavior
+
+        dek_hash = data['dekHash'] if 'dekHash' in data else None
+        if not dek_hash:
+            return None
+
+        url = URLS.DEK_PUBLIC_KEY % dek_hash
+        status, data = self._get(url)
+        if status != HTTPStatus.OK:
+            log.error("Error retrieving DEK public key for hash: %s" % dek_hash)
+            raise ServerUnexptedBehavior
+
+        dek = EdgeEncryptionKey(data)
+        return dek
+
+    def _retrieve_service_generated_cert(self, request, dek_info):
+        """
+
+        :param CertificateRequest request:
+        :param EdgeEncryptionKey dek_info:
+        :rtype: Certificate
+        """
+        box = SealedBox(dek_info.public_key)
+        encrypted_key_pass = box.encrypt(request.key_password)
+        body = {
+            'exportFormat': 'PEM',
+            'encryptedPrivateKeyPassphrase': base64.b64encode(encrypted_key_pass).decode("utf-8"),
+            'encryptedKeystorePassphrase': '',
+            'certificateLabel': ''
+        }
+        headers = {
+            'accept': 'application/octet-stream'
+        }
+        url = URLS.CERTIFICATE_KEYSTORE_BY_ID % request.cert_guid
+        status, data = self._post(url, data=body)
+        if status not in (HTTPStatus.OK, HTTPStatus.CREATED, HTTPStatus.ACCEPTED):
+            log.error("Some error")
+            raise VenafiError
+
+        cert, chain, private_key = zip_to_pem(data, request.chain_option)
+        return Certificate(cert=cert, chain=chain, key=private_key)

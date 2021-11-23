@@ -24,7 +24,7 @@ import random
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.serialization import pkcs12, load_pem_private_key, BestAvailableEncryption
+from cryptography.hazmat.primitives.serialization import pkcs12
 
 from .errors import VenafiError
 from .logger import get_logger
@@ -110,7 +110,8 @@ class Certificate:
             encryption = serialization.NoEncryption()
             b_pass = None
         try:
-            p_key = load_pem_private_key(data=self.key.encode(), password=b_pass, backend=default_backend())
+            p_key = serialization.load_pem_private_key(data=self.key.encode(), password=b_pass,
+                                                       backend=default_backend())
         except Exception as e:
             get_logger().error(msg="Error parsing Private Key: %s" % e.message)
             return
