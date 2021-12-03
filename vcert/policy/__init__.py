@@ -33,7 +33,7 @@ class CommonPA:
 # tpp read policy attributes - RPA
 class RPA(CommonPA):
     def __init__(self):
-        pass
+        CommonPA.__init__(self)
 
     TPP_CERT_AUTHORITY = "CertificateAuthority"  # "Certificate Authority"
     TPP_WILDCARDS_ALLOWED = "WildcardsAllowed"
@@ -57,7 +57,7 @@ class RPA(CommonPA):
 # tpp set policy attributes - SPA
 class SPA(CommonPA):
     def __init__(self):
-        pass
+        CommonPA.__init__(self)
 
     TPP_CERT_AUTHORITY = "Certificate Authority"
     TPP_PROHIBIT_WILDCARD = "Prohibit Wildcard"
