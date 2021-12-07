@@ -545,7 +545,11 @@ class CloudConnection(CommonConnection):
     def read_zone_conf(self, zone):
         policy = self._get_template_by_id(zone)
         rs = policy.recommended_settings
-        org, org_unit, locality, state, country = CertField("")
+        org = CertField("")
+        org_unit = CertField("")
+        locality = CertField("")
+        state = CertField("")
+        country = CertField("")
         if rs:
             org = CertField(rs.subjectOValue)
             org_unit = CertField(rs.subjectOUValue)
