@@ -79,12 +79,26 @@ class URLS:
 
 
 class AbstractTPPConnection(CommonConnection):
+    def __init__(self):
+        CommonConnection.__init__(self)
+
+    ARG_URL = 'url'
+    ARG_PARAMS = 'params'
+    ARG_CHECK_TOKEN = 'check_token'  # nosec
+    ARG_INCLUDE_TOKEN_HEADER = 'include_token_header'  # nosec
+    ARG_DATA = 'data'
+
+    def auth(self):
+        raise NotImplementedError
 
     def request_cert(self, request, zone):
-        request_data = {'PolicyDN': self._normalize_zone(zone),
-                        'ObjectName': request.friendly_name,
-                        'DisableAutomaticRenewal': "true"
-                        }
+        request_data = {
+            'PolicyDN': self._normalize_zone(zone),
+            'ObjectName': request.friendly_name,
+            'DisableAutomaticRenewal': "true"
+        }
+        zone_config = self.read_zone_conf(zone)
+        request.update_from_zone_config(zone_config)
 
         if request.csr_origin == CSR_ORIGIN_LOCAL:
             request.build_csr()
@@ -143,8 +157,11 @@ class AbstractTPPConnection(CommonConnection):
                 else:
                     request_data['CustomFields'] = [custom_field_json]
 
-
-        status, data = self._post(URLS.CERTIFICATE_REQUESTS, data=request_data)
+        args = {
+            self.ARG_URL: URLS.CERTIFICATE_REQUESTS,
+            self.ARG_DATA: request_data
+        }
+        status, data = self.post(args)
         if status == HTTPStatus.OK:
             request.id = data['CertificateDN']
             request.cert_guid = data['Guid']
@@ -320,6 +337,18 @@ class AbstractTPPConnection(CommonConnection):
 
     def import_cert(self, request):
         raise NotImplementedError
+
+    def read_zone_conf(self, tag):
+        args = {
+            self.ARG_URL: URLS.ZONE_CONFIG,
+            self.ARG_DATA: {
+                'PolicyDN': self._normalize_zone(tag)
+            }
+        }
+        status, data = self.post(args=args)
+        if status != HTTPStatus.OK:
+            raise ServerUnexptedBehavior("Server returns %d status on reading zone configuration." % status)
+        return self._parse_zone_data_to_object(data)
 
     def get_policy(self, zone):
         # get policy spec from name
@@ -630,12 +659,6 @@ class AbstractTPPConnection(CommonConnection):
             raise ServerUnexptedBehavior("Server returns %d status on requesting SSH CA Public Key Data for %s = %s."
                                          % (status, key, value))
 
-    ARG_URL = 'url'
-    ARG_PARAMS = 'params'
-    ARG_CHECK_TOKEN = 'check_token'  # nosec
-    ARG_INCLUDE_TOKEN_HEADER = 'include_token_header'  # nosec
-    ARG_DATA = 'data'
-
     def get(self, args):
         """
 
@@ -725,22 +748,13 @@ class AbstractTPPConnection(CommonConnection):
         return status, response
 
     def _reset_policy(self, zone):
-        self._reset_policy_attr(zone, SPA.TPP_DOMAIN_SUFFIX_WHITELIST)
-        self._reset_policy_attr(zone, SPA.TPP_PROHIBIT_WILDCARD)
-        self._reset_policy_attr(zone, SPA.TPP_CERT_AUTHORITY)
-        self._reset_policy_attr(zone, SPA.TPP_ORGANIZATION)
-        self._reset_policy_attr(zone, SPA.TPP_ORG_UNIT)
-        self._reset_policy_attr(zone, SPA.TPP_CITY)
-        self._reset_policy_attr(zone, SPA.TPP_STATE)
-        self._reset_policy_attr(zone, SPA.TPP_COUNTRY)
-        self._reset_policy_attr(zone, SPA.TPP_KEY_ALGORITHM)
-        self._reset_policy_attr(zone, SPA.TPP_KEY_BIT_STR)
-        self._reset_policy_attr(zone, SPA.TPP_ELLIPTIC_CURVE)
-        self._reset_policy_attr(zone, SPA.TPP_MANUAL_CSR)
-        self._reset_policy_attr(zone, SPA.TPP_PROHIBITED_SAN_TYPES)
-        self._reset_policy_attr(zone, SPA.TPP_ALLOWED_PRIVATE_KEY_REUSE)
-        self._reset_policy_attr(zone, SPA.TPP_WANT_RENEWAL)
-        self._reset_policy_attr(zone, SPA.TPP_MANAGEMENT_TYPE)
+        atrr_list = [SPA.TPP_DOMAIN_SUFFIX_WHITELIST, SPA.TPP_PROHIBIT_WILDCARD, SPA.TPP_CERT_AUTHORITY,
+                     SPA.TPP_ORGANIZATION, SPA.TPP_ORG_UNIT, SPA.TPP_CITY, SPA.TPP_STATE, SPA.TPP_COUNTRY,
+                     SPA.TPP_KEY_ALGORITHM, SPA.TPP_KEY_BIT_STR, SPA.TPP_ELLIPTIC_CURVE, SPA.TPP_MANUAL_CSR,
+                     SPA.TPP_PROHIBITED_SAN_TYPES, SPA.TPP_ALLOWED_PRIVATE_KEY_REUSE, SPA.TPP_WANT_RENEWAL,
+                     SPA.TPP_MANAGEMENT_TYPE]
+        for attr in atrr_list:
+            self._reset_policy_attr(zone, attr)
 
     @staticmethod
     def _parse_attr_response(response):
@@ -873,6 +887,7 @@ class AbstractTPPConnection(CommonConnection):
             key_type = KeyType(KeyType.ECDSA, data['Policy']['KeyPair']['EllipticCurve']['Value'])
         else:
             key_type = None
+
         z = ZoneConfig(
             organization=CertField(s['Organization']['Value'], locked=s['Organization']['Locked']),
             organizational_unit=CertField(ou, locked=s['OrganizationalUnit']['Locked']),
@@ -883,12 +898,6 @@ class AbstractTPPConnection(CommonConnection):
             key_type=key_type,
         )
         return z
-
-    def read_zone_conf(self, tag):
-        status, data = self._post(URLS.ZONE_CONFIG, {'PolicyDN': self._normalize_zone(tag)})
-        if status != HTTPStatus.OK:
-            raise ServerUnexptedBehavior("Server returns %d status on reading zone configuration." % status)
-        return self._parse_zone_data_to_object(data)
 
     def _get_certificate_details(self, cert_guid):
         status, data = self._get(URLS.CERTIFICATE_SEARCH + cert_guid)

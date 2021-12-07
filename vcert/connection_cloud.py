@@ -25,6 +25,7 @@ from pprint import pprint
 import requests
 import six.moves.urllib.parse as urlparse
 from nacl.public import SealedBox
+from six import string_types
 
 from .common import (ZoneConfig, CertificateRequest, CommonConnection, Policy, get_ip_address, log_errors, MIME_JSON,
                      MIME_TEXT, MIME_ANY, CertField, KeyType, DEFAULT_TIMEOUT,
@@ -357,6 +358,9 @@ class CloudConnection(CommonConnection):
                 'identifier': ip_address
             }
         }
+        zone_config = self.read_zone_conf(zone)
+        request.update_from_zone_config(zone_config)
+
         if request.csr_origin != CSR_ORIGIN_SERVICE:
             if not request.csr:
                 request.build_csr()
@@ -540,12 +544,25 @@ class CloudConnection(CommonConnection):
 
     def read_zone_conf(self, zone):
         policy = self._get_template_by_id(zone)
+        rs = policy.recommended_settings
+        org = CertField("")
+        org_unit = CertField("")
+        locality = CertField("")
+        state = CertField("")
+        country = CertField("")
+        if rs:
+            org = CertField(rs.subjectOValue)
+            org_unit = CertField(rs.subjectOUValue)
+            locality = CertField(rs.subjectLValue)
+            state = CertField(rs.subjectSTValue)
+            country = CertField(rs.subjectCValue)
+
         z = ZoneConfig(
-            organization=CertField(""),
-            organizational_unit=CertField(""),
-            country=CertField(""),
-            province=CertField(""),
-            locality=CertField(""),
+            organization=org,
+            organizational_unit=org_unit,
+            country=country,
+            province=state,
+            locality=locality,
             policy=policy,
             key_type=policy.key_types[0] if policy.key_types else None,
         )
@@ -736,9 +753,16 @@ class CloudConnection(CommonConnection):
             csr_attr_map[CSR_ATTR_ORG] = ps.defaults.subject.org
 
         if request.organizational_unit:
+            if isinstance(request.organizational_unit, string_types):
+                org_units = [request.organizational_unit]
+            else:
+                org_units = request.organizational_unit
+
             if ps.policy and ps.policy.subject:
                 policy_ous = ps.policy.subject.org_units
-                valid = value_matches_regex(value=request.organizational_unit, pattern_list=policy_ous)
+                valid = all(
+                    value_matches_regex(value=ou, pattern_list=policy_ous) for ou in org_units
+                )
                 if not valid:
                     ou_str = "Organizational Unit"
                     log.error(MSG_VALUE_NOT_MATCH_POLICY % (ou_str, ou_str+"s", request.organizational_unit,

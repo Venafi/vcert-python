@@ -92,7 +92,6 @@ def zip_to_pem(data, chain_option):
     """
     zip_data = zipfile.ZipFile(io.BytesIO(data))
     private_key = None
-    certs = []
     chain = []
     certificate = None
     for info in zip_data.infolist():
@@ -125,9 +124,3 @@ def value_matches_regex(value, pattern_list):
     :rtype: bool
     """
     return any((re.match(pattern, value) is not None) for pattern in pattern_list)
-    # for regex in regex_list:
-    #     result = re.match(regex, value)
-    #     if not result:
-    #         return False
-    #
-    # return True

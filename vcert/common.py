@@ -183,7 +183,7 @@ class Policy:
         :param str status:
         :param str reason:
         :param str validity_period:
-        :param RecommendedSettings recommended_settings:
+        :param vaas_utils.RecommendedSettings recommended_settings:
         """
         self.id = policy_id
         self.company_id = company_id
@@ -264,11 +264,11 @@ class CertificateRequest:
         :param str friendly_name: Name for certificate in the platform. If not specified common name will be used.
         :param str common_name: Common name of certificate. Usually domain name.
         :param str thumbprint: Certificate thumbprint. Can be used for identifying certificate on the platform.
-        :param organization:
-        :param organizational_unit:
-        :param country:
-        :param province:
-        :param locality:
+        :param str organization:
+        :param str or list[str] organizational_unit:
+        :param str country:
+        :param str province:
+        :param str locality:
         :param str origin: application identifier
         :param list[CustomField] custom_fields: list of custom fields values to be added to the certificate.
         :param int timeout: Timeout for the certificate to be retrieved from server. Measured in seconds.
@@ -496,7 +496,6 @@ class CertificateRequest:
         ).decode()
 
     def update_from_zone_config(self, zone):
-        # TODO: check request against zone configuration
         """
         :param ZoneConfig zone:
         """
@@ -588,6 +587,8 @@ class Authentication:
 
 
 class CommonConnection:
+    def __init__(self):
+        pass
 
     def auth(self):
         """

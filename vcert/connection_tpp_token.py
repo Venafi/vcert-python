@@ -24,16 +24,16 @@ import time
 
 import requests
 
-from .common import MIME_JSON, TokenInfo, Authentication, KeyType, Policy, ZoneConfig, CertField
+from .common import MIME_JSON, TokenInfo, Authentication
 from .connection_tpp_abstract import AbstractTPPConnection, URLS
 from .errors import (ClientBadData, ServerUnexptedBehavior, AuthenticationError)
 from .http import HTTPStatus
 
-HEADER_AUTHORIZATION = "Authorization"  # type: str
+HEADER_AUTHORIZATION = 'Authorization'
 
-KEY_ACCESS_TOKEN = "access_token"  # type: str  # nosec
-KEY_REFRESH_TOKEN = "refresh_token"  # type: str  # nosec
-KEY_EXPIRATION_DATE = "expiration_date"  # type: str
+KEY_ACCESS_TOKEN = 'access_token'  # nosec
+KEY_REFRESH_TOKEN = 'refresh_token'  # nosec
+KEY_EXPIRATION_DATE = 'expiration_date'
 
 
 class TPPTokenConnection(AbstractTPPConnection):
@@ -46,6 +46,8 @@ class TPPTokenConnection(AbstractTPPConnection):
         :param str refresh_token:
         :param dict[str,Any] http_request_kwargs:
         """
+        AbstractTPPConnection.__init__(self)
+
         self._base_url = url  # type: str
         self._auth = Authentication(user=user, password=password, access_token=access_token,
                                     refresh_token=refresh_token)  # type: Authentication
