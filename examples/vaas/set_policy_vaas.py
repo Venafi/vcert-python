@@ -18,8 +18,8 @@ from pprint import pprint
 
 from parser import json_parser, yaml_parser
 from parser.utils import parse_policy_spec
-from policy.policy_spec import PolicySpecification, Policy, Subject, KeyPair, SubjectAltNames, Defaults, \
-    DefaultSubject, DefaultKeyPair
+from policy.policy_spec import (PolicySpecification, Policy, Subject, KeyPair, SubjectAltNames, Defaults,
+                                DefaultSubject, DefaultKeyPair)
 from vcert import venafi_connection
 import logging
 from os import environ

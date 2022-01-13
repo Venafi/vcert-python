@@ -14,10 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-from __future__ import print_function
-from vcert import (CertificateRequest, Connection, CloudConnection,
-                   FakeConnection, TPPConnection, RevocationRequest, KeyType)
+from vcert import (CertificateRequest, Connection, CloudConnection, FakeConnection, TPPConnection, RevocationRequest,
+                   KeyType)
 import string
 import random
 import logging
@@ -48,7 +46,7 @@ def main():
                           http_request_kwargs={"verify": False})
         # If your TPP server certificate signed with your own CA, or available only via proxy, you can specify
         # a trust bundle using requests vars:
-        #conn = Connection(url=url, token=token, user=user, password=password,
+        # conn = Connection(url=url, token=token, user=user, password=password,
         #                  http_request_kwargs={"verify": "/path-to/bundle.pem"})
 
     request = CertificateRequest(common_name=randomword(10) + ".venafi.example.com")
@@ -62,11 +60,11 @@ def main():
         # Specify ordering certificates in chain. Root can be "first" or "last". By default it last. You also can
         # specify "ignore" to ignore chain (supported only for Platform).
         # To set Custom Fields for the certificate, specify an array of CustomField objects as name-value pairs
-        #request.custom_fields = [
+        # request.custom_fields = [
         #    CustomField(name="Cost Center", value="ABC123"),
         #    CustomField(name="Environment", value="Production"),
         #    CustomField(name="Environment", value="Staging")
-        #]
+        # ]
 
     # configure key type, RSA example
     request.key_type = KeyType(KeyType.RSA, 2048)
@@ -96,7 +94,7 @@ def main():
     f.close()
 
     if not isinstance(conn, FakeConnection):
-        # fake connection doesn`t support certificate renewing
+        # fake connection doesn't support certificate renewing
         print("Trying to renew certificate")
         new_request = CertificateRequest(
             cert_id=request.id,
@@ -140,6 +138,7 @@ def main():
     f = open("/tmp/signed-cert.pem", "w")
     f.write(cert.full_chain)
     f.close()
+
 
 def randomword(length):
     letters = string.ascii_lowercase

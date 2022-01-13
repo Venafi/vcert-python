@@ -14,9 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-from __future__ import print_function
-
 from vcert import (CertificateRequest, venafi_connection, CSR_ORIGIN_SERVICE, CHAIN_OPTION_FIRST)
 import string
 import random
