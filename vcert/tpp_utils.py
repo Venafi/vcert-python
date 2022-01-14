@@ -13,10 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import enum
+from enum import IntEnum
 
 
-class IssuerHint(enum.IntEnum):
+class IssuerHint(IntEnum):
     def __new__(cls, value, json_value):
         """
 

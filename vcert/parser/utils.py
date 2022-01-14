@@ -13,13 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 import logging as log
 import os
 
 from vcert.parser import *
-from vcert.policy import DEFAULT_CA, Subject, KeyPair, SubjectAltNames, Policy, DefaultSubject, DefaultKeyPair, \
-    Defaults, PolicySpecification
+from vcert.policy import (DEFAULT_CA, Subject, KeyPair, SubjectAltNames, Policy, DefaultSubject, DefaultKeyPair,
+                          Defaults, PolicySpecification)
 
 
 def load_file(file_path):

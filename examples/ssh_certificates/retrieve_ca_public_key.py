@@ -29,13 +29,13 @@ def main():
     ca_dn = environ.get('TPP_SSH_CADN')
     ca_guid = environ.get('TPP_SSH_CA_GUID')
     # Authentication is required for retrieving the CA principals only.
-    user = environ.get("TPP_USER")
-    password = environ.get("TPP_PASSWORD")
+    user = environ.get('TPP_USER')
+    password = environ.get('TPP_PASSWORD')
 
     # A Connector can be instantiated with no values by using the platform argument.
     # url argument is always required for TPP.
     connector = venafi_connection(platform=VenafiPlatform.TPP, url=url,
-                                  http_request_kwargs={"verify": "/tmp/chain.pem"})
+                                  http_request_kwargs={'verify': "/tmp/chain.pem"})
     # Optionally, the connector can be instantiated passing the specific arguments:
     # connector = venafi_connection(url=url, user=user, password=password, http_request_kwargs={"verify": False})
 
@@ -70,7 +70,7 @@ def main():
     ssh_config = connector.retrieve_ssh_config(ca_request=request)
     with open("./ca2-pub.key", 'w') as ca_file:
         ca_file.write(pub_key_data)
-    print("Certificate Authority principals: %s" % ssh_config.ca_principals)
+    print(f"Certificate Authority principals: {ssh_config.ca_principals}")
 
 
 if __name__ == '__main__':

@@ -23,8 +23,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from .errors import ClientBadData, ServerUnexptedBehavior
 
 PATH_SEPARATOR = "\\"
-CA_ROOT_PATH = PATH_SEPARATOR + "VED" + PATH_SEPARATOR + "Certificate Authority" + PATH_SEPARATOR + "SSH" \
-               + PATH_SEPARATOR + "Templates"
+CA_ROOT_PATH = f"{PATH_SEPARATOR}VED{PATH_SEPARATOR}Certificate Authority{PATH_SEPARATOR}SSH{PATH_SEPARATOR}Templates"  # TODO: REMOVE PATH_SEPARATOR + "VED" + PATH_SEPARATOR + "Certificate Authority" + PATH_SEPARATOR + "SSH" + PATH_SEPARATOR + "Templates"
 DEFAULT_SSH_KEY_SIZE = 3072
 F_P_DETAILS = 'ProcessingDetails'
 
@@ -85,7 +84,7 @@ class SSHCertRequest:
             return None
         temp = self._public_key_data.rstrip("\r\n")
         if self.key_id:
-            return "%s %s" % (temp, self.key_id)
+            return f"{temp} {self.key_id}"  # TODO: REMOVE "%s %s" % (temp, self.key_id)
         else:
             return temp
 

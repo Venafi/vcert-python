@@ -17,19 +17,19 @@ from pprint import pprint
 
 from vcert.common import CertField
 from vcert.errors import VenafiError
-from vcert.policy import SPA, PolicySpecification, Policy, Subject, DefaultSubject, KeyPair, DefaultKeyPair, Defaults, \
-    SubjectAltNames
+from vcert.policy import (SPA, PolicySpecification, Policy, Subject, DefaultSubject, KeyPair, DefaultKeyPair, Defaults,
+                          SubjectAltNames)
 
-too_many_error_msg = "attribute [%s] has more than one value"
-unsupported_error_msg = "one or more values in attribute [%s] are not supported.\nExpected: %s\nGot: %s"
-no_match_error_msg = "default value does not mach with policy value for [%s].\nDefault: %s\nPolicy value:%s"
+too_many_error_msg = "attribute [{}] has more than one value"
+unsupported_error_msg = "one or more values in attribute [{}] are not supported.\nExpected: {}\nGot: {}"
+no_match_error_msg = "default value does not mach with policy value for [{}].\nDefault: {}\nPolicy value: {}"
 
 supported_key_types = ["RSA", "ECDSA"]
 supported_rsa_key_sizes = [512, 1024, 2048, 3072, 4096]
 supported_elliptic_curves = ["P256", "P384", "P521"]
 user_generated_csr = 'UserProvided'
-mt_provisioning = "Provisioning"
-mt_enrollment = "Enrollment"
+mt_provisioning = 'Provisioning'
+mt_enrollment = 'Enrollment'
 
 
 class TPPPolicy:
@@ -340,7 +340,7 @@ def is_service_generated_csr(csr_generation):
     :rtype: CertField
     """
     if not csr_generation:
-        raise VenafiError('csr generation value cannot be empty')
+        raise VenafiError("csr generation value cannot be empty")
 
     if csr_generation == user_generated_csr:
         return False
@@ -384,7 +384,7 @@ def validate_policy_spec(policy_spec):
 
     if p.auto_installed is not None:
         if p.auto_installed != d.auto_installed:
-            raise VenafiError(no_match_error_msg % ('autoinstalled', d.auto_installed, p.auto_installed))
+            raise VenafiError(no_match_error_msg.format('autoinstalled', d.auto_installed, p.auto_installed))
 
     return True
 
@@ -394,20 +394,20 @@ def validate_policy_subject(policy_spec):
     :param PolicySpecification policy_spec:
     """
     if not policy_spec.policy.subject:
-        raise VenafiError('Subject structure is empty')
+        raise VenafiError("Subject structure is empty")
 
     s = policy_spec.policy.subject
     if len(s.orgs) > 1:
-        raise VenafiError(too_many_error_msg % 'organizations')
+        raise VenafiError(too_many_error_msg.format('organizations'))
     if len(s.localities) > 1:
-        raise VenafiError(too_many_error_msg % 'localities')
+        raise VenafiError(too_many_error_msg.format('localities'))
     if len(s.states) > 1:
-        raise VenafiError(too_many_error_msg % 'states')
+        raise VenafiError(too_many_error_msg.format('states'))
     if len(s.countries) > 1:
-        raise VenafiError(too_many_error_msg % 'countries')
+        raise VenafiError(too_many_error_msg.format('countries'))
     # Country values should follow ISO Alpha-2 standard, e.g.: US, MX, CA, FR, etc.
     if len(s.countries[0]) != 2:
-        raise VenafiError('country code [%s] does not match ISO Alpha-2 specification' % s.countries[0])
+        raise VenafiError(f"country code [{s.countries[0]}] does not match ISO Alpha-2 specification")
 
 
 def validate_key_pair(policy_spec):
@@ -415,29 +415,29 @@ def validate_key_pair(policy_spec):
     :param PolicySpecification policy_spec:
     """
     if not policy_spec.policy.key_pair:
-        raise VenafiError('Key Pair structure is empty')
+        raise VenafiError("Key Pair structure is empty")
 
     kp = policy_spec.policy.key_pair
 
     # validate key algorithm
     if len(kp.key_types) > 1:
-        raise VenafiError(too_many_error_msg % 'key types')
+        raise VenafiError(too_many_error_msg.format('key types'))
     if len(kp.key_types) > 0 and not member_of(kp.key_types, supported_key_types):
-        raise VenafiError(unsupported_error_msg % ('key types', pprint(supported_key_types), pprint(kp.key_types)))
+        raise VenafiError(unsupported_error_msg.format('key types', pprint(supported_key_types), pprint(kp.key_types)))
 
     # validate key bit strength
     if len(kp.rsa_key_sizes) > 1:
-        raise VenafiError(too_many_error_msg % 'key bit strength')
+        raise VenafiError(too_many_error_msg.format('key bit strength'))
     if len(kp.rsa_key_sizes) > 0 and not member_of(kp.rsa_key_sizes, supported_rsa_key_sizes):
-        raise VenafiError(unsupported_error_msg
-                          % ('key bit strength', pprint(supported_rsa_key_sizes), pprint(kp.rsa_key_sizes)))
+        raise VenafiError(unsupported_error_msg.format('key bit strength', pprint(supported_rsa_key_sizes),
+                                                       pprint(kp.rsa_key_sizes)))
 
     # validate elliptic curve
     if len(kp.elliptic_curves) > 1:
-        raise VenafiError(too_many_error_msg % 'elliptic curve')
+        raise VenafiError(too_many_error_msg.format('elliptic curve'))
     if len(kp.elliptic_curves) > 0 and not member_of(kp.elliptic_curves, supported_elliptic_curves):
-        raise VenafiError(unsupported_error_msg
-                          % ('elliptic_curve', pprint(supported_elliptic_curves), pprint(kp.elliptic_curves)))
+        raise VenafiError(unsupported_error_msg.format('elliptic_curve', pprint(supported_elliptic_curves),
+                                                       pprint(kp.elliptic_curves)))
 
 
 def validate_default_subject(policy_spec):
@@ -454,23 +454,23 @@ def validate_default_subject(policy_spec):
 
     if s.orgs and s.orgs[0] and ds.org:
         if s.orgs[0] != ds.org:
-            raise VenafiError(no_match_error_msg % ('organizations', ds.org, s.orgs[0]))
+            raise VenafiError(no_match_error_msg.format('organizations', ds.org, s.orgs[0]))
 
     if s.org_units and len(s.org_units) > 0 and ds.org_units and len(ds.org_units) > 0:
         if not member_of(ds.org_units, s.org_units):
-            raise VenafiError(no_match_error_msg % ('orgUnits', ds.org_units[0], s.org_units[0]))
+            raise VenafiError(no_match_error_msg.format('orgUnits', ds.org_units[0], s.org_units[0]))
 
     if s.localities and s.localities[0] and ds.locality:
         if s.localities[0] != ds.locality:
-            raise VenafiError(no_match_error_msg % ('localities', ds.locality, s.localities[0]))
+            raise VenafiError(no_match_error_msg.format('localities', ds.locality, s.localities[0]))
 
     if s.states and s.states[0] and ds.state:
         if s.states[0] != ds.state:
-            raise VenafiError(no_match_error_msg % ('states', ds.state, s.states[0]))
+            raise VenafiError(no_match_error_msg.format('states', ds.state, s.states[0]))
 
     if s.countries and s.countries and ds.country:
         if s.countries[0] != ds.country:
-            raise VenafiError(no_match_error_msg % ('countries', ds.country, s.countries[0]))
+            raise VenafiError(no_match_error_msg.format('countries', ds.country, s.countries[0]))
 
 
 def validate_default_key_pair_with_policy_subject(policy_spec):
@@ -486,19 +486,19 @@ def validate_default_key_pair_with_policy_subject(policy_spec):
 
     if kp.key_types and kp.key_types[0] and dkp.key_type:
         if kp.key_types[0] != dkp.key_type:
-            raise VenafiError(no_match_error_msg % ('key types', dkp.key_type, kp.key_types[0]))
+            raise VenafiError(no_match_error_msg.format('key types', dkp.key_type, kp.key_types[0]))
 
     if kp.rsa_key_sizes and kp.rsa_key_sizes[0] and dkp.rsa_key_size:
         if kp.rsa_key_sizes[0] != dkp.rsa_key_size:
-            raise VenafiError(no_match_error_msg % ('rsa key sizes', dkp.rsa_key_size, kp.rsa_key_sizes[0]))
+            raise VenafiError(no_match_error_msg.format('rsa key sizes', dkp.rsa_key_size, kp.rsa_key_sizes[0]))
 
     if kp.elliptic_curves and kp.elliptic_curves[0] and dkp.elliptic_curve:
         if kp.elliptic_curves[0] != dkp.elliptic_curve:
-            raise VenafiError(no_match_error_msg % ('elliptic curves', dkp.elliptic_curve, kp.elliptic_curves[0]))
+            raise VenafiError(no_match_error_msg.format('elliptic curves', dkp.elliptic_curve, kp.elliptic_curves[0]))
 
     if kp.service_generated and dkp.service_generated:
         if kp.service_generated != dkp.service_generated:
-            raise VenafiError(no_match_error_msg % ('generation type', dkp.service_generated, kp.service_generated))
+            raise VenafiError(no_match_error_msg.format('generation type', dkp.service_generated, kp.service_generated))
 
 
 def validate_default_key_pair(policy_spec):
@@ -511,14 +511,15 @@ def validate_default_key_pair(policy_spec):
     dkp = policy_spec.defaults.key_pair
 
     if dkp.key_type and not member_of([dkp.key_type], supported_key_types):
-        raise VenafiError(unsupported_error_msg % ('key type', pprint(supported_key_types), dkp.key_type))
+        raise VenafiError(unsupported_error_msg.format('key type', pprint(supported_key_types), dkp.key_type))
 
     if dkp.rsa_key_size and not member_of([dkp.rsa_key_size], supported_rsa_key_sizes):
-        raise VenafiError(unsupported_error_msg % ('rsa key size', pprint(supported_rsa_key_sizes), dkp.rsa_key_size))
+        raise VenafiError(unsupported_error_msg.format('rsa key size', pprint(supported_rsa_key_sizes),
+                                                       dkp.rsa_key_size))
 
     if dkp.elliptic_curve and not member_of([dkp.elliptic_curve], supported_elliptic_curves):
-        raise VenafiError(unsupported_error_msg % ('elliptic curve', pprint(supported_elliptic_curves),
-                                                   dkp.elliptic_curve))
+        raise VenafiError(unsupported_error_msg.format('elliptic curve', pprint(supported_elliptic_curves),
+                                                       dkp.elliptic_curve))
 
 
 def member_of(sub_list, collection):

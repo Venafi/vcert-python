@@ -29,7 +29,7 @@ def main():
     url = environ.get('TPP_TOKEN_URL')
     user = environ.get('TPP_USER')
     password = environ.get('TPP_PASSWORD')
-    zone = environ.get("TPP_ZONE")
+    zone = environ.get('TPP_ZONE')
     server_trust_bundle = environ.get('TPP_TRUST_BUNDLE')
 
     # Connection will be chosen automatically based on which arguments are passed.
@@ -37,17 +37,17 @@ def main():
     # If user, password, and URL Venafi Platform (TPP) will be used.
     # If your TPP server certificate signed with your own CA, or available only via proxy, you can specify
     # a trust bundle using http_request_kwargs.
-    conn = venafi_connection(url=url, user=user, password=password, http_request_kwargs={"verify": server_trust_bundle})
+    conn = venafi_connection(url=url, user=user, password=password, http_request_kwargs={'verify': server_trust_bundle})
 
     # Build a Certificate request
-    request = CertificateRequest(common_name=random_word(10) + ".venafi.example.com")
+    request = CertificateRequest(common_name=f"{random_word(10)}.venafi.example.com")
     # Set the request to use a service generated CSR
     request.csr_origin = CSR_ORIGIN_SERVICE
     # Include some Subject Alternative Names
     request.san_dns = ["www.dns.venafi.example.com", "ww1.dns.venafi.example.com"]
     request.email_addresses = ["email1@venafi.example.com", "email2@venafi.example.com"]
     request.ip_addresses = ["127.0.0.1", "192.168.1.1"]
-    request.uniform_resource_identifiers = ["http://wgtest.uri.com","https://ragnartest.uri.com"]
+    request.uniform_resource_identifiers = ["http://wgtest.uri.com", "https://ragnartest.uri.com"]
     request.user_principal_names = ["upn1@venafi.example.com", "upn2@venafi.example.com"]
     # Specify whether or not to return the private key. It is False by default.
     # A password should be defined for the private key if include_private_key is True.
