@@ -1,5 +1,5 @@
 #
-# Copyright 2019 Venafi, Inc.
+# Copyright 2022 Venafi, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,10 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-from __future__ import absolute_import, division, generators, unicode_literals, print_function, nested_scopes, \
-    with_statement
-
 import datetime
 import logging as log
 import time
@@ -106,6 +102,7 @@ def fake_user(email=None):
 
 class FakeConnection(CommonConnection):
     def __init__(self, *args, **kwargs):
+        super().__init__()
         self.status = "200"
         self._base_url = "fake"
 
@@ -127,7 +124,7 @@ class FakeConnection(CommonConnection):
                 "CertificateDN": request.friendly_name,
                 "DisableAutomaticRenewal": "true"}
         request.id = data['CertificateDN']
-        log.debug("Certificate sucessfully requested with request id %s." % request.id)
+        log.debug(f"Certificate successfully requested with request id {request.id}.")
         return request
 
     def read_zone_conf(self, tag):
@@ -145,16 +142,14 @@ class FakeConnection(CommonConnection):
         return z
 
     def retrieve_cert(self, certificate_request):
-        log.debug("Getting certificate status for id %s" % certificate_request.id)
+        log.debug(f"Getting certificate status for id {certificate_request.id}")
 
         time.sleep(0.1)
         certificate_request._public_key_from_private()
         csr = x509.load_pem_x509_csr(certificate_request.csr.encode(), default_backend())
 
         root_ca_certificate = x509.load_pem_x509_certificate(ROOT_CA, default_backend())
-        root_ca_private_key = serialization.load_pem_private_key(ROOT_CA_KEY, password=None,
-                                                                 backend=default_backend())
-
+        root_ca_private_key = serialization.load_pem_private_key(ROOT_CA_KEY, password=None, backend=default_backend())
 
         # cn = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, certificate_request.common_name)])
         issuer = root_ca_certificate.issuer
@@ -206,4 +201,7 @@ class FakeConnection(CommonConnection):
         raise NotImplementedError
 
     def retrieve_ssh_cert(self, request):
+        raise NotImplementedError
+
+    def retrieve_ssh_config(self, ca_request):
         raise NotImplementedError

@@ -25,12 +25,12 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.x509 import SignatureAlgorithmOID as AlgOID
 from six.moves.urllib import parse as url_parse
 
-from .pem import parse_pem
 from .common import CertField, CommonConnection, CertificateRequest, CSR_ORIGIN_LOCAL, CSR_ORIGIN_PROVIDED, \
     CSR_ORIGIN_SERVICE, KeyType, CHAIN_OPTION_LAST, CHAIN_OPTION_FIRST, CHAIN_OPTION_IGNORE, Policy, ZoneConfig
 from .errors import VenafiError, ServerUnexptedBehavior, ClientBadData, RetrieveCertificateTimeoutError, \
     CertificateRequestError, CertificateRenewError
 from .http import HTTPStatus
+from .pem import parse_pem
 from .policy import RPA, SPA
 from .policy.pm_tpp import TPPPolicy, is_service_generated_csr, SetAttrResponse, validate_policy_spec, \
     get_int_value
@@ -80,7 +80,7 @@ class URLS:
 
 class AbstractTPPConnection(CommonConnection):
     def __init__(self):
-        CommonConnection.__init__(self)
+        super().__init__()
 
     ARG_URL = 'url'
     ARG_PARAMS = 'params'
@@ -109,7 +109,7 @@ class AbstractTPPConnection(CommonConnection):
             request_data['Subject'] = request.common_name
             request_data['SubjectAltNames'] = self.wrap_alt_names(request)
         else:
-            log.error("CSR Origin option [%s] is not valid. " % request.csr_origin)
+            log.error(f"CSR Origin option [{request.csr_origin}] is not valid")
             raise ClientBadData
 
         if request.origin:
@@ -165,15 +165,15 @@ class AbstractTPPConnection(CommonConnection):
         if status == HTTPStatus.OK:
             request.id = data['CertificateDN']
             request.cert_guid = data['Guid']
-            log.debug("Certificate successfully requested with request id %s." % request.id)
-            log.debug("Certificate successfully requested with GUID %s." % request.cert_guid)
+            log.debug(f"Certificate successfully requested with request id {request.id}")
+            log.debug(f"Certificate successfully requested with GUID {request.cert_guid}")
             return True
 
-        log.error("Request status is not %s. %s." % HTTPStatus.OK, status)
+        log.error(f"Request status is not {HTTPStatus.OK}. {status}")
         raise CertificateRequestError
 
     def retrieve_cert(self, cert_request):
-        log.debug("Getting certificate status for id %s" % cert_request.id)
+        log.debug(f"Getting certificate status for id {cert_request.id}")
 
         retrieve_request = dict(CertificateDN=cert_request.id,
                                 Format="base64",
@@ -195,15 +195,16 @@ class AbstractTPPConnection(CommonConnection):
         elif cert_request.chain_option == CHAIN_OPTION_IGNORE:
             retrieve_request['IncludeChain'] = 'false'
         else:
-            log.error("chain option %s is not valid" % cert_request.chain_option)
+            log.error(f"chain option {cert_request.chain_option} is not valid")
             raise ClientBadData
 
         time_start = time.time()
         while True:
             try:
+                # TODO: Change _post() with post(args)
                 status, data = self._post(URLS.CERTIFICATE_RETRIEVE, data=retrieve_request)
             except VenafiError:
-                log.debug("Certificate with id %s not found." % cert_request.id)
+                log.debug(f"Certificate with id {cert_request.id} not found")
                 status = 0
 
             if status == HTTPStatus.OK:
@@ -218,9 +219,8 @@ class AbstractTPPConnection(CommonConnection):
                 log.debug("Waiting for certificate...")
                 time.sleep(2)
             else:
-                raise RetrieveCertificateTimeoutError(
-                    'Operation timed out at %d seconds while retrieving certificate with id %s'
-                    % (cert_request.timeout, cert_request.id))
+                raise RetrieveCertificateTimeoutError(f"Operation timed out at {cert_request.timeout} seconds while "
+                                                      f"retrieving certificate with id {cert_request.id}")
 
     def renew_cert(self, request, reuse_key=False):
         if not request.id and not request.thumbprint:
@@ -230,7 +230,8 @@ class AbstractTPPConnection(CommonConnection):
             request.id = self.search_by_thumbprint(request.thumbprint)
 
         if reuse_key:
-            log.debug("Trying to renew certificate %s" % request.id)
+            log.debug(f"Trying to renew certificate {request.id}")
+            # TODO: Change _post() with post(args)
             status, data = self._post(URLS.CERTIFICATE_RENEW, data={'CertificateDN': request.id})
             if not data['Success']:
                 raise CertificateRenewError
@@ -303,32 +304,34 @@ class AbstractTPPConnection(CommonConnection):
             request_data['Subject'] = request.common_name
             request_data['SubjectAltNames'] = self.wrap_alt_names(request)
 
+        # TODO: Change _post() with post(args)
         status, data = self._post(URLS.CERTIFICATE_RENEW, data=request_data)
         if status == HTTPStatus.OK:
             if 'CertificateDN' in data:
                 request.id = data['CertificateDN']
-            log.debug("Certificate successfully requested with request id %s." % request.id)
+            log.debug(f"Certificate successfully requested with request id {request.id}")
             return True
 
-        log.error("Request status is not %s. %s." % HTTPStatus.OK, status)
+        log.error(f"Request status is not {HTTPStatus.OK}. {status}")
         raise CertificateRequestError
 
     def revoke_cert(self, request):
         if not (request.id or request.thumbprint):
             raise ClientBadData
         d = {
-            "Disable": request.disable
+            'Disable': request.disable
         }
         if request.reason:
-            d["Reason"] = request.reason
+            d['Reason'] = request.reason
         if request.id:
-            d["CertificateDN"] = request.id
+            d['CertificateDN'] = request.id
         elif request.thumbprint:
-            d["Thumbprint"] = request.thumbprint
+            d['Thumbprint'] = request.thumbprint
         else:
             raise ClientBadData
         if request.comments:
-            d["Comments"] = request.comments
+            d['Comments'] = request.comments
+        # TODO: Change _post() with post(args)
         status, data = self._post(URLS.CERTIFICATE_REVOKE, data=d)
         if status in (HTTPStatus.OK, HTTPStatus.ACCEPTED):
             return data
@@ -347,7 +350,7 @@ class AbstractTPPConnection(CommonConnection):
         }
         status, data = self.post(args=args)
         if status != HTTPStatus.OK:
-            raise ServerUnexptedBehavior("Server returns %d status on reading zone configuration." % status)
+            raise ServerUnexptedBehavior(f"Server returns {status} status on reading zone configuration")
         return self._parse_zone_data_to_object(data)
 
     def get_policy(self, zone):
@@ -355,15 +358,16 @@ class AbstractTPPConnection(CommonConnection):
         policy_name = self._normalize_zone(zone)
         exists = self._policy_exists(policy_name)
         if not exists:
-            log.error('The Policy %s does not exist', policy_name)
+            log.error(f"The Policy {policy_name} does not exist")
             raise VenafiError
 
+        # TODO: Change _post() with post(args)
         status, data = self._post(URLS.ZONE_CONFIG, {"PolicyDN": policy_name})
         if status != HTTPStatus.OK:
-            raise ServerUnexptedBehavior("Server returns %d status on reading policy configuration." % status)
+            raise ServerUnexptedBehavior(f"Server returns {status} status on reading policy configuration")
 
         if not ('Policy' in data):
-            raise VenafiError("Policy structure not found in response data for [%s] policy", policy_name)
+            raise VenafiError(f"Policy structure not found in response data for [{policy_name}] policy")
         p = data['Policy']
         tpp_policy = TPPPolicy()
 
@@ -395,7 +399,7 @@ class AbstractTPPConnection(CommonConnection):
             tpp_policy.management_type = p[RPA.TPP_MANAGEMENT_TYPE][value]
 
         if not ('Subject' in p):
-            raise VenafiError("Subject structure not found in response data for [%s] policy", policy_name)
+            raise VenafiError(f"Subject structure not found in response data for [{policy_name}] policy")
         subject = p['Subject']
 
         # Organization
@@ -424,7 +428,7 @@ class AbstractTPPConnection(CommonConnection):
             tpp_policy.country = CertField(country[value], country[locked])
 
         if not ('KeyPair' in p):
-            raise VenafiError("KeyPair structure not found in response data for [%s] policy", policy_name)
+            raise VenafiError(f"KeyPair structure not found in response data for [{policy_name}] policy")
         kp = p['KeyPair']
 
         # Key Algorithm
@@ -484,24 +488,25 @@ class AbstractTPPConnection(CommonConnection):
         create_policy = False
         policy_exists = self._policy_exists(name)
         if not policy_exists:
-            log.info("Policy [%s] does not exist, validating parent existence", name)
+            log.info(f"Policy [{name}] does not exist, validating parent existence")
             parent_name = self._get_policy_parent(name)
             if self._policy_exists(parent_name) or parent_name == ROOT_PATH:
-                log.info("Parent policy [%s] exists", parent_name)
+                log.info(f"Parent policy [{parent_name}] exists")
                 create_policy = True
             else:
-                raise VenafiError("Parent Policy [%s] does not exist", parent_name)
+                raise VenafiError(f"Parent Policy [{parent_name}] does not exist")
 
         # Create the policy if necessary
         if create_policy:
-            log.info("Creating Policy [%s]", name)
+            log.info(f"Creating Policy [{name}]")
             policy_request_data = {
-                "Class": POLICY_CLASS,
-                "ObjectDN": name
+                'Class': POLICY_CLASS,
+                'ObjectDN': name
             }
+            # TODO: Change _post() with post(args)
             status, resp_data = self._post(URLS.POLICY_CREATE, data=policy_request_data)
             if status != HTTPStatus.OK:
-                raise VenafiError("Failed to create policy [%s]. Status %s" % (name, status))
+                raise VenafiError(f"Failed to create policy [{name}]. Status {status}")
 
         # Set attributes to policy
         if tpp_policy.contact:
@@ -566,7 +571,8 @@ class AbstractTPPConnection(CommonConnection):
         :rtype: bool
         """
         json_request = build_tpp_request(request)
-        log.info("Requesting SSH Certificate with id %s" % request.key_id)
+        log.info(f"Requesting SSH Certificate with id {request.key_id}")
+        # TODO: Change _post() with post(args)
         status, data = self._post(URLS.SSH_CERTIFICATE_REQUEST, json_request)
 
         if status == HTTPStatus.OK:
@@ -577,10 +583,10 @@ class AbstractTPPConnection(CommonConnection):
                 request.guid = cert_req_response.guid
                 return True
             else:
-                raise VenafiError("An error occurred with status %s. Message: %s"
-                                  % (response_object.error_code, response_object.error_msg))
+                raise VenafiError(f"An error occurred with status {response_object.error_code}. "
+                                  f"Message: {response_object.error_msg}")
         else:
-            raise ServerUnexptedBehavior("Server returns %d status on requesting SSH certificate." % status)
+            raise ServerUnexptedBehavior(f"Server returns {status} status on requesting SSH certificate.")
 
     def retrieve_ssh_cert(self, request):
         """
@@ -589,14 +595,15 @@ class AbstractTPPConnection(CommonConnection):
         :rtype: SSHRetrieveResponse
         """
         json_request = build_tpp_retrieve_request(request)
-        log.info("Retrieving SSH Certificate with id %s" % request.pickup_id)
+        log.info(f"Retrieving SSH Certificate with id {request.pickup_id}")
 
         time_start = time.time()
         while True:
             try:
+                # TODO: Change _post() with post(args)
                 status, data = self._post(URLS.SSH_CERTIFICATE_RETRIEVE, json_request)
             except VenafiError:
-                log.debug("SSH Certificate with id %s not found" % request.pickup_id)
+                log.debug(f"SSH Certificate with id {request.pickup_id} not found")
                 status = 0
 
             if status == HTTPStatus.OK:
@@ -604,18 +611,18 @@ class AbstractTPPConnection(CommonConnection):
                 if response_object.success:
                     return SSHRetrieveResponse(data)
                 else:
-                    log.info("Failed to retrieve certificate with following details:\n"
-                             "DN: %s\nGuid: %s\nErrorCode: %s\nErrorMessage:%s"
-                             % (json_request['DN'], json_request['Guid'], response_object.error_code,
-                                response_object.error_msg))
+                    log.info(f"Failed to retrieve certificate with following details:"
+                             f"\nDN: {json_request['DN']}"
+                             f"\nGuid: {json_request['Guid']}"
+                             f"\nErrorCode: {response_object.error_code}"
+                             f"\nErrorMessage: {response_object.error_msg}")
 
             if (time.time() - time_start) < request.timeout:
                 log.debug("Waiting for certificate...")
                 time.sleep(2)
             else:
-                raise RetrieveCertificateTimeoutError(
-                    'Operation timed out at %d seconds while retrieving SSH certificate with id %s'
-                    % (request.timeout, request.pickup_id))
+                raise RetrieveCertificateTimeoutError(f"Operation timed out at {request.timeout} seconds while "
+                                                      f"retrieving SSH certificate with id {request.pickup_id}")
 
     def retrieve_ssh_config(self, ca_request):
         """
@@ -629,9 +636,9 @@ class AbstractTPPConnection(CommonConnection):
             key = 'DN'
             value = ca_request.template
             if not value.startswith(PATH_SEPARATOR):
-                value = "%s%s" % (PATH_SEPARATOR, value)
+                value = f"{PATH_SEPARATOR}{value}"
             if not value.startswith(CA_ROOT_PATH):
-                value = "%s%s" % (CA_ROOT_PATH, value)
+                value = f"{CA_ROOT_PATH}{value}"
         elif ca_request.guid:
             key = 'guid'
             value = ca_request.guid
@@ -639,8 +646,8 @@ class AbstractTPPConnection(CommonConnection):
             raise ClientBadData("CA Guid or CA template must be provided to retrieve SSH config.")
 
         value = url_parse.quote(value)
-        query = "%s=%s" % (key, value)
-        url = "%s?%s" % (URLS.SSH_CA_PUBLIC_KEY, query)
+        query = f"{key}={value}"
+        url = f"{URLS.SSH_CA_PUBLIC_KEY}?{query}"
 
         args = {
             self.ARG_URL: url,
@@ -656,8 +663,8 @@ class AbstractTPPConnection(CommonConnection):
                 ssh_config_response.ca_principals = details.access_control.default_principals
             return ssh_config_response
         else:
-            raise ServerUnexptedBehavior("Server returns %d status on requesting SSH CA Public Key Data for %s = %s."
-                                         % (status, key, value))
+            raise ServerUnexptedBehavior(f"Server returns {status} status on requesting "
+                                         f"SSH CA Public Key Data for {key} = {value}")
 
     def get(self, args):
         """
@@ -683,18 +690,19 @@ class AbstractTPPConnection(CommonConnection):
         :param str zone:
         :rtype bool:
         """
-        req_data = {"ObjectDN": zone}
+        req_data = {'ObjectDN': zone}
+        # TODO: Change _post() with post(args)
         status, data = self._post(URLS.POLICY_IS_VALID, data=req_data)
 
         if status != HTTPStatus.OK:
-            raise ServerUnexptedBehavior('Could not complete request. Status %s. %s' % (status, pprint(data)))
+            raise ServerUnexptedBehavior(f"Could not complete request. Status {status}. {data}")
 
         if data['Result'] == 1 and data['Object']['TypeName'] == POLICY_CLASS:
             return True
         elif data['Result'] == 400 and 'Error' in data:
             return False
 
-        log.error("Unknown error while executing. Status: %s.Data: %s." % (status, pprint(data)))
+        log.error(f"Unknown error while executing. Status: {status}.Data: {data}.")
         raise VenafiError
 
     def _set_policy_attr(self, zone, attr_name, attr_values, locked):
@@ -713,14 +721,15 @@ class AbstractTPPConnection(CommonConnection):
             'Values': attr_values
         }
 
+        # TODO: Change _post() with post(args)
         status, response = self._post(URLS.POLICY_SET_ATTRIBUTE, data=data)
         if status != HTTPStatus.OK:
-            raise ServerUnexptedBehavior('Got status %s from server', status)
+            raise ServerUnexptedBehavior(f"Got status {status} from server")
 
         response = self._parse_attr_response(response)
 
         if response.error:
-            raise VenafiError('Error while setting attribute [%s] in policy [%s]' % (attr_name, zone))
+            raise VenafiError(f"Error while setting attribute [{attr_name}] in policy [{zone}]")
 
         return status, response
 
@@ -736,14 +745,15 @@ class AbstractTPPConnection(CommonConnection):
             'AttributeName': attr_name,
         }
 
+        # TODO: Change _post() with post(args)
         status, response = self._post(URLS.POLICY_CLEAR_ATTRIBUTE, data=data)
         if status != HTTPStatus.OK:
-            raise ServerUnexptedBehavior('Got status %s from server', status)
+            raise ServerUnexptedBehavior(f"Got status {status} from server")
 
         response = self._parse_attr_response(response)
 
         if response.error:
-            raise VenafiError('Error while setting attribute [%s] in policy [%s]' % (attr_name, zone))
+            raise VenafiError(f"Error while setting attribute [{attr_name}] in policy [{zone}]")
 
         return status, response
 
@@ -776,17 +786,17 @@ class AbstractTPPConnection(CommonConnection):
             log.error("Zone argument is empty")
             raise ClientBadData
         if not re.match(r"^((\\[^\\<]+)|([^\\<]+))+$", zone):
-            log.error("Bad zone format: %s" % zone)
+            log.error(f"Bad zone format: {zone}")
             raise ClientBadData
 
         if zone.startswith("\\VED\\Policy"):
             return zone
         elif zone.startswith("VED\\Policy"):
-            return "\\" + zone
+            return f"\\{zone}"
         elif zone.startswith("\\"):
-            return "\\VED\\Policy" + zone
+            return f"\\VED\\Policy{zone}"
         else:
-            return "\\VED\\Policy\\" + zone
+            return f"\\VED\\Policy\\{zone}"
 
     @staticmethod
     def _get_policy_parent(zone):
@@ -794,7 +804,7 @@ class AbstractTPPConnection(CommonConnection):
         :param str zone:
         """
         if zone is None:
-            raise ClientBadData('Zone is empty:')
+            raise ClientBadData("Zone is empty")
         index = zone.rindex('\\')
         # Return a substring of zone that starts at 0 and ends at index. Zone here is treated as an slice
         # zone[0:index] returns the same result
@@ -839,6 +849,7 @@ class AbstractTPPConnection(CommonConnection):
         """
         thumbprint = re.sub(r'[^\dabcdefABCDEF]', "", thumbprint)
         thumbprint = thumbprint.upper()
+        # TODO: Change _post() with post(args)
         status, data = self._get(URLS.CERTIFICATE_SEARCH, params={"Thumbprint": thumbprint})
         if status != HTTPStatus.OK:
             raise ServerUnexptedBehavior
@@ -900,6 +911,7 @@ class AbstractTPPConnection(CommonConnection):
         return z
 
     def _get_certificate_details(self, cert_guid):
+        # TODO: Change _get() with get(args)
         status, data = self._get(URLS.CERTIFICATE_SEARCH + cert_guid)
         if status != HTTPStatus.OK:
             raise ServerUnexptedBehavior("")
@@ -918,9 +930,9 @@ class AbstractTPPConnection(CommonConnection):
         if ca_request.template:
             value = ca_request.template
             if not value.startswith(PATH_SEPARATOR):
-                value = "%s%s" % (PATH_SEPARATOR, value)
+                value = f"{PATH_SEPARATOR}{value}"
             if not value.startswith(CA_ROOT_PATH):
-                value = "%s%s" % (CA_ROOT_PATH, value)
+                value = f"{CA_ROOT_PATH}{value}"
             json_request['DN'] = value
         elif ca_request.guid:
             json_request['Guid'] = ca_request.guid
@@ -937,7 +949,7 @@ class AbstractTPPConnection(CommonConnection):
             if response_object.success:
                 return SSHTPPCADetails(data)
             else:
-                raise VenafiError("An error occurred with status %s. Message: %s"
-                                  % (response_object.error_code, response_object.error_msg))
+                raise VenafiError(f"An error occurred with status {response_object.error_code}. "
+                                  f"Message: {response_object.error_msg}")
         else:
-            raise ServerUnexptedBehavior("Server returns %d status on requesting SSH CA details." % status)
+            raise ServerUnexptedBehavior(f"Server returns {status} status on requesting SSH CA details")
