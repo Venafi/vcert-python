@@ -82,7 +82,7 @@ class Certificate:
         if not self.chain:
             return self.cert
         full_chain = "\n".join(self.chain)
-        return f"{self.cert}\n{full_chain}"  # TODO: REMOVE self.cert + "\n" + "\n".join(self.chain)
+        return f"{self.cert}\n{full_chain}"
 
     def as_pkcs12(self, passphrase=None):
         """
