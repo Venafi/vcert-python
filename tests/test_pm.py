@@ -14,23 +14,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 import os
 import unittest
 from pprint import pformat
 
-from test_env import TPP_TOKEN_URL, CLOUD_APIKEY, CLOUD_URL, TPP_PM_ROOT, CLOUD_ENTRUST_CA_NAME, \
-    CLOUD_DIGICERT_CA_NAME, TPP_CA_NAME, TPP_USER, TPP_PASSWORD
+from test_env import (TPP_TOKEN_URL, CLOUD_APIKEY, CLOUD_URL, TPP_PM_ROOT, CLOUD_ENTRUST_CA_NAME,CLOUD_DIGICERT_CA_NAME,
+                      TPP_CA_NAME, TPP_USER, TPP_PASSWORD)
 from test_utils import timestamp
 from vcert import TPPTokenConnection, CloudConnection, Authentication, SCOPE_PM, logger
 from vcert.parser import json_parser, yaml_parser
 from vcert.parser.utils import parse_policy_spec
-from vcert.policy import Policy, Subject, KeyPair, SubjectAltNames, Defaults, DefaultSubject, DefaultKeyPair, \
-    PolicySpecification
+from vcert.policy import (Policy, Subject, KeyPair, SubjectAltNames, Defaults, DefaultSubject, DefaultKeyPair,
+                          PolicySpecification)
 from vcert.policy.pm_cloud import CA_TYPE_DIGICERT, CA_TYPE_ENTRUST
 
-POLICY_SPEC_JSON = '/resources/policy_specification.json'
-POLICY_SPEC_YAML = '/resources/policy_specification.yaml'
+POLICY_SPEC_JSON = 'resources/policy_specification.json'
+POLICY_SPEC_YAML = 'resources/policy_specification.yaml'
 CA_TYPE_TPP = 'TPP'
 
 log = logger.get_child("test-pm")
@@ -68,7 +67,7 @@ class TestParsers(unittest.TestCase):
 
 class TestTPPPolicyManagement(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        self.tpp_conn = TPPTokenConnection(url=TPP_TOKEN_URL, http_request_kwargs={"verify": "/tmp/chain.pem"})
+        self.tpp_conn = TPPTokenConnection(url=TPP_TOKEN_URL, http_request_kwargs={'verify': "/tmp/chain.pem"})
         auth = Authentication(user=TPP_USER, password=TPP_PASSWORD, scope=SCOPE_PM)
         self.tpp_conn.get_access_token(auth)
         self.json_file = _resolve_resources_path(POLICY_SPEC_JSON)
@@ -102,7 +101,7 @@ class TestTPPPolicyManagement(unittest.TestCase):
         self._create_policy_tpp(policy=policy)
 
     def _create_policy_tpp(self, policy_spec=None, policy=None, defaults=None):
-        zone = '%s\\%s' % (TPP_PM_ROOT, _get_tpp_policy_name())
+        zone = f"{TPP_PM_ROOT}\\{_get_tpp_policy_name()}"
         create_policy(self.tpp_conn, zone, policy_spec, policy, defaults)
 
 
@@ -166,7 +165,7 @@ def create_policy(connector, zone, policy_spec=None, policy=None, defaults=None)
     connector.set_policy(zone, policy_spec)
     resp = connector.get_policy(zone)
     data = parse_policy_spec(resp)
-    log.debug('Created Policy at %s' % zone)
+    log.debug(f"Created Policy at {zone}")
     log.debug(pformat(data))
     return resp
 
@@ -228,29 +227,29 @@ def _get_defaults_obj():
 
 
 def _get_app_name():
-    name = 'vcert-python-app-%s'
+    name = 'vcert-python-app-{}'
     return name
 
 
 def _get_cit_name():
-    cit_name = 'vcert-python-cit-%s'
+    cit_name = 'vcert-python-cit-{}'
     return cit_name
 
 
 def _get_zone():
     time = timestamp()
-    zone = (_get_app_name() + '\\' + _get_cit_name()) % (time, time)
+    zone = f"{_get_app_name().format(time)}\\{_get_cit_name().format(time)}"
     return zone
 
 
 def _get_tpp_policy_name():
     time = timestamp()
-    return _get_app_name() % time
+    return f"{_get_app_name().format(time)}"
 
 
 def _resolve_resources_path(path):
     resources_dir = os.path.dirname(__file__)
-    log.debug('Testing root folder: [%s]' % resources_dir)
-    resolved_path = ('.%s' % path) if resources_dir.endswith('tests') else ('./tests%s' % path)
-    log.debug('resolved path: [%s]' % resolved_path)
+    log.debug(f"Testing root folder: [{resources_dir}]")
+    resolved_path = f"./{path}" if resources_dir.endswith('tests') else f"./tests/{path}"
+    log.debug(f"resolved path: [{resolved_path}]")
     return resolved_path

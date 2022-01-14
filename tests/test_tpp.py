@@ -14,10 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-from __future__ import absolute_import, division, generators, unicode_literals, print_function, nested_scopes, \
-    with_statement
-
 import binascii
 import logging
 import time
@@ -41,7 +37,7 @@ class TestFakeMethods(unittest.TestCase):
     def test_fake_enroll(self):
         conn = FakeConnection()
         zone = "Default"
-        cn = random_word(10) + ".venafi.example.com"
+        cn = f"{random_word(10)}.venafi.example.com"
         enroll(conn, zone, cn)
 
 
@@ -49,14 +45,14 @@ class TestTPPMethods(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         self.tpp_zone = TPP_ZONE
         self.tpp_zone_ecdsa = TPP_ZONE_ECDSA
-        self.tpp_conn = TPPConnection(TPP_USER, TPP_PASSWORD, TPP_URL, http_request_kwargs={"verify": "/tmp/chain.pem"})
+        self.tpp_conn = TPPConnection(TPP_USER, TPP_PASSWORD, TPP_URL, http_request_kwargs={'verify': "/tmp/chain.pem"})
         super(TestTPPMethods, self).__init__(*args, **kwargs)
 
     def test_tpp_enroll(self):
-        cn = random_word(10) + ".venafi.example.com"
+        cn = f"{random_word(10)}.venafi.example.com"
         _, pkey, cert, _, cert_guid = enroll(self.tpp_conn, self.tpp_zone, cn)
         cert_config = self.tpp_conn._get_certificate_details(cert_guid)
-        self.assertEqual(cert_config["Origin"], "Venafi VCert-Python")
+        self.assertEqual(cert_config['Origin'], "Venafi VCert-Python")
 
     def test_tpp_enroll_with_custom_fields(self):
         cn = random_word(10) + ".venafi.example.com"

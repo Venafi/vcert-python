@@ -25,10 +25,9 @@ from cryptography.hazmat.primitives import hashes
 
 from assets import TEST_KEY_ECDSA, TEST_KEY_RSA_4096, TEST_KEY_RSA_2048_ENCRYPTED
 from test_env import TPP_ZONE, TPP_ZONE_ECDSA, TPP_USER, TPP_PASSWORD, TPP_TOKEN_URL
-from test_utils import random_word, enroll, renew, renew_by_thumbprint, renew_without_key_reuse, \
-    enroll_with_zone_update, simple_enroll
-from vcert import CustomField, KeyType, RevocationRequest, CertificateRequest, IssuerHint, logger, \
-    TPPTokenConnection
+from test_utils import (random_word, enroll, renew, renew_by_thumbprint, renew_without_key_reuse,
+                        enroll_with_zone_update, simple_enroll)
+from vcert import (CustomField, KeyType, RevocationRequest, CertificateRequest, IssuerHint, logger, TPPTokenConnection)
 from vcert.errors import ClientBadData, ServerUnexptedBehavior
 
 log = logger.get_child("test-tpp-token")
@@ -39,30 +38,30 @@ class TestTPPTokenMethods(unittest.TestCase):
         self.tpp_zone = TPP_ZONE
         self.tpp_zone_ecdsa = TPP_ZONE_ECDSA
         self.tpp_conn = TPPTokenConnection(url=TPP_TOKEN_URL, user=TPP_USER, password=TPP_PASSWORD,
-                                           http_request_kwargs={"verify": "/tmp/chain.pem"})
+                                           http_request_kwargs={'verify': "/tmp/chain.pem"})
         super(TestTPPTokenMethods, self).__init__(*args, **kwargs)
 
     def test_tpp_token_enroll(self):
-        cn = random_word(10) + ".venafi.example.com"
+        cn = f"{random_word(10)}.venafi.example.com"
         try:
             cert_id, pkey, cert, _, cert_guid = enroll(self.tpp_conn, self.tpp_zone, cn)
             cert_config = self.tpp_conn._get_certificate_details(cert_guid)
-            self.assertEqual(cert_config["Origin"], "Venafi VCert-Python")
+            self.assertEqual(cert_config['Origin'], "Venafi VCert-Python")
         except Exception as err:
-            self.fail("Error in test: %s" % err.message)
+            self.fail(f"Error in test: {err.message}")
 
     def test_tpp_token_enroll_with_service_generated_csr(self):
-        cn = random_word(10) + ".venafi.example.com"
+        cn = f"{random_word(10)}.venafi.example.com"
         try:
             _, _, _, _, cert_guid = enroll(self.tpp_conn, self.tpp_zone, cn=cn, password="FooBarPass123",
                                            service_generated_csr=True)
             cert_config = self.tpp_conn._get_certificate_details(cert_guid)
-            self.assertEqual(cert_config["Origin"], "Venafi VCert-Python")
+            self.assertEqual(cert_config['Origin'], "Venafi VCert-Python")
         except Exception as err:
-            self.fail("Error in test: %s" % err.message)
+            self.fail(f"Error in test: {err.message}")
 
     def test_tpp_token_enroll_with_custom_fields(self):
-        cn = random_word(10) + ".venafi.example.com"
+        cn = f"{random_word(10)}.venafi.example.com"
         custom_fields = [
             CustomField(name="custom", value="pythonTest"),
             CustomField(name="cfList", value="item2"),
@@ -73,24 +72,24 @@ class TestTPPTokenMethods(unittest.TestCase):
             cert_id, pkey, cert, _, cert_guid = enroll(conn=self.tpp_conn, zone=self.tpp_zone, cn=cn,
                                                        custom_fields=custom_fields)
             cert_config = self.tpp_conn._get_certificate_details(cert_guid)
-            self.assertEqual(cert_config["Origin"], "Venafi VCert-Python")
+            self.assertEqual(cert_config['Origin'], "Venafi VCert-Python")
         except Exception as err:
-            self.fail("Error in test: %s" % err.__str__)
+            self.fail(f"Error in test: {err.__str__}")
 
     def test_tpp_token_enroll_origin(self):
-        cn = random_word(10) + ".venafi.example.com"
+        cn = f"{random_word(10)}.venafi.example.com"
         try:
             cert_id, pkey, cert, _, _ = enroll(self.tpp_conn, self.tpp_zone, cn)
         except Exception as err:
-            self.fail("Error in test: %s" % err.__str__())
+            self.fail(f"Error in test: {err.__str__()}")
 
     def test_tpp_token_renew(self):
-        cn = random_word(10) + ".venafi.example.com"
+        cn = f"{random_word(10)}.venafi.example.com"
         cert_id, pkey, cert, _, _ = enroll(self.tpp_conn, self.tpp_zone, cn)
         cert = renew(self.tpp_conn, cert_id, pkey, cert.serial_number, cn)
 
     def test_tpp_token_renew_twice(self):
-        cn = random_word(10) + ".venafi.example.com"
+        cn = f"{random_word(10)}.venafi.example.com"
         cert_id, pkey, cert, _, _ = enroll(self.tpp_conn, self.tpp_zone, cn)
         time.sleep(5)
         renew(self.tpp_conn, cert_id, pkey, cert.serial_number, cn)
@@ -98,7 +97,7 @@ class TestTPPTokenMethods(unittest.TestCase):
         renew(self.tpp_conn, cert_id, pkey, cert.serial_number, cn)
 
     def test_tpp_token_renew_by_thumbprint(self):
-        cn = random_word(10) + ".venafi.example.com"
+        cn = f"{random_word(10)}.venafi.example.com"
         cert_id, pkey, cert, _, _ = enroll(self.tpp_conn, self.tpp_zone, cn)
         renew_by_thumbprint(self.tpp_conn, cert)
 
@@ -106,15 +105,15 @@ class TestTPPTokenMethods(unittest.TestCase):
         renew_without_key_reuse(self, self.tpp_conn, self.tpp_zone)
 
     def test_tpp_token_enroll_ecdsa(self):
-        cn = random_word(10) + ".venafi.example.com"
+        cn = f"{random_word(10)}.venafi.example.com"
         enroll(self.tpp_conn, self.tpp_zone_ecdsa, cn, TEST_KEY_ECDSA[0], TEST_KEY_ECDSA[1])
 
     def test_tpp_token_enroll_with_custom_key(self):
-        cn = random_word(10) + ".venafi.example.com"
+        cn = f"{random_word(10)}.venafi.example.com"
         enroll(self.tpp_conn, self.tpp_zone, cn, TEST_KEY_RSA_4096[0], TEST_KEY_RSA_4096[1])
 
     def test_tpp_token_enroll_with_encrypted_key(self):
-        cn = random_word(10) + ".venafi.example.com"
+        cn = f"{random_word(10)}.venafi.example.com"
         enroll(self.tpp_conn, self.tpp_zone, cn, TEST_KEY_RSA_2048_ENCRYPTED[0], TEST_KEY_RSA_2048_ENCRYPTED[1],
                'venafi')
 
@@ -124,10 +123,10 @@ class TestTPPTokenMethods(unittest.TestCase):
         enroll(self.tpp_conn, self.tpp_zone, private_key=key, csr=csr)
 
     def test_tpp_token_enroll_with_zone_update_and_custom_origin(self):
-        cn = random_word(10) + ".venafi.example.com"
+        cn = f"{random_word(10)}.venafi.example.com"
         cert, cert_guid = enroll_with_zone_update(self.tpp_conn, self.tpp_zone_ecdsa, cn)
         cert_config = self.tpp_conn._get_certificate_details(cert_guid)
-        self.assertEqual(cert_config["Origin"], "Python-SDK ECDSA")
+        self.assertEqual(cert_config['Origin'], "Python-SDK ECDSA")
         cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
         key = cert.public_key()
         self.assertEqual(key.curve.name, "secp521r1")
@@ -148,7 +147,7 @@ class TestTPPTokenMethods(unittest.TestCase):
 
     def test_tpp_token_retrieve_non_issued(self):
         with self.assertRaises(Exception):
-            self.tpp_conn.retrieve_cert(self.tpp_zone + "\\devops\\vcert\\test-non-issued.example.com")
+            self.tpp_conn.retrieve_cert(f"{self.tpp_zone}\\devops\\vcert\\test-non-issued.example.com")
 
     def test_tpp_token_search_by_thumbprint(self):
         req, cert = simple_enroll(self.tpp_conn, self.tpp_zone)
@@ -158,7 +157,7 @@ class TestTPPTokenMethods(unittest.TestCase):
         self.assertEqual(found, req.id)
 
     def test_token_revoke_not_issued(self):
-        req = RevocationRequest(req_id=self.tpp_zone + '\\not-issued.example.com')
+        req = RevocationRequest(req_id=f"{self.tpp_zone}\\not-issued.example.com")
         with self.assertRaises(Exception):
             self.tpp_conn.revoke_cert(req)
         req = RevocationRequest(thumbprint="2b25ff9f8725dfee37c6a7adcba31897b12e921d")
@@ -194,14 +193,14 @@ class TestTPPTokenMethods(unittest.TestCase):
             self.tpp_conn.renew_cert(req)
 
     def test_tpp_token_enroll_valid_hours(self):
-        cn = random_word(10) + ".venafi.example.com"
+        cn = f"{random_word(10)}.venafi.example.com"
         request = CertificateRequest(common_name=cn)
 
-        request.san_dns = [u"www.client.venafi.example.com", u"ww1.client.venafi.example.com"]
-        request.email_addresses = [u"e1@venafi.example.com", u"e2@venafi.example.com"]
-        request.ip_addresses = [u"127.0.0.1", u"192.168.1.1"]
-        request.user_principal_names = [u"e1@venafi.example.com", u"e2@venafi.example.com"]
-        request.uniform_resource_identifiers = [u"https://www.venafi.com", u"https://venafi.cloud"]
+        request.san_dns = ["www.client.venafi.example.com", "ww1.client.venafi.example.com"]
+        request.email_addresses = ["e1@venafi.example.com", "e2@venafi.example.com"]
+        request.ip_addresses = ["127.0.0.1", u"192.168.1.1"]
+        request.user_principal_names = ["e1@venafi.example.com", "e2@venafi.example.com"]
+        request.uniform_resource_identifiers = ["https://www.venafi.com", "https://venafi.cloud"]
 
         custom_fields = [
             CustomField(name="custom", value="pythonTest"),
@@ -227,10 +226,10 @@ class TestTPPTokenMethods(unittest.TestCase):
         delta = timedelta(seconds=60)
         date_format = "%Y-%m-%d %H:%M:%S"
         self.assertAlmostEqual(expected_date, expiration_date, delta=delta,
-                               msg="Delta between expected and expiration date is too big.\nExpected: %s\nGot: %s\n"
-                                   "Expected_delta: %s seconds."
-                                   % (expected_date.strftime(date_format), expiration_date.strftime(date_format),
-                                      delta.total_seconds()))
+                               msg=f"Delta between expected and expiration date is too big."
+                                   f"\nExpected: {expected_date.strftime(date_format)}"
+                                   f"\nGot: {expiration_date.strftime(date_format)}"
+                                   f"\nExpected_delta: {delta.total_seconds()} seconds.")
 
     def test_get_access_token(self):
         try:
@@ -242,7 +241,7 @@ class TestTPPTokenMethods(unittest.TestCase):
         except ClientBadData:
             self.fail("Error in Test Data")
         except ServerUnexptedBehavior as sub:
-            self.fail("Error from server: %s" % sub.__str__())
+            self.fail(f"Error from server: {sub.__str__()}")
 
     def test_refresh_access_token(self):
         try:
@@ -255,7 +254,7 @@ class TestTPPTokenMethods(unittest.TestCase):
         except ClientBadData:
             self.fail("Error in Test Data")
         except ServerUnexptedBehavior as sub:
-            self.fail("Error from server: %s" % sub.__str__())
+            self.fail(f"Error from server: {sub.__str__()}")
 
     def test_revoke_access_token(self):
         try:
@@ -263,8 +262,8 @@ class TestTPPTokenMethods(unittest.TestCase):
             status, resp = self.tpp_conn.revoke_access_token()
             self.assertEqual(status, 200)
         except Exception as err:
-            self.fail("Error happened: %s" % err.__str__())
+            self.fail(f"Error happened: {err.__str__()}")
 
-        cn = random_word(10) + ".venafi.example.com"
+        cn = f"{random_word(10)}.venafi.example.com"
         with self.assertRaises(Exception):
             enroll(self.tpp_conn, self.tpp_zone, cn)

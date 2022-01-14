@@ -38,7 +38,7 @@ class TestCloudMethods(unittest.TestCase):
         super(TestCloudMethods, self).__init__(*args, **kwargs)
 
     def test_cloud_enroll(self):
-        cn = random_word(10) + ".venafi.example.com"
+        cn = f"{random_word(10)}.venafi.example.com"
         enroll(self.cloud_conn, self.cloud_zone, cn)
 
     def test_cloud_enroll_with_custom_csr(self):
@@ -47,13 +47,13 @@ class TestCloudMethods(unittest.TestCase):
         enroll(self.cloud_conn, self.cloud_zone, private_key=key, csr=csr)
 
     def test_cloud_renew(self):
-        cn = random_word(10) + ".venafi.example.com"
+        cn = f"{random_word(10)}.venafi.example.com"
         cert_id, pkey, cert, _, _ = enroll(self.cloud_conn, self.cloud_zone, cn)
         time.sleep(5)
         renew(self.cloud_conn, cert_id, pkey, cert.serial_number, cn)
 
     def test_cloud_renew_twice(self):
-        cn = random_word(10) + ".venafi.example.com"
+        cn = f"{random_word(10)}.venafi.example.com"
         cert_id, pkey, cert, _, _ = enroll(self.cloud_conn, self.cloud_zone, cn)
 
         new_cert = renew(self.cloud_conn, cert_id, pkey, cert.serial_number, cn)
@@ -63,7 +63,7 @@ class TestCloudMethods(unittest.TestCase):
         renew(self.cloud_conn, found_cert.csrId, pkey, new_cert.serial_number, cn)
 
     def test_cloud_renew_by_thumbprint(self):
-        cn = random_word(10) + ".venafi.example.com"
+        cn = f"{random_word(10)}.venafi.example.com"
         cert_id, pkey, cert, _, _ = enroll(self.cloud_conn, self.cloud_zone, cn)
         time.sleep(5)
         renew_by_thumbprint(self.cloud_conn, cert)
@@ -107,9 +107,9 @@ class TestCloudMethods(unittest.TestCase):
         self.assertEqual(found.certificateIds[0], req.cert_guid)
 
     def test_cloud_enroll_valid_hours(self):
-        cn = random_word(10) + ".venafi.example.com"
+        cn = f"{random_word(10)}.venafi.example.com"
         request = CertificateRequest(common_name=cn)
-        request.san_dns = [u"www.client.venafi.example.com", u"ww1.client.venafi.example.com"]
+        request.san_dns = ["www.client.venafi.example.com", "ww1.client.venafi.example.com"]
         custom_fields = [
             CustomField(name="custom", value="pythonTest"),
             CustomField(name="cfList", value="item2"),
@@ -132,13 +132,13 @@ class TestCloudMethods(unittest.TestCase):
         delta = timedelta(seconds=60)
         date_format = "%Y-%m-%d %H:%M:%S"
         self.assertAlmostEqual(expected_date, expiration_date, delta=delta,
-                               msg="Delta between expected and expiration date is too big.\nExpected: %s\nGot: %s\n"
-                                   "Expected_delta: %s seconds."
-                                   % (expected_date.strftime(date_format), expiration_date.strftime(date_format),
-                                      delta.total_seconds()))
+                               msg=f"Delta between expected and expiration date is too big."
+                                   f"\nExpected: {expected_date.strftime(date_format)}"
+                                   f"\nGot: {expiration_date.strftime(date_format)}\n"
+                                   f"Expected_delta: {delta.total_seconds()} seconds.")
 
     def test_cloud_enroll_service_generated_csr(self):
-        cn = random_word(10) + ".venafi.example.com"
+        cn = f"{random_word(10)}.venafi.example.com"
         password = 'FooBarPass123'
 
         request = CertificateRequest(
@@ -164,4 +164,4 @@ class TestCloudMethods(unittest.TestCase):
         assert t1 == t2
 
         output = cert_object.as_pkcs12('FooBarPass123')
-        log.info("PKCS12 created successfully for certificate with CN: %s" % cn)
+        log.info(f"PKCS12 created successfully for certificate with CN: {cn}")
