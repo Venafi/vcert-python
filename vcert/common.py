@@ -53,31 +53,25 @@ CHAIN_OPTION_IGNORE = 'ignore'
 
 
 class Scope(Enum):
-    def __str__(self):
-        return self._value_
-
     CERTIFICATE = "certificate"
     CONFIGURATION = "configuration"
     SSH = "ssh"
 
 
 class ScopeAction(Enum):
-    def __str__(self):
-        return self._value
-
     MANAGE = "manage"
     REVOKE = "revoke"
 
 
 CLIENT_ID = 'vcert-sdk'  # type: str
 # Configuration Management scope
-_SCOPE_CFG = f"{Scope.CONFIGURATION}:{ScopeAction.MANAGE}"
+_SCOPE_CFG = f"{Scope.CONFIGURATION.value}:{ScopeAction.MANAGE.value}"
 # Certificate Management scope
-SCOPE_CM = f"{Scope.CERTIFICATE}:{ScopeAction.MANAGE},{ScopeAction.REVOKE}"  # TODO: REMOVE 'certificate:manage,revoke'  # type: str
+SCOPE_CM = f"{Scope.CERTIFICATE.value}:{ScopeAction.MANAGE.value},{ScopeAction.REVOKE.value}"  # TODO: REMOVE 'certificate:manage,revoke'  # type: str
 # Policy Management scope
-SCOPE_PM = f"{Scope.CERTIFICATE}:{ScopeAction.MANAGE};{_SCOPE_CFG}"  # TODO: REMOVE 'certificate:manage;configuration:manage'  # type: str
+SCOPE_PM = f"{Scope.CERTIFICATE.value}:{ScopeAction.MANAGE.value};{_SCOPE_CFG}"  # TODO: REMOVE 'certificate:manage;configuration:manage'  # type: str
 # SSH Certificate Management scope
-SCOPE_SSH = f"{Scope.SSH}:{ScopeAction.MANAGE}"  # TODO: REMOVE 'ssh:manage'  # type: str
+SCOPE_SSH = f"{Scope.SSH.value}:{ScopeAction.MANAGE.value}"  # TODO: REMOVE 'ssh:manage'  # type: str
 # Full Management scope
 SCOPE_FULL = f"{SCOPE_CM};{_SCOPE_CFG};{SCOPE_SSH}"  # TODO: REMOVE 'certificate:manage,revoke;configuration:manage;ssh:manage'  # type: str
 
