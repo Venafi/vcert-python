@@ -18,8 +18,8 @@ from pprint import pprint
 
 from parser import json_parser, yaml_parser
 from parser.utils import parse_policy_spec
-from policy.policy_spec import PolicySpecification, Policy, Subject, KeyPair, SubjectAltNames, Defaults, \
-    DefaultSubject, DefaultKeyPair
+from policy.policy_spec import (PolicySpecification, Policy, Subject, KeyPair, SubjectAltNames, Defaults,
+                                DefaultSubject, DefaultKeyPair)
 from vcert import venafi_connection
 from vcert.common import Authentication, SCOPE_PM
 import logging
@@ -40,7 +40,7 @@ def main():
     # Get connector object.
     # The default state of this connection only allows for certificate management.
     connector = venafi_connection(url=url, user=user, password=password,
-                                  http_request_kwargs={"verify": server_trust_bundle})
+                                  http_request_kwargs={'verify': server_trust_bundle})
 
     # Create Authentication object with required scope for policy management.
     auth = Authentication(user=user, password=password, scope=SCOPE_PM)

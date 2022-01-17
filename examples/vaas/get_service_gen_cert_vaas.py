@@ -14,9 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-from __future__ import print_function
-
 from vcert import (CertificateRequest, venafi_connection, CSR_ORIGIN_SERVICE, CHAIN_OPTION_FIRST)
 import string
 import random
@@ -31,7 +28,7 @@ def main():
     # Get credentials from environment variables
     url = environ.get('VAAS_URL')  # Optional, only use when connecting to a specific VaaS server
     api_key = environ.get('VAAS_APIKEY')
-    zone = environ.get("VAAS_ZONE")
+    zone = environ.get('VAAS_ZONE')
 
     # Connection will be chosen automatically based on which arguments are passed.
     # If api_key is passed, Venafi Cloud connection will be used.
@@ -39,7 +36,7 @@ def main():
     conn = venafi_connection(url=url, api_key=api_key)
 
     # Build a Certificate request
-    request = CertificateRequest(common_name=random_word(10) + ".venafi.example.com")
+    request = CertificateRequest(common_name=f"{random_word(10)}.venafi.example.com")
     # Set the request to use a service generated CSR
     request.csr_origin = CSR_ORIGIN_SERVICE
     # A password should be defined for the private key to be generated.

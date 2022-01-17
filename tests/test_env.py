@@ -18,25 +18,25 @@ from os import environ
 
 from six import text_type
 
-FAKE = environ.get("FAKE")
-RANDOM_DOMAIN = environ.get("RANDOM_DOMAIN")
-TPP_URL = environ.get("TPP_URL")
-TPP_USER = environ.get("TPP_USER")
-TPP_PASSWORD = environ.get("TPP_PASSWORD")
-TPP_ZONE = environ.get("TPP_ZONE")
-TPP_ZONE_ECDSA = environ.get("TPP_ZONE_ECDSA")
-TPP_TOKEN_URL = environ.get("TPP_TOKEN_URL")
-TPP_ACCESS_TOKEN = environ.get("TPP_ACCESS_TOKEN")
-CLOUD_URL = environ.get("CLOUD_URL")
-CLOUD_APIKEY = environ.get("CLOUD_APIKEY")
-CLOUD_ZONE = environ.get("CLOUD_ZONE")
+FAKE = environ.get('FAKE')
+RANDOM_DOMAIN = environ.get('RANDOM_DOMAIN')
+TPP_URL = environ.get('TPP_URL')
+TPP_USER = environ.get('TPP_USER')
+TPP_PASSWORD = environ.get('TPP_PASSWORD')
+TPP_ZONE = environ.get('TPP_ZONE')
+TPP_ZONE_ECDSA = environ.get('TPP_ZONE_ECDSA')
+TPP_TOKEN_URL = environ.get('TPP_TOKEN_URL')
+TPP_ACCESS_TOKEN = environ.get('TPP_ACCESS_TOKEN')
+CLOUD_URL = environ.get('CLOUD_URL')
+CLOUD_APIKEY = environ.get('CLOUD_APIKEY')
+CLOUD_ZONE = environ.get('CLOUD_ZONE')
 
-TPP_PM_ROOT = environ.get("TPP_PM_ROOT")
-TPP_CA_NAME = environ.get("TPP_CA_NAME")
-CLOUD_ENTRUST_CA_NAME = environ.get("CLOUD_ENTRUST_CA_NAME")
-CLOUD_DIGICERT_CA_NAME = environ.get("CLOUD_DIGICERT_CA_NAME")
+TPP_PM_ROOT = environ.get('TPP_PM_ROOT')
+TPP_CA_NAME = environ.get('TPP_CA_NAME')
+CLOUD_ENTRUST_CA_NAME = environ.get('CLOUD_ENTRUST_CA_NAME')
+CLOUD_DIGICERT_CA_NAME = environ.get('CLOUD_DIGICERT_CA_NAME')
 
-TPP_SSH_CADN = environ.get("TPP_SSH_CADN")
+TPP_SSH_CADN = environ.get('TPP_SSH_CADN')
 
 if RANDOM_DOMAIN and not isinstance(RANDOM_DOMAIN, text_type):
     RANDOM_DOMAIN = RANDOM_DOMAIN.decode()

@@ -14,15 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from __future__ import absolute_import, division, generators, unicode_literals, print_function, nested_scopes, \
-    with_statement
-
 import io
 import re
 import zipfile
 
-from nacl.public import PublicKey
 from nacl.encoding import Base64Encoder
+from nacl.public import PublicKey
 
 from .common import CHAIN_OPTION_FIRST, CHAIN_OPTION_LAST
 
@@ -97,11 +94,11 @@ def zip_to_pem(data, chain_option):
     for info in zip_data.infolist():
         if info.filename.endswith('.key'):
             f = zip_data.open(info)
-            private_key = f.read().decode("utf-8").strip()
+            private_key = f.read().decode('utf-8').strip()
             f.close()
         elif info.filename.endswith('_root-first.pem'):
             f = zip_data.open(info)
-            certs = f.read().decode("utf-8").strip().split('\n\n')
+            certs = f.read().decode('utf-8').strip().split('\n\n')
             f.close()
             for i in range(len(certs)):
                 if i < len(certs) - 1:

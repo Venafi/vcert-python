@@ -13,18 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-from __future__ import absolute_import, division, generators, unicode_literals, print_function, nested_scopes, \
-    with_statement
-
 import datetime
+import ipaddress
 import logging as log
 import socket
 import sys
-
-import enum
-import ipaddress
 from builtins import bytes
+from enum import Enum, IntEnum
+
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
@@ -56,6 +52,30 @@ CHAIN_OPTION_LAST = 'last'
 CHAIN_OPTION_IGNORE = 'ignore'
 
 
+class Scope(Enum):
+    CERTIFICATE = "certificate"
+    CONFIGURATION = "configuration"
+    SSH = "ssh"
+
+
+class ScopeAction(Enum):
+    MANAGE = "manage"
+    REVOKE = "revoke"
+
+
+CLIENT_ID = 'vcert-sdk'  # type: str
+# Configuration Management scope
+_SCOPE_CFG = f"{Scope.CONFIGURATION.value}:{ScopeAction.MANAGE.value}"
+# Certificate Management scope
+SCOPE_CM = f"{Scope.CERTIFICATE.value}:{ScopeAction.MANAGE.value},{ScopeAction.REVOKE.value}"
+# Policy Management scope
+SCOPE_PM = f"{Scope.CERTIFICATE.value}:{ScopeAction.MANAGE.value};{_SCOPE_CFG}"
+# SSH Certificate Management scope
+SCOPE_SSH = f"{Scope.SSH.value}:{ScopeAction.MANAGE.value}"
+# Full Management scope
+SCOPE_FULL = f"{SCOPE_CM};{_SCOPE_CFG};{SCOPE_SSH}"
+
+
 class CertField:
     def __init__(self, value, locked=False):
         self.value = value
@@ -67,10 +87,10 @@ class CertField:
 
 def log_errors(data):
     if not isinstance(data, dict) or "errors" not in data:
-        log.error("Unknown error format: %s", data)
+        log.error(f"Unknown error format: {data}")
         return
     for e in data["errors"]:
-        log.error("%s: %s" % (e['code'], e['message']))
+        log.error(f"{e['code']}: {e['message']}")
 
 
 def get_ip_address():
@@ -90,8 +110,8 @@ def get_ip_address():
 class KeyType:
     ALLOWED_SIZES = [2048, 3072, 4096, 8192]
     ALLOWED_CURVES = ["p256", "p384", "p521"]
-    RSA = "rsa"
-    ECDSA = "ec"
+    RSA = 'rsa'
+    ECDSA = 'ec'
 
     def __init__(self, key_type, option):
         """
@@ -101,21 +121,21 @@ class KeyType:
         self.key_type = {"rsa": "rsa", "ec": "ec", "ecdsa": "ec"}.get(key_type.lower().strip())
         if self.key_type == KeyType.RSA:
             if option not in KeyType.ALLOWED_SIZES:
-                log.error("unknown size: %s" % option)
+                log.error(f"unknown size: {option}")
                 raise BadData
         elif self.key_type == KeyType.ECDSA:
             option = {"secp521r1": "p521", "secp384r1": "p384", "secp256r1": "p256", "p256": "p256", "p384": "p384",
                       "p521": "p521"}[option.lower().strip()]
             if option not in KeyType.ALLOWED_CURVES:
-                log.error("unknown curve: %s, should be one of %s" % (option, KeyType.ALLOWED_CURVES))
+                log.error(f"unknown curve: {option}, should be one of {KeyType.ALLOWED_CURVES}")
                 raise BadData
         else:
-            log.error("unknown key type: %s" % key_type)
+            log.error(f"unknown key type: {key_type}")
             raise BadData
         self.option = option
 
     def __repr__(self):
-        return "KeyType(%s, %s)" % (self.key_type, self.option)
+        return f"KeyType({self.key_type}, {self.option})"
 
     def __eq__(self, other):
         if not isinstance(other, KeyType):
@@ -211,7 +231,7 @@ class Policy:
         self.recommended_settings = recommended_settings
 
     def __repr__(self):
-        return "Policy:\n" + "\n".join(["  %s: %s" % (k, v) for k, v in (
+        return "Policy:\n" + "\n".join([f"  {k}: {v}" for k, v in (
             ("Id", self.id),
             ("Name", self.name),
             ("KeyReuse", self.key_reuse),
@@ -334,18 +354,18 @@ class CertificateRequest:
             elif value is None:
                 self.public_key = None
             else:
-                raise ClientBadData("invalid private key type %s" % type(value))
+                raise ClientBadData(f"invalid private key type {type(value)}")
         elif key == "csr":
             self.csr_origin = CSR_ORIGIN_PROVIDED
             if isinstance(value, binary_type):
                 value = value.decode()
             elif not (isinstance(value, string_types) or value is None):
-                raise ClientBadData("invalid csr type %s" % type(value))
+                raise ClientBadData(f"invalid csr type {type(value)}")
             if value:
                 csr = x509.load_pem_x509_csr(value.encode(), default_backend())
                 cn = csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
                 if self.common_name and self.common_name != cn:
-                    raise ClientBadData("Common name from CSR doesn`t matches to CertificateRequest.common_name")
+                    raise ClientBadData("Common name from CSR doesn't matches to CertificateRequest.common_name")
                 ips = []
                 dns = []
                 try:
@@ -372,11 +392,11 @@ class CertificateRequest:
                 backend=default_backend()
             )
         elif self.key_type.key_type == KeyType.ECDSA:
-            if self.key_type.option == "p521":
+            if self.key_type.option == 'p521':
                 curve = ec.SECP521R1()
-            elif self.key_type.option == "p384":
+            elif self.key_type.option == 'p384':
                 curve = ec.SECP384R1()
-            elif self.key_type.option == "p256":
+            elif self.key_type.option == 'p256':
                 curve = ec.SECP256R1()
             else:
                 curve = ec.SECP256R1()
@@ -460,13 +480,9 @@ class CertificateRequest:
                     bupn = bupn + str(upn)
                     alt_names.append(x509.OtherName(UPNOID,bytes(bupn, 'utf-8')))
 
-        csr_builder = csr_builder.add_extension(
-            x509.SubjectAlternativeName(alt_names),
-            critical=False,
-        )
+        csr_builder = csr_builder.add_extension(x509.SubjectAlternativeName(alt_names), critical=False)
 
-        csr_builder = csr_builder.sign(self.private_key, hashes.SHA256(),
-                                       default_backend())
+        csr_builder = csr_builder.sign(self.private_key, hashes.SHA256(), default_backend())
         self.csr = csr_builder.public_bytes(serialization.Encoding.PEM).decode()
         return
 
@@ -559,17 +575,6 @@ class RevocationRequest:
         self.reason = reason
         self.comments = comments
         self.disable = disable
-
-
-CLIENT_ID = "vcert-sdk"  # type: str
-# Certificate Management scope
-SCOPE_CM = "certificate:manage,revoke"  # type: str
-# Policy Management scope
-SCOPE_PM = "certificate:manage;configuration:manage"  # type: str
-# SSH Certificate Management scope
-SCOPE_SSH = "ssh:manage"  # type: str
-# Full Management scope
-SCOPE_FULL = "certificate:manage,revoke;configuration:manage;ssh:manage"  # type: str
 
 
 class Authentication:
@@ -692,8 +697,9 @@ class CommonConnection:
                 log_errors(r.json())
             except:
                 log_errors(r.content)
-            raise VenafiConnectionError("\n\tServer status: %s\n\tURL: %s\n\tResponse: %s"
-                                        % (r.status_code, r.request.url, r.content))
+            raise VenafiConnectionError(f"\n\tServer status: {r.status_code}"
+                                        f"\n\tURL: {r.request.url}"
+                                        f"\n\tResponse: {r.content}")
 
         content_type = r.headers.get("content-type")
         # Content-type not present, return status and reason (if any)
@@ -716,11 +722,11 @@ class CommonConnection:
             log.debug(r.content)
             return r.status_code, r.content
         else:
-            log.error("Unexpected content type: %s for request %s" % (content_type, r.request.url))
+            log.error(f"Unexpected content type: {content_type} for request {r.request.url}")
             raise ServerUnexptedBehavior
 
 
-class VenafiPlatform(enum.IntEnum):
+class VenafiPlatform(IntEnum):
     def __new__(cls, value, description):
         obj = int.__new__(cls, value)
         obj._value_ = value

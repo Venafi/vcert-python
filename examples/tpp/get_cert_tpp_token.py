@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-from __future__ import print_function
 from vcert import (CertificateRequest, Connection, FakeConnection, TPPConnection, RevocationRequest, KeyType,
                    TPPTokenConnection, venafi_connection)
 import string
@@ -33,7 +31,7 @@ def main():
     user = environ.get('TPP_USER')
     password = environ.get('TPP_PASSWORD')
     url = environ.get('TPP_TOKEN_URL')
-    zone = environ.get("TPP_ZONE")
+    zone = environ.get('TPP_ZONE')
     fake = environ.get('FAKE')
 
     if fake:
@@ -43,18 +41,18 @@ def main():
         # If user and password are passed, you can get a new token from them.
         # If access_token and refresh_token are passed, there is no need for the username and password.
         # If only access_token is passed, the Connection will fail when token expires, as there is no way to refresh it.
-        conn = venafi_connection(url=url, user=user, password=password, http_request_kwargs={"verify": False})
+        conn = venafi_connection(url=url, user=user, password=password, http_request_kwargs={'verify': False})
         # If your TPP server certificate signed with your own CA, or available only via proxy, you can specify
         # a trust bundle using requests vars:
         # conn = token_connection(url=url, user=user, password=password,
         #                         http_request_kwargs={"verify": "/path-to/bundle.pem"})
 
-    request = CertificateRequest(common_name=random_word(10) + ".venafi.example.com")
-    request.san_dns = [u"www.client.venafi.example.com", u"ww1.client.venafi.example.com"]
-    request.email_addresses = [u"e1@venafi.example.com", u"e2@venafi.example.com"]
-    request.ip_addresses = [u"127.0.0.1", u"192.168.1.1"]
-    request.uniform_resource_identifiers = [u"http://wgtest.com",u"https://ragnartest.com"]
-    request.user_principal_names = [u"e1@venafi.example.com", u"e2@venafi.example.com"]
+    request = CertificateRequest(common_name=f"{random_word(10)}.venafi.example.com")
+    request.san_dns = ["www.client.venafi.example.com", "ww1.client.venafi.example.com"]
+    request.email_addresses = ["e1@venafi.example.com", "e2@venafi.example.com"]
+    request.ip_addresses = ["127.0.0.1", u"192.168.1.1"]
+    request.uniform_resource_identifiers = ["http://wgtest.com", "https://ragnartest.com"]
+    request.user_principal_names = ["e1@venafi.example.com", "e2@venafi.example.com"]
     # Specify ordering certificates in chain. Root can be "first" or "last". By default its last. You also can
     # specify "ignore" to ignore chain (supported only for Platform).
     # To set Custom Fields for the certificate, specify an array of CustomField objects as name-value pairs

@@ -13,9 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from .common import CertificateRequest, CommonConnection, RevocationRequest, ZoneConfig, CertField, KeyType, \
-    CustomField, Authentication, SCOPE_CM, SCOPE_PM, SCOPE_SSH, CSR_ORIGIN_LOCAL, CSR_ORIGIN_PROVIDED, \
-    CSR_ORIGIN_SERVICE, CHAIN_OPTION_FIRST, CHAIN_OPTION_IGNORE, CHAIN_OPTION_LAST, VenafiPlatform
+from .common import (CertificateRequest, CommonConnection, RevocationRequest, ZoneConfig, CertField, KeyType,
+                     CustomField, Authentication, SCOPE_CM, SCOPE_PM, SCOPE_SSH, CSR_ORIGIN_LOCAL, CSR_ORIGIN_PROVIDED,
+                     CSR_ORIGIN_SERVICE, CHAIN_OPTION_FIRST, CHAIN_OPTION_IGNORE, CHAIN_OPTION_LAST, VenafiPlatform)
 from .connection_cloud import CloudConnection
 from .connection_tpp import TPPConnection
 from .connection_tpp_token import TPPTokenConnection
@@ -80,7 +80,7 @@ def venafi_connection(url=None, api_key=None, user=None, password=None, access_t
         elif platform == VenafiPlatform.VAAS:
             return CloudConnection(token=api_key, url=url, http_request_kwargs=http_request_kwargs)
         else:
-            raise VenafiError("Invalid Platform: %s. Cannot instantiate a Connector." % platform)
+            raise VenafiError(f"Invalid Platform: {platform}. Cannot instantiate a Connector.")
     else:
         if fake:
             return FakeConnection()

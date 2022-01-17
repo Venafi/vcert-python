@@ -13,10 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-from __future__ import (absolute_import, division, generators, unicode_literals, print_function, nested_scopes,
-                        with_statement)
-
 import base64
 import re
 import time
@@ -45,7 +41,7 @@ from .vaas_utils import AppDetails, RecommendedSettings, EdgeEncryptionKey, zip_
 TOKEN_HEADER_NAME = "tppl-api-key"  # nosec
 APPLICATION_SERVER_TYPE_ID = "784938d1-ef0d-11eb-9461-7bb533ba575b"
 MSG_VALUE_NOT_MATCH_POLICY = "Error while requesting certificate using service generated CSR on VaaS. " \
-                             "Request %s does not match CIT valid %s:\n\tRequest value: %s,\n\tCIT values: %s"
+                             "Request {} does not match CIT valid {}:\n\tRequest value: {},\n\tCIT values: {}"
 
 CSR_ATTR_CN = 'commonName'
 CSR_ATTR_ORG = 'organization'
@@ -60,8 +56,6 @@ log = get_child("connection-vaas")
 
 
 class CertStatuses:
-    def __init__(self):
-        pass
 
     REQUESTED = 'REQUESTED'
     PENDING = 'PENDING'
@@ -75,30 +69,28 @@ class URLS:
 
     API_BASE_URL = "https://api.venafi.cloud/"
     API_VERSION = "v1/"
-    API_BASE_PATH = "outagedetection/" + API_VERSION
+    API_BASE_PATH = f"outagedetection/{API_VERSION}"
 
-    POLICIES_BY_ID = API_BASE_PATH + "certificatepolicies/%s"
+    POLICIES_BY_ID = API_BASE_PATH + "certificatepolicies/{}"
     CERTIFICATE_REQUESTS = API_BASE_PATH + "certificaterequests"
-    CERTIFICATE_STATUS = CERTIFICATE_REQUESTS + "/%s"
-    CERTIFICATE_RETRIEVE = API_BASE_PATH + "certificates/%s/contents"
+    CERTIFICATE_STATUS = CERTIFICATE_REQUESTS + "/{}"
+    CERTIFICATE_RETRIEVE = API_BASE_PATH + "certificates/{}/contents"
     CERTIFICATE_SEARCH = API_BASE_PATH + "certificatesearch"
     APPLICATIONS = API_BASE_PATH + "applications"
-    APP_BY_ID = APPLICATIONS + "/%s"
-    CERTIFICATE_TEMPLATE_BY_ID = APP_BY_ID + "/certificateissuingtemplates/%s"
-    APP_DETAILS_BY_NAME = APPLICATIONS + "/name/%s"
-    CERTIFICATE_BY_ID = API_BASE_PATH + "certificates/%s"
+    APP_BY_ID = APPLICATIONS + "/{}"
+    CERTIFICATE_TEMPLATE_BY_ID = APP_BY_ID + "/certificateissuingtemplates/{}"
+    APP_DETAILS_BY_NAME = APPLICATIONS + "/name/{}"
+    CERTIFICATE_BY_ID = API_BASE_PATH + "certificates/{}"
     CERTIFICATE_KEYSTORE_BY_ID = CERTIFICATE_BY_ID + "/keystore"
-    CA_ACCOUNTS = API_VERSION + "certificateauthorities/%s/accounts"
-    CA_ACCOUNT_DETAILS = CA_ACCOUNTS + "/%s"
+    CA_ACCOUNTS = API_VERSION + "certificateauthorities/{}/accounts"
+    CA_ACCOUNT_DETAILS = CA_ACCOUNTS + "/{}"
     ISSUING_TEMPLATES = API_VERSION + "certificateissuingtemplates"
-    ISSUING_TEMPLATES_UPDATE = ISSUING_TEMPLATES + "/%s"
+    ISSUING_TEMPLATES_UPDATE = ISSUING_TEMPLATES + "/{}"
     USER_ACCOUNTS = API_VERSION + "useraccounts"
-    DEK_PUBLIC_KEY = API_VERSION + "edgeencryptionkeys/%s"
+    DEK_PUBLIC_KEY = API_VERSION + "edgeencryptionkeys/{}"
 
 
 class CondorChainOptions:
-    def __init__(self):
-        pass
 
     ROOT_FIRST = "ROOT_FIRST"
     ROOT_LAST = "EE_FIRST"
@@ -121,7 +113,7 @@ def _parse_zone(zone):
     segments = zone.split("\\")
     if len(segments) < 2 or len(segments) > 2:
         log.error("Invalid zone. Incorrect format")
-        raise ClientBadData("Invalid Zone [%s]. The zone format is incorrect", zone)
+        raise ClientBadData(f"Invalid Zone [{zone}]. The zone format is incorrect")
 
     app_name = segments[0]
     cit_alias = segments[1]
@@ -130,17 +122,18 @@ def _parse_zone(zone):
 
 class CloudConnection(CommonConnection):
     def __init__(self, token, url=None, http_request_kwargs=None):
+        super().__init__()
         self._base_url = url or URLS.API_BASE_URL
         self._token = token
         self._normalize_and_verify_base_url()
         if http_request_kwargs is None:
-            http_request_kwargs = {"timeout": 180}
-        elif "timeout" not in http_request_kwargs:
-            http_request_kwargs["timeout"] = 180
+            http_request_kwargs = {'timeout': 180}
+        elif 'timeout' not in http_request_kwargs:
+            http_request_kwargs['timeout'] = 180
         self._http_request_kwargs = http_request_kwargs
 
     def __str__(self):
-        return "[Cloud] %s" % self._base_url
+        return f"[Cloud] {self._base_url}"
 
     def _get(self, url, params=None):
         """
@@ -172,7 +165,7 @@ class CloudConnection(CommonConnection):
         if isinstance(data, dict):
             r = requests.post(self._base_url + url, json=data, headers=headers, **self._http_request_kwargs)
         else:
-            log.error("Unexpected client data type: %s for %s" % (type(data), url))
+            log.error(f"Unexpected client data type: {type(data)} for {url}")
             raise ClientBadData
         return self.process_server_response(r)
 
@@ -191,20 +184,18 @@ class CloudConnection(CommonConnection):
         if isinstance(data, dict):
             r = requests.put(self._base_url + url, json=data, headers=headers, **self._http_request_kwargs)
         else:
-            log.error("Unexpected client data type: %s for %s" % (type(data), url))
+            log.error(f"Unexpected client data type: {type(data)} for {url}")
             raise ClientBadData
         return self.process_server_response(r)
 
     def _normalize_and_verify_base_url(self):
         u = self._base_url
-        if u.startswith("http://"):
-            u = "https://" + u[7:]
-        elif not u.startswith("https://"):
-            u = "https://" + u
+        if u.startswith('http://'):
+            u = f"https://{u[7:]}"
+        elif not u.startswith('https://'):
+            u = f"https://{u}"
         if not u.endswith("/"):
             u += "/"
-        # if not u.endswith("v1/"):
-        #     u += "v1/"
         if not re.match(r"^https://[a-z\d]+[-a-z\d.]+[a-z\d][:\d]*/$", u):
             raise ClientBadData
         self._base_url = u
@@ -212,8 +203,8 @@ class CloudConnection(CommonConnection):
     @staticmethod
     def _process_server_response(r):
         if r.status_code not in (HTTPStatus.OK, HTTPStatus.CREATED, HTTPStatus.ACCEPTED):
-            raise VenafiConnectionError("Server status: %s, %s", (r.status_code, r.request.url))
-        content_type = r.headers.get("content-type")
+            raise VenafiConnectionError(f"Server status: {r.status_code}, {r.request.url}")
+        content_type = r.headers.get('content-type')
         if content_type == MIME_TEXT:
             log.debug(r.text)
             return r.status_code, r.text
@@ -221,11 +212,11 @@ class CloudConnection(CommonConnection):
             log.debug(r.content.decode())
             return r.status_code, r.json()
         else:
-            log.error("unexpected content type: %s for request %s" % (content_type, r.request.url))
+            log.error(f"unexpected content type: {content_type} for request {r.request.url}")
             raise ServerUnexptedBehavior
 
     def _get_cert_status(self, request):
-        status, data = self._get(URLS.CERTIFICATE_STATUS % request.id)
+        status, data = self._get(URLS.CERTIFICATE_STATUS.format(request.id))
         if status == HTTPStatus.OK:
             request_status = CertificateStatusResponse(data)
             return request_status
@@ -235,18 +226,18 @@ class CloudConnection(CommonConnection):
     @staticmethod
     def _parse_policy_response_to_object(d):
         policy = Policy(
-            d["id"] if 'id' in d else None,
-            d["companyId"] if 'companyId' in d else None,
-            d["name"] if 'name' in d else None,
-            d["systemGenerated"] if 'systemGenerated' in d else None,
-            d["creationDate"] if 'creationDate' in d else None,
-            d["subjectCNRegexes"] if 'subjectCNRegexes' in d else None,
-            d["subjectORegexes"] if 'subjectORegexes' in d else None,
-            d["subjectOURegexes"] if 'subjectOURegexes' in d else None,
-            d["subjectSTRegexes"] if 'subjectSTRegexes' in d else None,
-            d["subjectLRegexes"] if 'subjectLRegexes' in d else None,
-            d["subjectCValues"] if 'subjectCValues' in d else None,
-            d["sanRegexes"] if 'sanRegexes' in d else None,
+            d['id'] if 'id' in d else None,
+            d['companyId'] if 'companyId' in d else None,
+            d['name'] if 'name' in d else None,
+            d['systemGenerated'] if 'systemGenerated' in d else None,
+            d['creationDate'] if 'creationDate' in d else None,
+            d['subjectCNRegexes'] if 'subjectCNRegexes' in d else None,
+            d['subjectORegexes'] if 'subjectORegexes' in d else None,
+            d['subjectOURegexes'] if 'subjectOURegexes' in d else None,
+            d['subjectSTRegexes'] if 'subjectSTRegexes' in d else None,
+            d['subjectLRegexes'] if 'subjectLRegexes' in d else None,
+            d['subjectCValues'] if 'subjectCValues' in d else None,
+            d['sanRegexes'] if 'sanRegexes' in d else None,
             [],
             d['keyReuse'] if 'keyReuse' in d else None,
             d['certificateAuthority'] if 'certificateAuthority' in d else None,
@@ -265,7 +256,7 @@ class CloudConnection(CommonConnection):
                 for s in kt['keyLengths']:
                     policy.key_types.append(KeyType(key_type, s))
             else:
-                log.error("Unknow key type: %s" % kt['keyType'])
+                log.error(f"Unknown key type: {kt['keyType']}")
                 raise ServerUnexptedBehavior
 
         rs = CloudConnection._parse_recommended_settings_to_object(d)
@@ -277,15 +268,15 @@ class CloudConnection(CommonConnection):
     @staticmethod
     def _parse_recommended_settings_to_object(d):
         if 'recommendedSettings' in d:
-            rs = d["recommendedSettings"]
+            rs = d['recommendedSettings']
             settings = RecommendedSettings(
-                rs["subjectOValue"] if 'subjectOValue' in rs else None,
-                rs["subjectOUValue"] if 'subjectOUValue' in rs else None,
-                rs["subjectLValue"] if 'subjectLValue' in rs else None,
-                rs["subjectSTValue"] if 'subjectSTValue' in rs else None,
-                rs["subjectCValue"] if 'subjectCValue' in rs else None,
+                rs['subjectOValue'] if 'subjectOValue' in rs else None,
+                rs['subjectOUValue'] if 'subjectOUValue' in rs else None,
+                rs['subjectLValue'] if 'subjectLValue' in rs else None,
+                rs['subjectSTValue'] if 'subjectSTValue' in rs else None,
+                rs['subjectCValue'] if 'subjectCValue' in rs else None,
                 None,
-                rs["keyReuse"] if 'keyReuse' in rs else None
+                rs['keyReuse'] if 'keyReuse' in rs else None
             )
             if 'key' in rs:
                 kt = KeyType(rs['key']['type'], rs['key']['length'])
@@ -300,9 +291,10 @@ class CloudConnection(CommonConnection):
         :rtype: Policy
         """
         app_name, cit_alias = _parse_zone(zone)
-        status, data = self._get(URLS.CERTIFICATE_TEMPLATE_BY_ID % (urlparse.quote(app_name), urlparse.quote(cit_alias)))
+        status, data = self._get(URLS.CERTIFICATE_TEMPLATE_BY_ID.format(urlparse.quote(app_name),
+                                                                        urlparse.quote(cit_alias)))
         if status != HTTPStatus.OK:
-            log.error("Invalid status %s while retrieving policy [%s]" % (status, zone))
+            log.error(f"Invalid status {status} while retrieving policy [{zone}]")
             return None
         return self._parse_policy_response_to_object(data)
 
@@ -319,7 +311,7 @@ class CloudConnection(CommonConnection):
         if not app_name:
             raise ClientBadData("You need to specify the application name")
         try:
-            status, data = self._get(URLS.APP_DETAILS_BY_NAME % urlparse.quote(app_name))
+            status, data = self._get(URLS.APP_DETAILS_BY_NAME.format(urlparse.quote(app_name)))
         except VenafiConnectionError:
             return None
 
@@ -371,7 +363,7 @@ class CloudConnection(CommonConnection):
             request_data['csrAttributes'] = self._get_service_generated_csr_attr(request, zone)
 
         if request.validity_hours is not None:
-            request_data['validityPeriod'] = "PT%dH" % request.validity_hours
+            request_data['validityPeriod'] = f"PT{request.validity_hours}H"
 
         status, data = self._post(URLS.CERTIFICATE_REQUESTS, data=request_data)
         if status == HTTPStatus.CREATED:
@@ -379,16 +371,16 @@ class CloudConnection(CommonConnection):
             request.cert_guid = data['certificateRequests'][0]['certificateIds'][0]
             return True
         else:
-            log.error("unexpected server response %s: %s", status, data)
+            log.error(f"unexpected server response {status}: {data}")
             raise CertificateRequestError
 
     def retrieve_cert(self, request):
         cert_status = self._get_cert_status(request)
         if cert_status.status == CertStatuses.PENDING or cert_status.status == CertStatuses.REQUESTED:
-            log.info("Certificate status is %s." % cert_status.status)
+            log.info(f"Certificate status is {cert_status.status}")
             return None
         elif cert_status.status == CertStatuses.FAILED:
-            log.debug("Certificate status is %s. Returning data for debug" % cert_status.status)
+            log.debug(f"Certificate status is {cert_status.status}. Returning data for debug")
             return "Certificate FAILED"
         elif cert_status.status == CertStatuses.ISSUED:
             request.cert_guid = cert_status.certificateIds[0]
@@ -396,13 +388,13 @@ class CloudConnection(CommonConnection):
             if dek_info and dek_info.public_key:
                 return self._retrieve_service_generated_cert(request, dek_info)
 
-            url = URLS.CERTIFICATE_RETRIEVE % request.cert_guid
+            url = URLS.CERTIFICATE_RETRIEVE.format(request.cert_guid)
             if request.chain_option == CHAIN_OPTION_FIRST:
-                url += "?chainOrder=%s&format=PEM" % CondorChainOptions.ROOT_FIRST
+                url += f"?chainOrder={CondorChainOptions.ROOT_FIRST}&format=PEM"
             elif request.chain_option == CHAIN_OPTION_LAST:
-                url += "?chainOrder=%s&format=PEM" % CondorChainOptions.ROOT_LAST
+                url += f"?chainOrder={CondorChainOptions.ROOT_LAST}&format=PEM"
             else:
-                log.error("chain option %s is not valid" % request.chain_option)
+                log.error(f"chain option {request.chain_option} is not valid")
                 raise ClientBadData
 
             # Time in seconds
@@ -411,7 +403,7 @@ class CloudConnection(CommonConnection):
                 try:
                     status, data = self._get(url)
                 except VenafiError as e:
-                    log.debug("Certificate with id %s not found." % request.id)
+                    log.debug(f"Certificate with id {request.id} not found")
                     status = 0
                 if status == HTTPStatus.OK:
                     log.debug("Certificate found, parsing response...")
@@ -424,9 +416,8 @@ class CloudConnection(CommonConnection):
                     log.debug("Waiting for certificate...")
                     time.sleep(2)
                 else:
-                    raise RetrieveCertificateTimeoutError(
-                        'Operation timed out at %d seconds while retrieving certificate with id %s'
-                        % (request.timeout, request.id))
+                    raise RetrieveCertificateTimeoutError(f"Operation timed out at {request.timeout} seconds "
+                                                          f"while retrieving certificate with id {request.id}")
         else:
             raise ServerUnexptedBehavior
 
@@ -453,58 +444,57 @@ class CloudConnection(CommonConnection):
         cit_id = prev_request.citId
 
         if not certificate_id or not app_id or not cit_id:
-            log.error("Can`t find certificate_id")
+            log.error("Can't find certificate_id")
             raise ClientBadData
 
-        status, data = self._get(URLS.CERTIFICATE_BY_ID % certificate_id)
+        status, data = self._get(URLS.CERTIFICATE_BY_ID.format(certificate_id))
         if status == HTTPStatus.OK:
             request.id = data['certificateRequestId']
         else:
             raise ServerUnexptedBehavior
 
         ip_address = get_ip_address()
-        d = {"existingCertificateId": certificate_id,
-             "applicationId": app_id,
-             "certificateIssuingTemplateId": cit_id,
-             "apiClientInformation": {
-                 "type": request.origin,
-                 "identifier": ip_address
+        d = {'existingCertificateId': certificate_id,
+             'applicationId': app_id,
+             'certificateIssuingTemplateId': cit_id,
+             'apiClientInformation': {
+                 'type': request.origin,
+                 'identifier': ip_address
              }}
 
         if reuse_key:
             if request.csr:
-                d["certificateSigningRequest"] = request.csr
-                d["reuseCSR"] = False
+                d['certificateSigningRequest'] = request.csr
+                d['reuseCSR'] = False
             else:
-                log.error("Certificate renew by reusing the CSR is not supported right now."
-                          "\nSet [reuse_key] to False or just remove it")
+                log.error("Certificate renew by reusing the CSR is not supported right now. "
+                          "Set [reuse_key] to False or just remove it")
                 raise VenafiError
-                # d["reuseCSR"] = True
         else:
             c = data
-            if c.get("subjectCN"):
+            if c.get('subjectCN'):
                 request.common_name = c['subjectCN'][0]
-            if c.get("subjectC"):
-                request.country = c["subjectC"]
-            if c.get("subjectO"):
-                request.organization = c["subjectO"]
-            if c.get("subjectOU"):
-                request.organizational_unit = c["subjectOU"]
-            if c.get("subjectL"):
-                request.locality = c["subjectL"]
-            if c.get("subjectAlternativeNameDns"):
-                request.san_dns = c["subjectAlternativeNameDns"]
-            request.key_type = KeyType(KeyType.RSA, c["keyStrength"])
+            if c.get('subjectC'):
+                request.country = c['subjectC']
+            if c.get('subjectO'):
+                request.organization = c['subjectO']
+            if c.get('subjectOU'):
+                request.organizational_unit = c['subjectOU']
+            if c.get('subjectL'):
+                request.locality = c['subjectL']
+            if c.get('subjectAlternativeNameDns'):
+                request.san_dns = c['subjectAlternativeNameDns']
+            request.key_type = KeyType(KeyType.RSA, c['keyStrength'])
             request.build_csr()
-            d["certificateSigningRequest"] = request.csr
-            d["reuseCSR"] = False
+            d['certificateSigningRequest'] = request.csr
+            d['reuseCSR'] = False
 
         status, data = self._post(URLS.CERTIFICATE_REQUESTS, data=d)
         if status == HTTPStatus.CREATED:
             request.id = data['certificateRequests'][0]['id']
             return True
         else:
-            log.error("server unexpected status %s" % status)
+            log.error(f"server unexpected status {status}")
             raise CertificateRenewError
 
     def search_by_thumbprint(self, thumbprint, timeout=DEFAULT_TIMEOUT):
@@ -520,11 +510,11 @@ class CloudConnection(CommonConnection):
         time_start = time.time()
         while True:
             status, data = self._post(URLS.CERTIFICATE_SEARCH, data={
-                "expression": {
-                    "operands": [{
-                        "field": "fingerprint",
-                        "operator": "MATCH",
-                        "value": thumbprint
+                'expression': {
+                    'operands': [{
+                        'field': "fingerprint",
+                        'operator': "MATCH",
+                        'value': thumbprint
                         }]
                 }
             })
@@ -535,9 +525,8 @@ class CloudConnection(CommonConnection):
                     log.debug("Waiting for certificate...")
                     time.sleep(2)
                 else:
-                    raise RetrieveCertificateTimeoutError(
-                        'Operation timed out at %d seconds while retrieving certificate with thumbprint %s'
-                        % (timeout, thumbprint))
+                    raise RetrieveCertificateTimeoutError(f'Operation timed out at {timeout} seconds while retrieving '
+                                                          f'certificate with thumbprint {thumbprint}')
             else:
                 log.debug("Certificate found, returning...")
                 return CertificateStatusResponse(data['certificates'][0])
@@ -591,11 +580,11 @@ class CloudConnection(CommonConnection):
         app_name, cit_alias = _parse_zone(zone)
 
         if not policy_spec.policy.certificate_authority:
-            raise VenafiError('Certificate Authority is required')
+            raise VenafiError("Certificate Authority is required")
 
         ca_details = self._get_ca_details(policy_spec.policy.certificate_authority)
         if not ca_details:
-            raise VenafiError('CA [%s] not found in Venafi Cloud', policy_spec.policy.certificate_authority)
+            raise VenafiError(f"CA [{policy_spec.policy.certificate_authority}] not found in Venafi Cloud")
 
         # CA valid. Create request dictionary
         request = build_cit_request(policy_spec, ca_details)
@@ -604,19 +593,19 @@ class CloudConnection(CommonConnection):
         resp_cit_data = None
         if cit_data:
             # Issuing Template exists. Update
-            status, resp_cit_data = self._put(URLS.ISSUING_TEMPLATES_UPDATE % cit_data['id'], request)
+            status, resp_cit_data = self._put(URLS.ISSUING_TEMPLATES_UPDATE.format(cit_data['id']), request)
             if status != HTTPStatus.OK:
-                raise VenafiError('Failed to update issuing template [%s] for zone [%s]' % (cit_data['id'], zone))
+                raise VenafiError(f"Failed to update issuing template [{cit_data['id']}] for zone [{zone}]")
         else:
             # Issuing Template does not exist. Create one
             status, resp_cit_data = self._post(URLS.ISSUING_TEMPLATES, request)
             if status != HTTPStatus.CREATED:
-                raise VenafiError('Failed to create issuing template for zone [%s]', zone)
+                raise VenafiError(f"Failed to create issuing template for zone [{zone}]")
 
         # Validate Application existence in Venafi Cloud.
         user_details = self._get_user_details()
         if not user_details:
-            raise VenafiError('User Details not found.')
+            raise VenafiError('User Details not found')
 
         app_details = self._get_app_details_by_name(app_name)
         if app_details:
@@ -624,16 +613,15 @@ class CloudConnection(CommonConnection):
             if not self._policy_exists(zone):
                 # Only link cit with Application when cit is not already associated with Application
                 app_req = build_app_update_request(app_details, resp_cit_data)
-                status, data = self._put(URLS.APP_BY_ID % app_details.app_id, app_req)
+                status, data = self._put(URLS.APP_BY_ID.format(app_details.app_id), app_req)
                 if status != HTTPStatus.OK:
-                    raise VenafiError('Could not update Application [%s] with cit [%s]' % (app_name,
-                                                                                           pprint(resp_cit_data)))
+                    raise VenafiError(f"Could not update Application [{app_name}] with cit [{resp_cit_data}]")
         else:
             # Application does not exist. Create one
             app_req = build_app_create_request(app_name, user_details, resp_cit_data)
             status, data = self._post(URLS.APPLICATIONS, app_req)
             if status != HTTPStatus.CREATED:
-                raise VenafiError('Could not create application [%s].', app_name)
+                raise VenafiError(f"Could not create application [{app_name}]")
         return
 
     def _get_ca_details(self, ca_name):
@@ -655,13 +643,13 @@ class CloudConnection(CommonConnection):
         """
         details = get_ca_info(ca_name)
         ca_type = urlparse.quote(details.ca_type)
-        url = URLS.CA_ACCOUNTS % ca_type
+        url = URLS.CA_ACCOUNTS.format(ca_type)
         status, data = self._get(url)
         if status != HTTPStatus.OK:
             raise ServerUnexptedBehavior
 
         if 'accounts' not in data:
-            raise VenafiError('Response error. Accounts not found')
+            raise VenafiError("Response error. Accounts not found")
 
         acc_list = []
         for d in data['accounts']:
@@ -677,7 +665,7 @@ class CloudConnection(CommonConnection):
         """
         status, data = self._get(URLS.ISSUING_TEMPLATES)
         if status != HTTPStatus.OK:
-            raise VenafiError('Could not retrieve Certificate Issuing Templates')
+            raise VenafiError("Could not retrieve Certificate Issuing Templates")
 
         if 'certificateIssuingTemplates' in data:
             for cit_data in data['certificateIssuingTemplates']:
@@ -691,7 +679,7 @@ class CloudConnection(CommonConnection):
         """
         status, data = self._get(URLS.USER_ACCOUNTS)
         if status != HTTPStatus.OK:
-            raise VenafiError('Failed to retrieve user accounts. Error %s', pprint(data))
+            raise VenafiError(f"Failed to retrieve user accounts. Error {data}")
 
         user = build_user(data['user']) if 'user' in data else None
         company = build_company(data['company']) if 'company' in data else None
@@ -707,7 +695,7 @@ class CloudConnection(CommonConnection):
         :rtype: CertificateAuthorityInfo
         """
         ca_name = urlparse.quote(name)
-        url = URLS.CA_ACCOUNT_DETAILS % (ca_name, account_id)
+        url = URLS.CA_ACCOUNT_DETAILS.format(ca_name, account_id)
         status, data = self._get(url)
         if status != HTTPStatus.OK:
             raise ServerUnexptedBehavior
@@ -735,8 +723,8 @@ class CloudConnection(CommonConnection):
                 policy_domains = ps.policy.domains
                 valid = value_matches_regex(value=request.common_name, pattern_list=policy_domains)
                 if not valid:
-                    log.error(MSG_VALUE_NOT_MATCH_POLICY % ("Common Name", "domains", request.common_name,
-                                                            ps.policy.domains))
+                    log.error(MSG_VALUE_NOT_MATCH_POLICY.format("Common Name", "domains", request.common_name,
+                                                                ps.policy.domains))
                     raise ClientBadData()
             csr_attr_map[CSR_ATTR_CN] = request.common_name
 
@@ -746,7 +734,8 @@ class CloudConnection(CommonConnection):
                 valid = value_matches_regex(value=request.organization,pattern_list=policy_orgs)
                 if not valid:
                     org_str = "Organization"
-                    log.error(MSG_VALUE_NOT_MATCH_POLICY % (org_str, org_str+"s", request.organization, policy_orgs))
+                    log.error(MSG_VALUE_NOT_MATCH_POLICY.format(org_str, f"{org_str}s", request.organization,
+                                                                policy_orgs))
                     raise ClientBadData
             csr_attr_map[CSR_ATTR_ORG] = request.organization
         elif ps.defaults and ps.defaults.subject and ps.defaults.subject.org:
@@ -765,8 +754,8 @@ class CloudConnection(CommonConnection):
                 )
                 if not valid:
                     ou_str = "Organizational Unit"
-                    log.error(MSG_VALUE_NOT_MATCH_POLICY % (ou_str, ou_str+"s", request.organizational_unit,
-                                                            policy_ous))
+                    log.error(MSG_VALUE_NOT_MATCH_POLICY.format(ou_str, f"{ou_str}s", request.organizational_unit,
+                                                                policy_ous))
                     raise ClientBadData
             csr_attr_map[CSR_ATTR_ORG_UNIT] = request.organizational_unit
         elif ps.defaults and ps.defaults.subject and ps.defaults.subject.org_units:
@@ -778,8 +767,8 @@ class CloudConnection(CommonConnection):
                 valid = value_matches_regex(value=request.locality, pattern_list=policy_localities)
                 if not valid:
                     locality_str = "Localit"
-                    log.error(MSG_VALUE_NOT_MATCH_POLICY % (locality_str+"y", locality_str+"ies", request.locality,
-                                                            policy_localities))
+                    log.error(MSG_VALUE_NOT_MATCH_POLICY.format(f"{locality_str}y", f"{locality_str}ies",
+                                                                request.locality, policy_localities))
                     raise ClientBadData
             csr_attr_map[CSR_ATTR_LOCALITY] = request.locality
         elif ps.defaults and ps.defaults.subject and ps.defaults.subject.locality:
@@ -791,8 +780,8 @@ class CloudConnection(CommonConnection):
                 valid = value_matches_regex(value=request.province, pattern_list=policy_provinces)
                 if not valid:
                     province_str = "Province"
-                    log.error(MSG_VALUE_NOT_MATCH_POLICY % (province_str, province_str+"s", request.province,
-                                                            policy_provinces))
+                    log.error(MSG_VALUE_NOT_MATCH_POLICY.format(province_str, f"{province_str}s", request.province,
+                                                                policy_provinces))
                     raise ClientBadData
             csr_attr_map[CSR_ATTR_PROVINCE] = request.province
         elif ps.defaults and ps.defaults.subject and ps.defaults.subject.state:
@@ -804,8 +793,8 @@ class CloudConnection(CommonConnection):
                 valid = value_matches_regex(value=request.country, pattern_list=policy_countries)
                 if not valid:
                     country_str = "Countr"
-                    log.error(MSG_VALUE_NOT_MATCH_POLICY % (country_str+"y", country_str+"ies", request.country,
-                                                            policy_countries))
+                    log.error(MSG_VALUE_NOT_MATCH_POLICY.format(f"{country_str}y", f"{country_str}ies", request.country,
+                                                                policy_countries))
                     raise ClientBadData
             csr_attr_map[CSR_ATTR_COUNTRY] = request.country
         elif ps.defaults and ps.defaults.subject and ps.defaults.subject.country:
@@ -829,11 +818,12 @@ class CloudConnection(CommonConnection):
         """
         cit = self._get_template_by_id(zone)
         if not cit:
-            raise VenafiError('Certificate issuing template not found for zone [%s]', zone)
+            raise VenafiError(f"Certificate issuing template not found for zone [{zone}]")
 
-        info = self._get_ca_info(cit.cert_authority, cit.cert_authority_account_id, cit.cert_authority_product_option_id)
+        info = self._get_ca_info(cit.cert_authority, cit.cert_authority_account_id,
+                                 cit.cert_authority_product_option_id)
         if not info:
-            raise VenafiError('Certificate Authority info not found.')
+            raise VenafiError("Certificate Authority info not found")
 
         ps = build_policy_spec(cit, info, subject_cn_to_str)
         return ps
@@ -844,20 +834,20 @@ class CloudConnection(CommonConnection):
         :param str cert_id:
         :rtype: EdgeEncryptionKey
         """
-        url = URLS.CERTIFICATE_BY_ID % cert_id
+        url = URLS.CERTIFICATE_BY_ID.format(cert_id)
         status, data = self._get(url)
         if status != HTTPStatus.OK:
-            log.error("Error retrieving Certificate details for id: %s" % cert_id)
+            log.error(f"Error retrieving Certificate details for id: {cert_id}")
             raise ServerUnexptedBehavior
 
         dek_hash = data['dekHash'] if 'dekHash' in data else None
         if not dek_hash:
             return None
 
-        url = URLS.DEK_PUBLIC_KEY % dek_hash
+        url = URLS.DEK_PUBLIC_KEY.format(dek_hash)
         status, data = self._get(url)
         if status != HTTPStatus.OK:
-            log.error("Error retrieving DEK public key for hash: %s" % dek_hash)
+            log.error(f"Error retrieving DEK public key for hash: {dek_hash}")
             raise ServerUnexptedBehavior
 
         dek = EdgeEncryptionKey(data)
@@ -874,14 +864,11 @@ class CloudConnection(CommonConnection):
         encrypted_key_pass = box.encrypt(request.key_password)
         body = {
             'exportFormat': 'PEM',
-            'encryptedPrivateKeyPassphrase': base64.b64encode(encrypted_key_pass).decode("utf-8"),
+            'encryptedPrivateKeyPassphrase': base64.b64encode(encrypted_key_pass).decode('utf-8'),
             'encryptedKeystorePassphrase': '',
             'certificateLabel': ''
         }
-        headers = {
-            'accept': 'application/octet-stream'
-        }
-        url = URLS.CERTIFICATE_KEYSTORE_BY_ID % request.cert_guid
+        url = URLS.CERTIFICATE_KEYSTORE_BY_ID.format(request.cert_guid)
         status, data = self._post(url, data=body)
         if status not in (HTTPStatus.OK, HTTPStatus.CREATED, HTTPStatus.ACCEPTED):
             log.error("Some error")

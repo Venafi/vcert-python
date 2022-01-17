@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 import json
 import logging as log
 import os
@@ -31,7 +30,7 @@ def parse_file(json_file_path):
     if not json_file_path:
         log.error('File path is empty')
 
-    log.info('Loading Policy Specification from %s', json_file_path)
+    log.info(f"Loading Policy Specification from {json_file_path}")
     json_str = load_file(json_file_path)
 
     return parse(json_str)

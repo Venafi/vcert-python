@@ -16,17 +16,17 @@
 from vcert.common import Policy as Cit, KeyType
 from vcert.errors import VenafiError
 from vcert.policy import RPA, DEFAULT_CA
-from vcert.policy.policy_spec import Policy, Subject, KeyPair, DefaultSubject, DefaultKeyPair, PolicySpecification, \
-    Defaults, SubjectAltNames
+from vcert.policy.policy_spec import (Policy, Subject, KeyPair, DefaultSubject, DefaultKeyPair, PolicySpecification,
+                                      Defaults, SubjectAltNames)
 from vcert.vaas_utils import AppDetails
 
 supported_rsa_key_sizes = [1024, 2048, 4096]
 CA_TYPE_DIGICERT = 'DIGICERT'
 CA_TYPE_ENTRUST = 'ENTRUST'
-REQUESTER_NAME = "Venafi Cloud Service"
-REQUESTER_EMAIL = "no-reply@venafi.cloud"
-REQUESTER_PHONE = "801-555-0123"
-ALLOW_ALL = ".*"
+REQUESTER_NAME = 'Venafi Cloud Service'
+REQUESTER_EMAIL = 'no-reply@venafi.cloud'
+REQUESTER_PHONE = '801-555-0123'
+ALLOW_ALL = '.*'
 DEFAULT_MAX_VALID_DAYS = 365
 DEFAULT_HASH_ALGORITHM = 'SHA256'
 
@@ -60,8 +60,7 @@ def build_policy_spec(cit, ca_info, subject_cn_to_str=True):
         p.max_valid_days = int_value
 
     if ca_info:
-        template = '%s\\%s\\%s'
-        ca = template % (ca_info.ca_type, ca_info.ca_account_key, ca_info.vendor_name)
+        ca = f"{ca_info.ca_type}\\{ca_info.ca_account_key}\\{ca_info.vendor_name}"
         p.certificate_authority = ca
 
     s = Subject()
@@ -154,7 +153,7 @@ def validate_policy_spec(policy_spec):
     :param PolicySpecification policy_spec:
     """
     default_error_msg = 'Default value does not match with policy values.' \
-                        '\nAttribute: %s\nDefault value:%s\nPolicy values:%s'
+                        '\nAttribute: {}\nDefault value:{}\nPolicy values:{}'
     # validate policy values
     if policy_spec.policy:
         p = policy_spec.policy
@@ -162,16 +161,16 @@ def validate_policy_spec(policy_spec):
         # validate key pair values
         if policy_spec.policy.key_pair:
             if len(policy_spec.policy.key_pair.key_types) > 1:
-                raise VenafiError('Key Type values exceeded. Only one Key Type is allowed by Venafi Cloud')
+                raise VenafiError("Key Type values exceeded. Only one Key Type is allowed by Venafi Cloud")
 
             if policy_spec.policy.key_pair.key_types \
                     and policy_spec.policy.key_pair.key_types[0].lower() != KeyType.RSA:
-                raise VenafiError('Key Type [%s] is not supported by Venafi Cloud' % p.key_pair.key_types[0])
+                raise VenafiError(f"Key Type [{p.key_pair.key_types[0]}] is not supported by Venafi Cloud")
 
             if len(policy_spec.policy.key_pair.rsa_key_sizes) > 0:
                 invalid_value = get_invalid_cloud_rsa_key_size_value(policy_spec.policy.key_pair.rsa_key_sizes)
                 if invalid_value:
-                    raise VenafiError('The Key Size [%s] is not supported by Venafi Cloud' % invalid_value)
+                    raise VenafiError(f"The Key Size [{invalid_value}] is not supported by Venafi Cloud")
 
         # validate subject CN and SAN regexes
         if p.subject_alt_names:
@@ -179,7 +178,7 @@ def validate_policy_spec(policy_spec):
             if len(sans) > 0:
                 for k, v in sans.items():
                     if v is True and not (k == RPA.TPP_DNS_ALLOWED):
-                        raise VenafiError('Subject Alt name [%s] is not allowed by Venafi Cloud' % k)
+                        raise VenafiError(f"Subject Alt name [{k}] is not allowed by Venafi Cloud")
 
         # validate default subject values against policy values
         if policy_spec.defaults and policy_spec.defaults.subject and policy_spec.policy.subject:
@@ -188,23 +187,23 @@ def validate_policy_spec(policy_spec):
 
             if ds.org and len(s.orgs) > 0:
                 if not is_valid_policy_value(s.orgs, ds.org):
-                    raise VenafiError(default_error_msg % ('Organization', ds.org, s.orgs))
+                    raise VenafiError(default_error_msg.format('Organization', ds.org, s.orgs))
 
             if ds.org_units and len(ds.org_units) > 0 and len(s.org_units) > 0:
                 if not member_of(ds.org_units, s.org_units):
-                    raise VenafiError(default_error_msg % ('Org Units', ds.org_units, s.org_units))
+                    raise VenafiError(default_error_msg.format('Org Units', ds.org_units, s.org_units))
 
             if ds.locality and len(s.localities) > 0:
                 if not is_valid_policy_value(s.localities, ds.locality):
-                    raise VenafiError(default_error_msg % ('Localities', ds.locality, s.localities))
+                    raise VenafiError(default_error_msg.format('Localities', ds.locality, s.localities))
 
             if ds.state and len(s.states) > 0:
                 if not is_valid_policy_value(s.states, ds.state):
-                    raise VenafiError(default_error_msg % ('States', ds.state, s.states))
+                    raise VenafiError(default_error_msg.format('States', ds.state, s.states))
 
             if ds.country and len(s.countries) > 0:
                 if not is_valid_policy_value(s.countries, ds.country):
-                    raise VenafiError(default_error_msg % ('Countries', ds.country, s.countries))
+                    raise VenafiError(default_error_msg.format('Countries', ds.country, s.countries))
 
         # validate default key pair values against policy values
         if policy_spec.defaults and policy_spec.defaults.key_pair and policy_spec.policy.key_pair:
@@ -213,20 +212,21 @@ def validate_policy_spec(policy_spec):
 
             if dkp.key_type and len(kp.key_types) > 0:
                 if dkp.key_type not in kp.key_types:
-                    raise VenafiError(default_error_msg % ('Key Types', dkp.key_type, kp.key_types))
+                    raise VenafiError(default_error_msg.format('Key Types', dkp.key_type, kp.key_types))
 
             if dkp.rsa_key_size and len(kp.rsa_key_sizes) > 0:
                 if dkp.rsa_key_size not in kp.rsa_key_sizes:
-                    raise VenafiError(default_error_msg % ('RSA Key Sizes', dkp.rsa_key_size, kp.rsa_key_sizes))
+                    raise VenafiError(default_error_msg.format('RSA Key Sizes', dkp.rsa_key_size, kp.rsa_key_sizes))
 
             if dkp.elliptic_curve and len(kp.elliptic_curves) > 0:
                 if dkp.elliptic_curve not in kp.elliptic_curves:
-                    raise VenafiError(default_error_msg % ('Elliptic Curves', dkp.elliptic_curve, kp.elliptic_curves))
+                    raise VenafiError(default_error_msg.format('Elliptic Curves', dkp.elliptic_curve,
+                                                               kp.elliptic_curves))
 
             if dkp.service_generated is not None and kp.service_generated is not None:
                 if dkp.service_generated != kp.service_generated:
                     raise VenafiError(
-                        default_error_msg % ('Service Generated', dkp.service_generated, kp.service_generated))
+                        default_error_msg.format('Service Generated', dkp.service_generated, kp.service_generated))
     else:
         policy_spec.policy = Policy()
 
@@ -235,12 +235,12 @@ def validate_policy_spec(policy_spec):
         dkp = policy_spec.defaults.key_pair
 
         if dkp.key_type and dkp.key_type != "RSA":
-            raise VenafiError('Default Key Type [%s] is not supported by Venafi Cloud' % dkp.key_type)
+            raise VenafiError(f"Default Key Type [{dkp.key_type}] is not supported by Venafi Cloud")
 
         if dkp.rsa_key_size:
             invalid_value = get_invalid_cloud_rsa_key_size_value([dkp.rsa_key_size])
             if invalid_value:
-                raise VenafiError('Default Key Size [%d] is not supported by Venafi Cloud' % invalid_value)
+                raise VenafiError(f"Default Key Size [{invalid_value}] is not supported by Venafi Cloud")
 
 
 def get_invalid_cloud_rsa_key_size_value(rsa_keys):
@@ -305,7 +305,7 @@ def get_ca_info(ca_name):
     """
     data = ca_name.split("\\")
     if len(data) < 3:
-        raise VenafiError('Certificate Authority name invalid [%s]' % ca_name)
+        raise VenafiError(f"Certificate Authority name invalid [{ca_name}]")
 
     return CertificateAuthorityInfo(data[0], data[1], data[2])
 
@@ -336,7 +336,7 @@ def build_cit_request(ps, ca_details):
     product = {
         'certificateAuthority': cert_auth.ca_type,
         'productName': cert_auth.vendor_name,
-        'validityPeriod': "P%sD" % validity
+        'validityPeriod': f"P{validity}D"
     }
 
     if cert_auth.ca_type == CA_TYPE_DIGICERT:

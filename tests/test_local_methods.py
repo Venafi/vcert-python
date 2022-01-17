@@ -21,8 +21,8 @@ from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 
 from assets import POLICY_CLOUD1, POLICY_TPP1, EXAMPLE_CSR, EXAMPLE_CHAIN
-from vcert import CloudConnection, KeyType, TPPConnection, CertificateRequest, ZoneConfig, CertField, FakeConnection, \
-    logger
+from vcert import (CloudConnection, KeyType, TPPConnection, CertificateRequest, ZoneConfig, CertField, FakeConnection,
+                   logger)
 from vcert.pem import parse_pem, Certificate
 
 pkcs12_enc_cert = """-----BEGIN CERTIFICATE-----
@@ -171,9 +171,8 @@ class TestLocalMethods(unittest.TestCase):
         p = conn._parse_policy_response_to_object(json.loads(POLICY_CLOUD1))
         self.assertEqual(p.id, "3da4ba30-c370-11e9-9e69-99559a9ae32a")
         self.assertEqual(p.SubjectCNRegexes[-1], ".*.test")
-        self.assertTrue(
-            p.SubjectCRegexes == p.SubjectLRegexes == p.SubjectORegexes == p.SubjectOURegexes == p.SubjectSTRegexes == [
-                ".*"])
+        self.assertTrue(p.SubjectCRegexes == p.SubjectLRegexes == p.SubjectORegexes == p.SubjectOURegexes
+                        == p.SubjectSTRegexes == [".*"])
         self.assertEqual(p.key_types[0].key_type, KeyType.RSA)
         self.assertEqual(p.key_types[0].option, 2048)
         self.assertEqual(p.key_types[1].key_type, KeyType.RSA)
@@ -341,9 +340,9 @@ class TestLocalMethods(unittest.TestCase):
     def test_pkcs12_enc_pk(self):
         certificate = Certificate(cert=pkcs12_enc_cert, chain=chain, key=pkcs12_enc_pk)
         output = certificate.as_pkcs12(passphrase=pkcs12_enc_pk_pass)
-        log.info("PKCS12 created successfully:\n%s" % output)
+        log.info(f"PKCS12 created successfully:\n{output}")
 
     def test_pkcs12_plain_pk(self):
         cert = Certificate(cert=pkcs12_plain_cert, chain=chain, key=pkcs12_plain_pk)
         output = cert.as_pkcs12()
-        log.info("PKCS12 created successfully:\n%s" % output)
+        log.info(f"PKCS12 created successfully:\n{output}")

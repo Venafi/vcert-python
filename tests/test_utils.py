@@ -14,19 +14,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from __future__ import absolute_import, division, generators, unicode_literals, print_function, nested_scopes, \
-    with_statement
-
 import binascii
 import random
 import string
 import time
+from datetime import datetime
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.x509.oid import NameOID
-from future.backports.datetime import datetime
 from six import string_types
 
 from test_env import RANDOM_DOMAIN
@@ -43,14 +40,14 @@ def timestamp():
 
 
 def simple_enroll(conn, zone):
-    req = CertificateRequest(common_name=random_word(12) + ".venafi.example.com")
+    req = CertificateRequest(common_name=f"{random_word(12)}.venafi.example.com")
     conn.request_cert(req, zone)
     cert = conn.retrieve_cert(req)
     return req, cert
 
 
 def renew_without_key_reuse(unittest_object, conn, zone):
-    cn = random_word(10) + ".venafi.example.com"
+    cn = f"{random_word(10)}.venafi.example.com"
     cert_id, pkey, _, public_key, _ = enroll(conn, zone, cn)
     time.sleep(5)
     req = CertificateRequest(cert_id=cert_id)
@@ -99,9 +96,6 @@ def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None
 
     conn.request_cert(request, zone)
     cert = conn.retrieve_cert(request)
-    # print("Certificate is:\n %s" % cert_pem)
-    # print("Private key is:\n %s:" % request.private_key_pem)
-    # and save into file
     with open("./cert.pem", "w") as f:
         f.write(cert.full_chain)
     with open("./cert.key", "w") as f2:

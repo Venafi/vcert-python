@@ -13,13 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-from __future__ import (absolute_import, division, generators, unicode_literals, print_function, nested_scopes,
-                        with_statement)
-
+import random
 import re
 import string
-import random
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -55,11 +51,11 @@ def parse_pem(pem_str, order):
     certs = []
     key = None
     for p in parsed:
-        if p[0] == "CERTIFICATE":
+        if p[0] == 'CERTIFICATE':
             certs.append(p[1])
-        elif p[0].endswith("PRIVATE KEY"):
+        elif p[0].endswith('PRIVATE KEY'):
             key = p[1]
-    if order == "last":
+    if order == 'last':
         return Certificate(certs[0], certs[1:], key)
     else:
         return Certificate(certs[-1], certs[:-1], key)
@@ -85,7 +81,8 @@ class Certificate:
         """
         if not self.chain:
             return self.cert
-        return self.cert + "\n" + "\n".join(self.chain)
+        full_chain = "\n".join(self.chain)
+        return f"{self.cert}\n{full_chain}"
 
     def as_pkcs12(self, passphrase=None):
         """
@@ -113,7 +110,7 @@ class Certificate:
             p_key = serialization.load_pem_private_key(data=self.key.encode(), password=b_pass,
                                                        backend=default_backend())
         except Exception as e:
-            get_logger().error(msg="Error parsing Private Key: %s" % e.message)
+            get_logger().error(msg=f"Error parsing Private Key: {e.message}")
             return
 
         name = random_word(10).encode()

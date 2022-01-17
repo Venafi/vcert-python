@@ -28,10 +28,10 @@ logging.getLogger("urllib3").setLevel(logging.ERROR)
 def main():
     # Get credentials from environment variables
     url = environ.get('TPP_URL')
-    user = environ.get("TPP_USER")
-    password = environ.get("TPP_PASSWORD")
+    user = environ.get('TPP_USER')
+    password = environ.get('TPP_PASSWORD')
 
-    connector = venafi_connection(url=url, user=user, password=password, http_request_kwargs={"verify": False})
+    connector = venafi_connection(url=url, user=user, password=password, http_request_kwargs={'verify': False})
     # If your TPP server certificate is signed with your own CA, or available only via proxy,
     # you can specify a trust bundle using requests vars:
     # connector = venafi_connection(url=url, api_key=api_key, access_token=access_token,
@@ -58,7 +58,7 @@ def main():
     # This is a placeholder. Make sure an SSH CA already exists on your TPP instance
     cadn = "\\VED\\Certificate Authority\\SSH\\Templates\\my-ca"
     # The id of the SSH certificate
-    key_id = "vcert-python-%s" % random_word(12)
+    key_id = f"vcert-python-{random_word(12)}"
 
     # Create the request object
     request = SSHCertRequest(cadn=cadn, key_id=key_id)
@@ -66,7 +66,7 @@ def main():
     request.validity_period = "4h"
     request.source_addresses = ["test.com"]
     request.extensions = {
-        "permit-pty": ""
+        'permit-pty': ""
     }
     # Include the locally-generated public key. If not set, the server will generate one for the certificate
     request.set_public_key_data(ssh_kp.public_key())
