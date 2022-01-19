@@ -207,7 +207,7 @@ class AbstractTPPConnection(CommonConnection):
                 log.debug(f"Certificate with id {cert_request.id} not found")
                 status = 0
 
-            if status == HTTPStatus.OK:
+            if status in [HTTPStatus.OK, HTTPStatus.ACCEPTED]:
                 pem64 = data['CertificateData']
                 pem = base64.b64decode(pem64)
                 cert_response = parse_pem(pem.decode(), cert_request.chain_option)
