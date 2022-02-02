@@ -31,7 +31,7 @@ from cryptography.x509.oid import NameOID, ExtensionOID
 from six import string_types, binary_type
 
 from .errors import VenafiConnectionError, ServerUnexptedBehavior, BadData, ClientBadData
-from .http import HTTPStatus
+from .http_status import HTTPStatus
 from .policy import PolicySpecification
 from .ssh_utils import SSHCertRequest, SSHRetrieveResponse, SSHCATemplateRequest, SSHConfig
 from .tpp_utils import IssuerHint

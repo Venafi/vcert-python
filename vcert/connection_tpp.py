@@ -22,7 +22,7 @@ import requests
 from .common import MIME_JSON
 from .connection_tpp_abstract import AbstractTPPConnection, URLS
 from .errors import (ServerUnexptedBehavior, ClientBadData, AuthenticationError)
-from .http import HTTPStatus
+from .http_status import HTTPStatus
 
 TOKEN_HEADER_NAME = "x-venafi-api-key"  # nosec
 

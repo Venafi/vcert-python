@@ -16,7 +16,6 @@
 import base64
 import re
 import time
-from pprint import pprint
 
 import requests
 import six.moves.urllib.parse as urlparse
@@ -28,7 +27,7 @@ from .common import (ZoneConfig, CertificateRequest, CommonConnection, Policy, g
                      CSR_ORIGIN_SERVICE, CHAIN_OPTION_FIRST, CHAIN_OPTION_LAST)
 from .errors import (VenafiConnectionError, ServerUnexptedBehavior, ClientBadData, CertificateRequestError,
                      CertificateRenewError, VenafiError, RetrieveCertificateTimeoutError)
-from .http import HTTPStatus
+from .http_status import HTTPStatus
 from .logger import get_child
 from .pem import parse_pem, Certificate
 from .policy import PolicySpecification
