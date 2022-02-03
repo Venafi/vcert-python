@@ -19,10 +19,10 @@ import re
 import unittest
 
 from assets import SSH_CERT_DATA, SSH_PRIVATE_KEY, SSH_PUBLIC_KEY
-from test_env import TPP_TOKEN_URL, TPP_USER, TPP_PASSWORD, TPP_SSH_CADN
+from test_env import TPP_TOKEN_URL, TPP_USER, TPP_PASSWORD, TPP_SSH_CADN, TPP_URL
 from test_utils import timestamp
 from vcert import (CommonConnection, SSHCertRequest, TPPTokenConnection, Authentication,
-                   SCOPE_SSH, write_ssh_files, logger, venafi_connection, VenafiPlatform)
+                   SCOPE_SSH, write_ssh_files, logger, venafi_connection, VenafiPlatform, TPPConnection)
 from vcert.ssh_utils import SSHRetrieveResponse, SSHKeyPair, SSHCATemplateRequest
 
 log = logger.get_child("test-ssh")
@@ -31,12 +31,12 @@ SERVICE_GENERATED_NO_KEY_ERROR = "{} key data is {} empty for Certificate {}"  #
 SSH_CERT_DATA_ERROR = "Certificate data is empty for Certificate {}"  # type: str
 
 
-class TestTPPSSHCertificate(unittest.TestCase):
+class TestTPPTokenSSHCertificate(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         self.tpp_conn = TPPTokenConnection(url=TPP_TOKEN_URL, http_request_kwargs={'verify': "/tmp/chain.pem"})
         auth = Authentication(user=TPP_USER, password=TPP_PASSWORD, scope=SCOPE_SSH)
         self.tpp_conn.get_access_token(auth)
-        super(TestTPPSSHCertificate, self).__init__(*args, **kwargs)
+        super(TestTPPTokenSSHCertificate, self).__init__(*args, **kwargs)
 
     def test_enroll_local_generated_keypair(self):
         keypair = SSHKeyPair()
@@ -75,8 +75,20 @@ class TestTPPSSHCertificate(unittest.TestCase):
         log.debug(f"{TPP_SSH_CADN} Public Key data:\n{ssh_config.ca_public_key}")
 
     def test_retrieve_ca_public_key_and_principals(self):
-        request = SSHCATemplateRequest(ca_template=TPP_SSH_CADN)
-        ssh_config = self.tpp_conn.retrieve_ssh_config(ca_request=request)
+        ssh_config = _retrieve_ssh_config(self.tpp_conn)
+        self.assertIsNotNone(ssh_config.ca_public_key, f"{TPP_SSH_CADN} Public Key data is empty")
+        self.assertIsNotNone(ssh_config.ca_principals, f"{TPP_SSH_CADN} default principals is empty")
+        log.debug(f"{TPP_SSH_CADN} Public Key data: {ssh_config.ca_public_key}")
+        log.debug(f"{TPP_SSH_CADN} default principals: {ssh_config.ca_principals}")
+
+
+class TestTPPSSHCertificate(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        self.tpp_conn = TPPConnection(TPP_USER, TPP_PASSWORD, TPP_URL, http_request_kwargs={'verify': "/tmp/chain.pem"})
+        super(TestTPPSSHCertificate, self).__init__(*args, **kwargs)
+
+    def test_retrieve_ca_public_key_and_principals(self):
+        ssh_config = _retrieve_ssh_config(self.tpp_conn)
         self.assertIsNotNone(ssh_config.ca_public_key, f"{TPP_SSH_CADN} Public Key data is empty")
         self.assertIsNotNone(ssh_config.ca_principals, f"{TPP_SSH_CADN} default principals is empty")
         log.debug(f"{TPP_SSH_CADN} Public Key data: {ssh_config.ca_public_key}")
@@ -120,6 +132,17 @@ def _enroll_ssh_cert(connector, request):
     response = connector.retrieve_ssh_cert(request)
     assert isinstance(response, SSHRetrieveResponse)
     return response
+
+
+def _retrieve_ssh_config(connection):
+    """
+
+    :param vcert.AbstractTPPConnection connection:
+    :rtype: vcert.SSHConfig
+    """
+    request = SSHCATemplateRequest(ca_template=TPP_SSH_CADN)
+    ssh_config = connection.retrieve_ssh_config(ca_request=request)
+    return ssh_config
 
 
 def _random_key_id():
