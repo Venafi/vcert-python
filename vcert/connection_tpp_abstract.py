@@ -18,7 +18,6 @@ import logging as log
 import re
 import time
 from datetime import datetime, timedelta
-from pprint import pprint
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -29,7 +28,7 @@ from .common import CertField, CommonConnection, CertificateRequest, CSR_ORIGIN_
     CSR_ORIGIN_SERVICE, KeyType, CHAIN_OPTION_LAST, CHAIN_OPTION_FIRST, CHAIN_OPTION_IGNORE, Policy, ZoneConfig
 from .errors import VenafiError, ServerUnexptedBehavior, ClientBadData, RetrieveCertificateTimeoutError, \
     CertificateRequestError, CertificateRenewError
-from .http import HTTPStatus
+from .http_status import HTTPStatus
 from .pem import parse_pem
 from .policy import RPA, SPA
 from .policy.pm_tpp import TPPPolicy, is_service_generated_csr, SetAttrResponse, validate_policy_spec, \

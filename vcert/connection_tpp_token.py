@@ -22,7 +22,7 @@ import requests
 from .common import MIME_JSON, TokenInfo, Authentication
 from .connection_tpp_abstract import AbstractTPPConnection, URLS
 from .errors import (ClientBadData, ServerUnexptedBehavior, AuthenticationError)
-from .http import HTTPStatus
+from .http_status import HTTPStatus
 
 HEADER_AUTHORIZATION = 'Authorization'
 
