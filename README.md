@@ -100,6 +100,10 @@ NOTE: While developing with vcert-python, it is helpful if you are using a virtu
 install the vcert-python library from source in development mode with `pip install --editable`.
 See https://packaging.python.org/guides/installing-using-pip-and-virtual-environments/
 
+## Version History
+
+[Check version history here](.github/version_history.md)
+
 ## License
 
 Copyright &copy; Venafi, Inc. All rights reserved.

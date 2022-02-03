@@ -28,8 +28,9 @@ from vcert.policy import (Policy, Subject, KeyPair, SubjectAltNames, Defaults, D
                           PolicySpecification)
 from vcert.policy.pm_cloud import CA_TYPE_DIGICERT, CA_TYPE_ENTRUST
 
-POLICY_SPEC_JSON = 'resources/policy_specification.json'
-POLICY_SPEC_YAML = 'resources/policy_specification.yaml'
+# This values are loaded from the project root which is vcert-python, not tests folder
+POLICY_SPEC_JSON = './tests/resources/policy_specification.json'
+POLICY_SPEC_YAML = './tests/resources/policy_specification.yaml'
 CA_TYPE_TPP = 'TPP'
 
 log = logger.get_child("test-pm")
@@ -38,14 +39,12 @@ log = logger.get_child("test-pm")
 class TestParsers(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TestParsers, self).__init__(*args, **kwargs)
-        self.json_file = _resolve_resources_path(POLICY_SPEC_JSON)
-        self.yaml_file = _resolve_resources_path(POLICY_SPEC_YAML)
+        self.json_file = POLICY_SPEC_JSON
+        self.yaml_file = POLICY_SPEC_YAML
 
     def test_json_parsing(self):
-        # data = json_parser.parse_file(self.json_file)
-        # print_data = parse_policy_spec(data)
-        # pprint(print_data)
-        pass
+        ps = json_parser.parse_file(self.json_file)
+        self._assert_policy_spec(ps)
 
     def test_json_serialization(self):
         ps = PolicySpecification(policy=_get_policy_obj(), defaults=_get_defaults_obj())
@@ -55,14 +54,32 @@ class TestParsers(unittest.TestCase):
         pass
 
     def test_yaml_12_parsing(self):
-        # data = yaml_parser.parse_file(self.yaml_file)
-        # print_data = parse_policy_spec(data)
-        # pprint(print_data)
-        pass
+        ps = yaml_parser.parse_file(self.yaml_file)
+        self._assert_policy_spec(ps)
 
     def test_yaml_serialization(self):
         ps = PolicySpecification(policy=_get_policy_obj(), defaults=_get_defaults_obj())
         yaml_parser.serialize(ps, 'test_yaml_serialization.yaml')
+
+    def _assert_policy_spec(self, ps):
+        """
+
+        :param vcert.policy.PolicySpecification ps:
+        :return:
+        """
+        self.assertIsNotNone(ps)
+        self.assertIn("venafi.com", ps.policy.domains)
+        self.assertIn("kwan.com", ps.policy.domains)
+        self.assertIn("venafi.com", ps.policy.subject.orgs)
+        self.assertTrue(len(ps.policy.subject.orgs) == 1)
+        self.assertIn("DevOps", ps.policy.subject.org_units)
+        self.assertTrue(len(ps.policy.subject.org_units) == 1)
+        self.assertIn("Merida", ps.policy.subject.localities)
+        self.assertTrue(len(ps.policy.subject.localities) == 1)
+        self.assertIn("RSA", ps.policy.key_pair.key_types)
+        self.assertTrue(len(ps.policy.key_pair.key_types) == 1)
+        self.assertIn(2048, ps.policy.key_pair.rsa_key_sizes)
+        self.assertTrue(len(ps.policy.key_pair.rsa_key_sizes) == 1)
 
 
 class TestTPPPolicyManagement(unittest.TestCase):
@@ -70,8 +87,8 @@ class TestTPPPolicyManagement(unittest.TestCase):
         self.tpp_conn = TPPTokenConnection(url=TPP_TOKEN_URL, http_request_kwargs={'verify': "/tmp/chain.pem"})
         auth = Authentication(user=TPP_USER, password=TPP_PASSWORD, scope=SCOPE_PM)
         self.tpp_conn.get_access_token(auth)
-        self.json_file = _resolve_resources_path(POLICY_SPEC_JSON)
-        self.yaml_file = _resolve_resources_path(POLICY_SPEC_YAML)
+        self.json_file = POLICY_SPEC_JSON
+        self.yaml_file = POLICY_SPEC_YAML
         super(TestTPPPolicyManagement, self).__init__(*args, **kwargs)
 
     def test_create_policy_from_json(self):
@@ -108,8 +125,8 @@ class TestTPPPolicyManagement(unittest.TestCase):
 class TestCloudPolicyManagement(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         self.cloud_conn = CloudConnection(token=CLOUD_APIKEY, url=CLOUD_URL)
-        self.json_file = _resolve_resources_path(POLICY_SPEC_JSON)
-        self.yaml_file = _resolve_resources_path(POLICY_SPEC_YAML)
+        self.json_file = POLICY_SPEC_JSON
+        self.yaml_file = POLICY_SPEC_YAML
         super(TestCloudPolicyManagement, self).__init__(*args, **kwargs)
 
     def test_create_policy_from_json(self):
@@ -246,10 +263,12 @@ def _get_tpp_policy_name():
     time = timestamp()
     return f"{_get_app_name().format(time)}"
 
-
-def _resolve_resources_path(path):
-    resources_dir = os.path.dirname(__file__)
-    log.debug(f"Testing root folder: [{resources_dir}]")
-    resolved_path = f"./{path}" if resources_dir.endswith('tests') else f"./tests/{path}"
-    log.debug(f"resolved path: [{resolved_path}]")
-    return resolved_path
+# def _resolve_resources_path(path):
+#     resources_dir = os.path.dirname(__file__)
+#     log.debug(f"Testing root folder: [{resources_dir}]")
+#     if resources_dir.endswith('tests'):
+#         resolved_path = f"./{path}"
+#     else:
+#         resolved_path = f"./tests/{path}"
+#     log.debug(f"resolved path: [{resolved_path}]")
+#     return resolved_path
