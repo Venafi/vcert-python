@@ -8,9 +8,9 @@ policy:
   maxValidDays: 120
   subject:
     orgs:
-      - venafi_yaml
+      - venafi.com
     orgUnits:
-      - DevOps_yaml
+      - DevOps
     localities:
       - Merida
     states:

@@ -42,10 +42,8 @@ class TestParsers(unittest.TestCase):
         self.yaml_file = _resolve_resources_path(POLICY_SPEC_YAML)
 
     def test_json_parsing(self):
-        # data = json_parser.parse_file(self.json_file)
-        # print_data = parse_policy_spec(data)
-        # pprint(print_data)
-        pass
+        ps = json_parser.parse_file(self.json_file)
+        self._assert_policy_spec(ps)
 
     def test_json_serialization(self):
         ps = PolicySpecification(policy=_get_policy_obj(), defaults=_get_defaults_obj())
@@ -55,14 +53,32 @@ class TestParsers(unittest.TestCase):
         pass
 
     def test_yaml_12_parsing(self):
-        # data = yaml_parser.parse_file(self.yaml_file)
-        # print_data = parse_policy_spec(data)
-        # pprint(print_data)
-        pass
+        ps = yaml_parser.parse_file(self.yaml_file)
+        self._assert_policy_spec(ps)
 
     def test_yaml_serialization(self):
         ps = PolicySpecification(policy=_get_policy_obj(), defaults=_get_defaults_obj())
         yaml_parser.serialize(ps, 'test_yaml_serialization.yaml')
+
+    def _assert_policy_spec(self, ps):
+        """
+
+        :param vcert.policy.PolicySpecification ps:
+        :return:
+        """
+        self.assertIsNotNone(ps)
+        self.assertIn("venafi.com", ps.policy.domains)
+        self.assertIn("kwan.com", ps.policy.domains)
+        self.assertIn("venafi.com", ps.policy.subject.orgs)
+        self.assertTrue(len(ps.policy.subject.orgs) == 1)
+        self.assertIn("DevOps", ps.policy.subject.org_units)
+        self.assertTrue(len(ps.policy.subject.org_units) == 1)
+        self.assertIn("Merida", ps.policy.subject.localities)
+        self.assertTrue(len(ps.policy.subject.localities) == 1)
+        self.assertIn("RSA", ps.policy.key_pair.key_types)
+        self.assertTrue(len(ps.policy.key_pair.key_types) == 1)
+        self.assertIn(2048, ps.policy.key_pair.rsa_key_sizes)
+        self.assertTrue(len(ps.policy.key_pair.rsa_key_sizes) == 1)
 
 
 class TestTPPPolicyManagement(unittest.TestCase):
