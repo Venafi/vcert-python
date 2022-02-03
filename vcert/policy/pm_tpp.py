@@ -468,7 +468,7 @@ def validate_default_subject(policy_spec):
         if s.states[0] != ds.state:
             raise VenafiError(no_match_error_msg.format('states', ds.state, s.states[0]))
 
-    if s.countries and s.countries and ds.country:
+    if s.countries and s.countries[0] and ds.country:
         if s.countries[0] != ds.country:
             raise VenafiError(no_match_error_msg.format('countries', ds.country, s.countries[0]))
 
