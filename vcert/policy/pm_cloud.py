@@ -30,6 +30,9 @@ ALLOW_ALL = '.*'
 DEFAULT_MAX_VALID_DAYS = 365
 DEFAULT_HASH_ALGORITHM = 'SHA256'
 
+default_error_msg = 'Default value does not match with policy values.' \
+                    '\nAttribute: {}\nDefault value:{}\nPolicy values:{}'
+
 
 def build_policy_spec(cit, ca_info, subject_cn_to_str=True):
     """
@@ -152,8 +155,6 @@ def validate_policy_spec(policy_spec):
     """
     :param PolicySpecification policy_spec:
     """
-    default_error_msg = 'Default value does not match with policy values.' \
-                        '\nAttribute: {}\nDefault value:{}\nPolicy values:{}'
     # validate policy values
     if policy_spec.policy:
         p = policy_spec.policy
@@ -161,16 +162,16 @@ def validate_policy_spec(policy_spec):
         # validate key pair values
         if policy_spec.policy.key_pair:
             if len(policy_spec.policy.key_pair.key_types) > 1:
-                raise VenafiError("Key Type values exceeded. Only one Key Type is allowed by Venafi Cloud")
+                raise VenafiError("Key Type values exceeded. Only one Key Type is allowed by VaaS")
 
             if policy_spec.policy.key_pair.key_types \
                     and policy_spec.policy.key_pair.key_types[0].lower() != KeyType.RSA:
-                raise VenafiError(f"Key Type [{p.key_pair.key_types[0]}] is not supported by Venafi Cloud")
+                raise VenafiError(f"Key Type [{p.key_pair.key_types[0]}] is not supported by VaaS")
 
             if len(policy_spec.policy.key_pair.rsa_key_sizes) > 0:
                 invalid_value = get_invalid_cloud_rsa_key_size_value(policy_spec.policy.key_pair.rsa_key_sizes)
                 if invalid_value:
-                    raise VenafiError(f"The Key Size [{invalid_value}] is not supported by Venafi Cloud")
+                    raise VenafiError(f"The Key Size [{invalid_value}] is not supported by VaaS")
 
         # validate subject CN and SAN regexes
         if p.subject_alt_names:
@@ -178,7 +179,7 @@ def validate_policy_spec(policy_spec):
             if len(sans) > 0:
                 for k, v in sans.items():
                     if v is True and not (k == RPA.TPP_DNS_ALLOWED):
-                        raise VenafiError(f"Subject Alt name [{k}] is not allowed by Venafi Cloud")
+                        raise VenafiError(f"Subject Alt name [{k}] is not allowed by VaaS")
 
         # validate default subject values against policy values
         if policy_spec.defaults and policy_spec.defaults.subject and policy_spec.policy.subject:
@@ -235,12 +236,12 @@ def validate_policy_spec(policy_spec):
         dkp = policy_spec.defaults.key_pair
 
         if dkp.key_type and dkp.key_type != "RSA":
-            raise VenafiError(f"Default Key Type [{dkp.key_type}] is not supported by Venafi Cloud")
+            raise VenafiError(f"Default Key Type [{dkp.key_type}] is not supported by VaaS")
 
         if dkp.rsa_key_size:
             invalid_value = get_invalid_cloud_rsa_key_size_value([dkp.rsa_key_size])
             if invalid_value:
-                raise VenafiError(f"Default Key Size [{invalid_value}] is not supported by Venafi Cloud")
+                raise VenafiError(f"Default Key Size [{invalid_value}] is not supported by VaaS")
 
 
 def get_invalid_cloud_rsa_key_size_value(rsa_keys):
