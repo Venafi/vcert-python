@@ -13,8 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from pprint import pprint
-
 from vcert.common import CertField
 from vcert.errors import VenafiError
 from vcert.policy import (SPA, PolicySpecification, Policy, Subject, DefaultSubject, KeyPair, DefaultKeyPair, Defaults,
@@ -423,21 +421,19 @@ def validate_key_pair(policy_spec):
     if len(kp.key_types) > 1:
         raise VenafiError(too_many_error_msg.format('key types'))
     if len(kp.key_types) > 0 and not member_of(kp.key_types, supported_key_types):
-        raise VenafiError(unsupported_error_msg.format('key types', pprint(supported_key_types), pprint(kp.key_types)))
+        raise VenafiError(unsupported_error_msg.format('key types', supported_key_types, kp.key_types))
 
     # validate key bit strength
     if len(kp.rsa_key_sizes) > 1:
         raise VenafiError(too_many_error_msg.format('key bit strength'))
     if len(kp.rsa_key_sizes) > 0 and not member_of(kp.rsa_key_sizes, supported_rsa_key_sizes):
-        raise VenafiError(unsupported_error_msg.format('key bit strength', pprint(supported_rsa_key_sizes),
-                                                       pprint(kp.rsa_key_sizes)))
+        raise VenafiError(unsupported_error_msg.format('key bit strength', supported_rsa_key_sizes, kp.rsa_key_sizes))
 
     # validate elliptic curve
     if len(kp.elliptic_curves) > 1:
         raise VenafiError(too_many_error_msg.format('elliptic curve'))
     if len(kp.elliptic_curves) > 0 and not member_of(kp.elliptic_curves, supported_elliptic_curves):
-        raise VenafiError(unsupported_error_msg.format('elliptic_curve', pprint(supported_elliptic_curves),
-                                                       pprint(kp.elliptic_curves)))
+        raise VenafiError(unsupported_error_msg.format('elliptic curve', supported_elliptic_curves, kp.elliptic_curves))
 
 
 def validate_default_subject(policy_spec):
@@ -496,7 +492,7 @@ def validate_default_key_pair_with_policy_subject(policy_spec):
         if kp.elliptic_curves[0] != dkp.elliptic_curve:
             raise VenafiError(no_match_error_msg.format('elliptic curves', dkp.elliptic_curve, kp.elliptic_curves[0]))
 
-    if kp.service_generated and dkp.service_generated:
+    if kp.service_generated is not None and dkp.service_generated is not None:
         if kp.service_generated != dkp.service_generated:
             raise VenafiError(no_match_error_msg.format('generation type', dkp.service_generated, kp.service_generated))
 
@@ -511,15 +507,13 @@ def validate_default_key_pair(policy_spec):
     dkp = policy_spec.defaults.key_pair
 
     if dkp.key_type and not member_of([dkp.key_type], supported_key_types):
-        raise VenafiError(unsupported_error_msg.format('key type', pprint(supported_key_types), dkp.key_type))
+        raise VenafiError(unsupported_error_msg.format('key type', supported_key_types, dkp.key_type))
 
     if dkp.rsa_key_size and not member_of([dkp.rsa_key_size], supported_rsa_key_sizes):
-        raise VenafiError(unsupported_error_msg.format('rsa key size', pprint(supported_rsa_key_sizes),
-                                                       dkp.rsa_key_size))
+        raise VenafiError(unsupported_error_msg.format('rsa key size', supported_rsa_key_sizes, dkp.rsa_key_size))
 
     if dkp.elliptic_curve and not member_of([dkp.elliptic_curve], supported_elliptic_curves):
-        raise VenafiError(unsupported_error_msg.format('elliptic curve', pprint(supported_elliptic_curves),
-                                                       dkp.elliptic_curve))
+        raise VenafiError(unsupported_error_msg.format('elliptic curve', supported_elliptic_curves, dkp.elliptic_curve))
 
 
 def member_of(sub_list, collection):
