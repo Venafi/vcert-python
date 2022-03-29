@@ -38,7 +38,7 @@ If installation fails collecting dependancies, make sure your python setuptools 
 
 ## Usage example
 
-For code samples of programmatic use, please review the files in [/examples](/examples).
+For code samples of programmatic use, please review the files in [/examples](https://github.com/Venafi/vcert-python/tree/master/examples).
 - For Trust Protection Platform, the `zone` format is the DN of a policy with or without the "\VED\Policy\" prefix (e.g. "\VED\Policy\Certificates\VCert" or simply "Certificates\VCert")
 - For Venafi as a Service, the `zone` format is the name of an OutagePREDICT Application and the API Alias of an Issuing Template assigned to it delimited by a single backslash character (e.g. "My Application\My CIT")
 
