@@ -247,7 +247,9 @@ class CloudConnection(CommonConnection):
             d['status'] if 'status' in d else None,
             d['reason'] if 'reason' in d else None,
             d['validityPeriod'] if 'validityPeriod' in d else None,
-            None
+            None,
+            d['csrUploadAllowed'] if 'csrUploadAllowed' in d else None,
+            d['keyGeneratedByVenafiAllowed'] if 'keyGeneratedByVenafiAllowed' in d else None
         )
         for kt in d.get('keyTypes', []):
             key_type = kt['keyType'].lower()

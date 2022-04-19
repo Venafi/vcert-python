@@ -164,10 +164,42 @@ class TestCloudPolicyManagement(unittest.TestCase):
         policy = self._create_policy_cloud(policy=_get_policy_obj())
         self.assertListEqual(policy.policy.domains, POLICY_DOMAINS)
 
+    def test_csr_attributes_service(self):
+        cit = self._create_csr_attributes_policy(service_generated_csr=True)
+
+        self.assertFalse(cit.csr_upload_allowed, "csrUploadAllowed attribute is not False")
+        self.assertTrue(cit.key_generated_by_venafi_allowed, "keyGeneratedByVenafiAllowed is not True")
+
+    def test_csr_attributes_local(self):
+        cit = self._create_csr_attributes_policy(service_generated_csr=False)
+
+        self.assertTrue(cit.csr_upload_allowed, "csrUploadAllowed attribute is not True")
+        self.assertFalse(cit.key_generated_by_venafi_allowed, "keyGeneratedByVenafiAllowed is not False")
+
+    def test_csr_attributes_not_specified(self):
+        cit = self._create_csr_attributes_policy()
+
+        self.assertTrue(cit.csr_upload_allowed, "csrUploadAllowed attribute is not True")
+        self.assertTrue(cit.key_generated_by_venafi_allowed, "keyGeneratedByVenafiAllowed is not True")
+
     def _create_policy_cloud(self, policy_spec=None, policy=None, defaults=None):
         zone = self._get_random_zone()
         response = create_policy(self.cloud_conn, zone, policy_spec, policy, defaults)
         return response
+
+    def _create_csr_attributes_policy(self, service_generated_csr=None):
+        """
+
+        :param bool service_generated_csr:
+        :rtype: common.Policy
+        """
+        policy = _get_policy_obj()
+        policy.key_pair.service_generated = service_generated_csr
+        zone = self._get_random_zone()
+        create_policy(connector=self.cloud_conn, zone=zone, policy_spec=None, policy=policy)
+        cit = self.cloud_conn._get_template_by_id(zone)
+
+        return cit
 
     @staticmethod
     def _get_random_zone():

@@ -103,6 +103,15 @@ def build_policy_spec(cit, ca_info, subject_cn_to_str=True):
         kp.rsa_key_sizes = key_sizes
 
     kp.reuse_allowed = cit.key_reuse
+    if cit.key_generated_by_venafi_allowed is True and cit.csr_upload_allowed is True:
+        kp.service_generated = None
+    elif cit.key_generated_by_venafi_allowed:
+        kp.service_generated = True
+        create_kp = True
+    elif cit.csr_upload_allowed:
+        kp.service_generated = False
+        create_kp = True
+
     p.key_pair = kp if create_kp else None
 
     sans = SubjectAltNames(False, False, False, False, False)
@@ -411,6 +420,14 @@ def build_cit_request(ps, ca_details):
         request['keyReuse'] = ps.policy.key_pair.reuse_allowed
     else:
         request['keyReuse'] = False
+
+    if ps.policy and ps.policy.key_pair and ps.policy.key_pair.service_generated is not None:
+        is_serv_gen = ps.policy.key_pair.service_generated
+        request['csrUploadAllowed'] = not is_serv_gen
+        request['keyGeneratedByVenafiAllowed'] = is_serv_gen
+    else:
+        request['csrUploadAllowed'] = True
+        request['keyGeneratedByVenafiAllowed'] = True
 
     r_settings = dict()
     if ps.defaults and ps.defaults.subject:
