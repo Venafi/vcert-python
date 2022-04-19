@@ -20,7 +20,7 @@ from pprint import pformat
 from test_env import (TPP_TOKEN_URL, CLOUD_APIKEY, CLOUD_URL, TPP_PM_ROOT, CLOUD_ENTRUST_CA_NAME,
                       CLOUD_DIGICERT_CA_NAME, TPP_CA_NAME, TPP_USER, TPP_PASSWORD)
 from test_utils import timestamp
-from vcert import TPPTokenConnection, CloudConnection, Authentication, SCOPE_PM, logger, VenafiError
+from vcert import TPPTokenConnection, CloudConnection, Authentication, SCOPE_PM, logger, VenafiError, KeyType
 from vcert.parser import json_parser, yaml_parser
 from vcert.parser.utils import parse_policy_spec
 from vcert.policy import (Policy, Subject, KeyPair, SubjectAltNames, Defaults, DefaultSubject, DefaultKeyPair,
@@ -181,6 +181,28 @@ class TestCloudPolicyManagement(unittest.TestCase):
 
         self.assertTrue(cit.csr_upload_allowed, "csrUploadAllowed attribute is not True")
         self.assertTrue(cit.key_generated_by_venafi_allowed, "keyGeneratedByVenafiAllowed is not True")
+
+    def test_ec_key_pair(self):
+        policy = _get_policy_obj()
+        kp = KeyPair(
+            key_types=['EC'],
+            rsa_key_sizes=[2048, 4096],
+            elliptic_curves=['P521', 'P384'],
+            reuse_allowed=False)
+        policy.key_pair = kp
+
+        defaults = _get_defaults_obj()
+        defaults.key_pair = DefaultKeyPair(
+            key_type='EC',
+            rsa_key_size=2048,
+            elliptic_curve='P521')
+
+        ps = self._create_policy_cloud(policy=policy, defaults=defaults)
+        self.assertEqual(ps.policy.key_pair.key_types[0].upper(), KeyType.ECDSA.upper(), "Policy Key Type is not EC")
+        self.assertTrue(len(ps.policy.key_pair.elliptic_curves) == 2,
+                        f"Expected 2 accepted Elliptic Curves. Got {len(ps.policy.key_pair.elliptic_curves)}")
+        self.assertIn('P521', ['P521', 'P384'], "[P521] is not in the allowed Elliptic Curves list")
+        self.assertIn('P384', ['P521', 'P384'], "[P384] is not in the allowed Elliptic Curves list")
 
     def _create_policy_cloud(self, policy_spec=None, policy=None, defaults=None):
         zone = self._get_random_zone()

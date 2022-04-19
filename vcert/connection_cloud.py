@@ -256,6 +256,9 @@ class CloudConnection(CommonConnection):
             if key_type == KeyType.RSA:
                 for s in kt['keyLengths']:
                     policy.key_types.append(KeyType(key_type, s))
+            elif key_type == KeyType.ECDSA:
+                for s in kt["keyCurves"]:
+                    policy.key_types.append(KeyType(key_type, s))
             else:
                 log.error(f"Unknown key type: {kt['keyType']}")
                 raise ServerUnexptedBehavior
@@ -280,7 +283,11 @@ class CloudConnection(CommonConnection):
                 rs['keyReuse'] if 'keyReuse' in rs else None
             )
             if 'key' in rs:
-                kt = KeyType(rs['key']['type'], rs['key']['length'])
+                key = rs['key']
+                k_type = key['type']
+                kl = key['length'] if 'length' in key else None
+                kc = key['curve'] if 'curve' in key else None
+                kt = KeyType(k_type, kl or kc)
                 settings.keyType = kt
 
             return settings
