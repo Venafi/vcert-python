@@ -39,6 +39,27 @@ def timestamp():
     return datetime.today().strftime('%Y.%m.%d-%Hh%Mm%Ss')
 
 
+def _get_app_name():
+    name = 'vcert-python-app-{}'
+    return name
+
+
+def _get_cit_name():
+    cit_name = 'vcert-python-cit-{}'
+    return cit_name
+
+
+def get_vaas_zone():
+    t = timestamp()
+    zone = f"{_get_app_name().format(t)}\\{_get_cit_name().format(t)}"
+    return zone
+
+
+def get_tpp_policy_name():
+    t = timestamp()
+    return f"{_get_app_name().format(t)}"
+
+
 def simple_enroll(conn, zone):
     req = CertificateRequest(common_name=f"{random_word(12)}.venafi.example.com")
     conn.request_cert(req, zone)
