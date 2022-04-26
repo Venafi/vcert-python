@@ -20,7 +20,8 @@ from vcert.policy.policy_spec import (Policy, Subject, KeyPair, DefaultSubject, 
                                       Defaults, SubjectAltNames)
 from vcert.vaas_utils import AppDetails
 
-supported_rsa_key_sizes = [1024, 2048, 4096]
+supported_rsa_key_sizes = [1024, 2048, 3072, 4096]
+supported_elliptic_curves = ["P256", "P384", "P521", "ED25519"]
 CA_TYPE_DIGICERT = 'DIGICERT'
 CA_TYPE_ENTRUST = 'ENTRUST'
 REQUESTER_NAME = 'Venafi Cloud Service'
@@ -90,17 +91,20 @@ def build_policy_spec(cit, ca_info, subject_cn_to_str=True):
     create_kp = False
     if len(cit.key_types) > 0:
         key_types = []
-        key_sizes = []
-        for allowed_kt in cit.key_types:
-            kt = allowed_kt.key_type
-            kl = allowed_kt.option
+        rsa_key_sizes = []
+        elliptic_curves = []
+        for kt in cit.key_types:
+            if kt.key_type.upper() == KeyType.RSA.upper():
+                rsa_key_sizes.append(kt.option)
+            elif kt.key_type.upper() == KeyType.ECDSA.upper():
+                elliptic_curves.append(kt.option)
             # Only include one instance of the KeyType
-            if kt not in key_types:
-                key_types.append(kt)
-            key_sizes.append(kl)
+            if kt.key_type.upper() not in key_types:
+                key_types.append(kt.key_type.upper())
         create_kp = True
         kp.key_types = key_types
-        kp.rsa_key_sizes = key_sizes
+        kp.rsa_key_sizes = rsa_key_sizes
+        kp.elliptic_curves = elliptic_curves
 
     kp.reuse_allowed = cit.key_reuse
     if cit.key_generated_by_venafi_allowed is True and cit.csr_upload_allowed is True:
@@ -149,11 +153,13 @@ def build_policy_spec(cit, ca_info, subject_cn_to_str=True):
             dkp = DefaultKeyPair()
             create_dkp = False
             if kt.key_type:
-                dkp.key_type = kt.key_type
                 create_dkp = True
-            if kt.option:
-                dkp.rsa_key_size = kt.option
-                create_dkp = True
+                dkp.key_type = kt.key_type.upper()
+                if kt.key_type == KeyType.RSA:
+                    dkp.rsa_key_size = kt.option
+                elif kt.key_type == KeyType.ECDSA:
+                    dkp.elliptic_curve = kt.option
+
             d.key_pair = dkp if create_dkp else None
 
         ps.defaults = d
@@ -170,17 +176,25 @@ def validate_policy_spec(policy_spec):
 
         # validate key pair values
         if policy_spec.policy.key_pair:
-            if len(policy_spec.policy.key_pair.key_types) > 1:
-                raise VenafiError("Key Type values exceeded. Only one Key Type is allowed by VaaS")
+            key_types = _get_key_types_lowercase(policy_spec.policy.key_pair.key_types)
 
-            if policy_spec.policy.key_pair.key_types \
-                    and policy_spec.policy.key_pair.key_types[0].lower() != KeyType.RSA:
-                raise VenafiError(f"Key Type [{p.key_pair.key_types[0]}] is not supported by VaaS")
+            if len(key_types) > 2:
+                raise VenafiError("Key Type values exceeded. Only RSA and EC Key Types are allowed by VaaS")
 
-            if len(policy_spec.policy.key_pair.rsa_key_sizes) > 0:
+            if key_types:
+                for kt in key_types:
+                    if kt not in [KeyType.RSA, KeyType.ECDSA]:
+                        raise VenafiError(f"Key Type [{kt}] is not supported by VaaS")
+
+            if KeyType.RSA in key_types and len(policy_spec.policy.key_pair.rsa_key_sizes) > 0:
                 invalid_value = get_invalid_cloud_rsa_key_size_value(policy_spec.policy.key_pair.rsa_key_sizes)
                 if invalid_value:
                     raise VenafiError(f"The Key Size [{invalid_value}] is not supported by VaaS")
+
+            if KeyType.ECDSA in key_types and len(policy_spec.policy.key_pair.elliptic_curves) > 0:
+                invalid_value = get_invalid_cloud_ec_value(policy_spec.policy.key_pair.elliptic_curves)
+                if invalid_value:
+                    raise VenafiError(f"The Elliptic Curve [{invalid_value}] is not supported by VaaS")
 
         # validate subject CN and SAN regexes
         if p.subject_alt_names:
@@ -240,17 +254,31 @@ def validate_policy_spec(policy_spec):
     else:
         policy_spec.policy = Policy()
 
-    # validate default values when policy is not defined
+    # validate default values regardless of policy being defined
     if policy_spec.defaults and policy_spec.defaults.key_pair:
         dkp = policy_spec.defaults.key_pair
 
-        if dkp.key_type and dkp.key_type != "RSA":
+        if dkp.key_type and dkp.key_type.lower() not in [KeyType.RSA, KeyType.ECDSA]:
             raise VenafiError(f"Default Key Type [{dkp.key_type}] is not supported by VaaS")
 
         if dkp.rsa_key_size:
             invalid_value = get_invalid_cloud_rsa_key_size_value([dkp.rsa_key_size])
             if invalid_value:
-                raise VenafiError(f"Default Key Size [{invalid_value}] is not supported by VaaS")
+                raise VenafiError(f"Default RSA Key Size [{invalid_value}] is not supported by VaaS")
+
+        if dkp.elliptic_curve:
+            invalid_value = get_invalid_cloud_ec_value([dkp.elliptic_curve])
+            if invalid_value:
+                raise VenafiError(f"Default Elliptic Curve [{invalid_value}] is not supported by VaaS")
+
+
+def _get_key_types_lowercase(key_types):
+    lower_kt = []
+    if key_types:
+        for kt in key_types:
+            lower_kt.append(kt.lower())
+
+    return lower_kt
 
 
 def get_invalid_cloud_rsa_key_size_value(rsa_keys):
@@ -261,6 +289,19 @@ def get_invalid_cloud_rsa_key_size_value(rsa_keys):
     for v in rsa_keys:
         if v not in supported_rsa_key_sizes:
             return v
+    return None
+
+
+def get_invalid_cloud_ec_value(elliptic_curves):
+    """
+
+    :param list[str] elliptic_curves:
+    :rtype: str
+    """
+    for v in elliptic_curves:
+        if v not in supported_elliptic_curves:
+            return v
+
     return None
 
 
@@ -401,20 +442,37 @@ def build_cit_request(ps, ca_details):
     else:
         request['subjectCValues'] = [ALLOW_ALL]
 
-    key_types = dict()
+    key_types = []
     if ps.policy and ps.policy.key_pair and len(ps.policy.key_pair.key_types) > 0:
-        key_types['keyType'] = ps.policy.key_pair.key_types[0].upper()
-    else:
-        key_types['keyType'] = KeyType.RSA.upper()
+        kt_lowercase = _get_key_types_lowercase(ps.policy.key_pair.key_types)
 
-    if ps.policy and ps.policy.key_pair and len(ps.policy.key_pair.rsa_key_sizes) > 0:
-        key_types['keyLengths'] = ps.policy.key_pair.rsa_key_sizes
-    elif ps.defaults and ps.defaults.key_pair and ps.defaults.key_pair.rsa_key_size:
-        key_types['keyLengths'] = [ps.defaults.key_pair.rsa_key_size]
-    else:
-        key_types['keyLengths'] = [2048]
+        if KeyType.RSA in kt_lowercase:
+            rsa_kt = dict()
+            rsa_kt['keyType'] = KeyType.RSA.upper()
 
-    request['keyTypes'] = [key_types]
+            if ps.policy and ps.policy.key_pair and len(ps.policy.key_pair.rsa_key_sizes) > 0:
+                rsa_kt['keyLengths'] = ps.policy.key_pair.rsa_key_sizes
+            elif ps.defaults and ps.defaults.key_pair and ps.defaults.key_pair.rsa_key_size:
+                rsa_kt['keyLengths'] = [ps.defaults.key_pair.rsa_key_size]
+            else:
+                rsa_kt['keyLengths'] = [2048]
+
+            key_types.append(rsa_kt)
+
+        if KeyType.ECDSA in kt_lowercase:
+            ec_kt = dict()
+            ec_kt['keyType'] = KeyType.ECDSA.upper()
+
+            if ps.policy and ps.policy.key_pair and len(ps.policy.key_pair.elliptic_curves) > 0:
+                ec_kt['keyCurves'] = ps.policy.key_pair.elliptic_curves
+            elif ps.defaults and ps.defaults.key_pair and ps.defaults.key_pair.elliptic_curve:
+                ec_kt['keyCurves'] = [ps.defaults.key_pair.elliptic_curve]
+            else:
+                ec_kt['keyCurves'] = ['P256']
+
+            key_types.append(ec_kt)
+
+    request['keyTypes'] = key_types
 
     if ps.policy and ps.policy.key_pair and ps.policy.key_pair.reuse_allowed:
         request['keyReuse'] = ps.policy.key_pair.reuse_allowed
@@ -444,12 +502,21 @@ def build_cit_request(ps, ca_details):
 
     r_key = dict()
     if ps.defaults and ps.defaults.key_pair:
-        if ps.defaults.key_pair.key_type:
-            r_key['type'] = ps.defaults.key_pair.key_type
-            if ps.defaults.key_pair.rsa_key_size:
-                r_key['length'] = ps.defaults.key_pair.rsa_key_size
-            else:
-                r_key['length'] = 2048
+        default_kp = ps.defaults.key_pair
+        if default_kp.key_type:
+            default_kt = default_kp.key_type.upper()
+            if default_kt == KeyType.RSA.upper():
+                if default_kp.rsa_key_size:
+                    r_key['length'] = default_kp.rsa_key_size
+                else:
+                    r_key['length'] = 2048
+            elif default_kt == KeyType.ECDSA.upper():
+                if default_kp.elliptic_curve:
+                    r_key['curve'] = default_kp.elliptic_curve
+                else:
+                    r_key['curve'] = 'P256'
+
+            r_key['type'] = default_kt
 
     if r_key:
         r_settings['key'] = r_key

@@ -34,7 +34,7 @@ from .policy import PolicySpecification
 from .policy.pm_cloud import (build_policy_spec, validate_policy_spec, AccountDetails, build_cit_request, build_user,
                               UserDetails, build_company, build_apikey, build_app_update_request, get_ca_info,
                               CertificateAuthorityDetails, CertificateAuthorityInfo, build_account_details,
-                              build_app_create_request)
+                              build_app_create_request, supported_rsa_key_sizes, supported_elliptic_curves)
 from .vaas_utils import AppDetails, RecommendedSettings, EdgeEncryptionKey, zip_to_pem, value_matches_regex
 
 TOKEN_HEADER_NAME = "tppl-api-key"  # nosec
@@ -50,6 +50,10 @@ CSR_ATTR_PROVINCE = 'state'
 CSR_ATTR_COUNTRY = 'country'
 CSR_ATTR_SANS_BY_TYPE = 'subjectAlternativeNamesByType'
 CSR_ATTR_SANS_DNS = 'dnsNames'
+CSR_ATTR_KEY_TYPE_PARAMS = 'keyTypeParameters'
+CSR_ATTR_KEY_TYPE = 'keyType'
+CSR_ATTR_KEY_LENGTH = 'keyLength'
+CSR_ATTR_KEY_CURVE = 'keyCurve'
 
 log = get_child("connection-vaas")
 
@@ -256,6 +260,9 @@ class CloudConnection(CommonConnection):
             if key_type == KeyType.RSA:
                 for s in kt['keyLengths']:
                     policy.key_types.append(KeyType(key_type, s))
+            elif key_type == KeyType.ECDSA:
+                for s in kt["keyCurves"]:
+                    policy.key_types.append(KeyType(key_type, s))
             else:
                 log.error(f"Unknown key type: {kt['keyType']}")
                 raise ServerUnexptedBehavior
@@ -280,7 +287,11 @@ class CloudConnection(CommonConnection):
                 rs['keyReuse'] if 'keyReuse' in rs else None
             )
             if 'key' in rs:
-                kt = KeyType(rs['key']['type'], rs['key']['length'])
+                key = rs['key']
+                k_type = key['type']
+                kl = key['length'] if 'length' in key else None
+                kc = key['curve'] if 'curve' in key else None
+                kt = KeyType(k_type, kl or kc)
                 settings.keyType = kt
 
             return settings
@@ -732,7 +743,7 @@ class CloudConnection(CommonConnection):
         if request.organization:
             if ps.policy and ps.policy.subject:
                 policy_orgs = ps.policy.subject.orgs
-                valid = value_matches_regex(value=request.organization,pattern_list=policy_orgs)
+                valid = value_matches_regex(value=request.organization, pattern_list=policy_orgs)
                 if not valid:
                     org_str = "Organization"
                     log.error(MSG_VALUE_NOT_MATCH_POLICY.format(org_str, f"{org_str}s", request.organization,
@@ -758,7 +769,7 @@ class CloudConnection(CommonConnection):
                     log.error(MSG_VALUE_NOT_MATCH_POLICY.format(ou_str, f"{ou_str}s", request.organizational_unit,
                                                                 policy_ous))
                     raise ClientBadData
-            csr_attr_map[CSR_ATTR_ORG_UNIT] = request.organizational_unit
+            csr_attr_map[CSR_ATTR_ORG_UNIT] = org_units
         elif ps.defaults and ps.defaults.subject and ps.defaults.subject.org_units:
             csr_attr_map[CSR_ATTR_ORG_UNIT] = ps.defaults.subject.org_units
 
@@ -777,7 +788,7 @@ class CloudConnection(CommonConnection):
 
         if request.province:
             if ps.policy and ps.policy.subject:
-                policy_provinces = ps.policy.subject.localities
+                policy_provinces = ps.policy.subject.states
                 valid = value_matches_regex(value=request.province, pattern_list=policy_provinces)
                 if not valid:
                     province_str = "Province"
@@ -807,6 +818,51 @@ class CloudConnection(CommonConnection):
                 # TODO: Other sans should be added here
             }
             csr_attr_map[CSR_ATTR_SANS_BY_TYPE] = sans
+
+        if request.key_type:
+            if ps.policy and ps.policy.key_pair:
+                policy_kts = ps.policy.key_pair.key_types
+                valid = value_matches_regex(value=request.key_type.key_type.upper(), pattern_list=policy_kts)
+                if not valid:
+                    kt_str = "Key Type"
+                    log.error(MSG_VALUE_NOT_MATCH_POLICY.format(kt_str, f"{kt_str}s", request.key_type.key_type,
+                                                                policy_kts))
+                    raise ClientBadData
+                req_kt_option = request.key_type.option
+                if request.key_type.key_type.lower() == KeyType.RSA:
+                    policy_rsa_sizes = ps.policy.key_pair.rsa_key_sizes
+                    valid = value_matches_regex(value=req_kt_option, pattern_list=policy_rsa_sizes)
+                    if not valid:
+                        rsa_str = "RSA Key Size"
+                        log.error(MSG_VALUE_NOT_MATCH_POLICY.format(rsa_str, f"{rsa_str}s", req_kt_option,
+                                                                    policy_rsa_sizes))
+                        raise ClientBadData
+                elif request.key_type.key_type.lower() == KeyType.ECDSA:
+                    policy_ecs = ps.policy.key_pair.elliptic_curves
+                    valid = value_matches_regex(value=req_kt_option, pattern_list=policy_ecs)
+                    if not valid:
+                        ec_str = "Elliptic Curve"
+                        log.error(MSG_VALUE_NOT_MATCH_POLICY.format(ec_str, f"{ec_str}s", req_kt_option, policy_ecs))
+                        raise ClientBadData
+
+            kt_param = {
+                CSR_ATTR_KEY_TYPE: request.key_type.key_type.upper()
+            }
+            kt_option = request.key_type.option.upper()
+            if kt_option == KeyType.RSA:
+                kt_param[CSR_ATTR_KEY_LENGTH] = kt_option
+            elif request.key_type.key_type == KeyType.ECDSA:
+                kt_param[CSR_ATTR_KEY_CURVE] = kt_option
+
+            csr_attr_map[CSR_ATTR_KEY_TYPE_PARAMS] = kt_param
+        elif ps.defaults and ps.defaults.key_pair:
+            kt_param = {
+                CSR_ATTR_KEY_TYPE: ps.defaults.key_pair.key_type.upper()
+            }
+            if ps.defaults.key_pair.key_type.lower() == KeyType.RSA:
+                kt_param[CSR_ATTR_KEY_LENGTH] = ps.defaults.key_pair.rsa_key_size
+            elif ps.defaults.key_pair.key_type.lower() == KeyType.ECDSA:
+                kt_param[CSR_ATTR_KEY_CURVE] = ps.defaults.key_pair.elliptic_curve
 
         return csr_attr_map
 

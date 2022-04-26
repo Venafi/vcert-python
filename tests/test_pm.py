@@ -19,8 +19,8 @@ from pprint import pformat
 
 from test_env import (TPP_TOKEN_URL, CLOUD_APIKEY, CLOUD_URL, TPP_PM_ROOT, CLOUD_ENTRUST_CA_NAME,
                       CLOUD_DIGICERT_CA_NAME, TPP_CA_NAME, TPP_USER, TPP_PASSWORD)
-from test_utils import timestamp
-from vcert import TPPTokenConnection, CloudConnection, Authentication, SCOPE_PM, logger, VenafiError
+from test_utils import get_tpp_policy_name, get_vaas_zone
+from vcert import TPPTokenConnection, CloudConnection, Authentication, SCOPE_PM, logger, VenafiError, KeyType
 from vcert.parser import json_parser, yaml_parser
 from vcert.parser.utils import parse_policy_spec
 from vcert.policy import (Policy, Subject, KeyPair, SubjectAltNames, Defaults, DefaultSubject, DefaultKeyPair,
@@ -50,7 +50,7 @@ class TestParsers(unittest.TestCase):
         self._assert_policy_spec(ps)
 
     def test_json_serialization(self):
-        ps = PolicySpecification(policy=_get_policy_obj(), defaults=_get_defaults_obj())
+        ps = PolicySpecification(policy=get_policy_obj(), defaults=get_defaults_obj())
         json_parser.serialize(ps, 'test_json_serialization.json')
 
     def test_yaml_11_parsing(self):
@@ -61,7 +61,7 @@ class TestParsers(unittest.TestCase):
         self._assert_policy_spec(ps)
 
     def test_yaml_serialization(self):
-        ps = PolicySpecification(policy=_get_policy_obj(), defaults=_get_defaults_obj())
+        ps = PolicySpecification(policy=get_policy_obj(), defaults=get_defaults_obj())
         yaml_parser.serialize(ps, 'test_yaml_serialization.yaml')
 
     def _assert_policy_spec(self, ps):
@@ -105,23 +105,23 @@ class TestTPPPolicyManagement(unittest.TestCase):
         pass
 
     def test_create_policy_full(self):
-        policy = _get_policy_obj(ca_type=CA_TYPE_TPP)
+        policy = get_policy_obj(ca_type=CA_TYPE_TPP)
         policy.key_pair.rsa_key_sizes = [2048]
-        self._create_policy_tpp(policy=policy, defaults=_get_defaults_obj())
+        self._create_policy_tpp(policy=policy, defaults=get_defaults_obj())
 
     def test_create_policy_empty(self):
         self._create_policy_tpp()
 
     def test_create_policy_no_policy(self):
-        self._create_policy_tpp(defaults=_get_defaults_obj())
+        self._create_policy_tpp(defaults=get_defaults_obj())
 
     def test_create_policy_no_defaults(self):
-        policy = _get_policy_obj(ca_type=CA_TYPE_TPP)
+        policy = get_policy_obj(ca_type=CA_TYPE_TPP)
         policy.key_pair.rsa_key_sizes = [2048]
         self._create_policy_tpp(policy=policy)
 
     def _create_policy_tpp(self, policy_spec=None, policy=None, defaults=None):
-        zone = f"{TPP_PM_ROOT}\\{_get_tpp_policy_name()}"
+        zone = f"{TPP_PM_ROOT}\\{get_tpp_policy_name()}"
         create_policy(self.tpp_conn, zone, policy_spec, policy, defaults)
 
 
@@ -143,25 +143,25 @@ class TestCloudPolicyManagement(unittest.TestCase):
         pass
 
     def test_create_policy_full(self):
-        self._create_policy_cloud(policy=_get_policy_obj(), defaults=_get_defaults_obj())
+        self._create_policy_cloud(policy=get_policy_obj(), defaults=get_defaults_obj())
 
     def test_create_policy_empty(self):
         self._create_policy_cloud()
 
     def test_create_policy_no_policy(self):
-        self._create_policy_cloud(defaults=_get_defaults_obj())
+        self._create_policy_cloud(defaults=get_defaults_obj())
 
     def test_create_policy_no_defaults(self):
-        self._create_policy_cloud(policy=_get_policy_obj())
+        self._create_policy_cloud(policy=get_policy_obj())
 
     def test_create_policy_entrust(self):
-        self._create_policy_cloud(policy=_get_policy_obj(ca_type=CA_TYPE_ENTRUST), defaults=_get_defaults_obj())
+        self._create_policy_cloud(policy=get_policy_obj(ca_type=CA_TYPE_ENTRUST), defaults=get_defaults_obj())
 
     def test_create_policy_digicert(self):
-        self._create_policy_cloud(policy=_get_policy_obj(ca_type=CA_TYPE_DIGICERT), defaults=_get_defaults_obj())
+        self._create_policy_cloud(policy=get_policy_obj(ca_type=CA_TYPE_DIGICERT), defaults=get_defaults_obj())
 
     def test_validate_domains(self):
-        policy = self._create_policy_cloud(policy=_get_policy_obj())
+        policy = self._create_policy_cloud(policy=get_policy_obj())
         self.assertListEqual(policy.policy.domains, POLICY_DOMAINS)
 
     def test_csr_attributes_service(self):
@@ -182,8 +182,30 @@ class TestCloudPolicyManagement(unittest.TestCase):
         self.assertTrue(cit.csr_upload_allowed, "csrUploadAllowed attribute is not True")
         self.assertTrue(cit.key_generated_by_venafi_allowed, "keyGeneratedByVenafiAllowed is not True")
 
+    def test_ec_key_pair(self):
+        policy = get_policy_obj()
+        kp = KeyPair(
+            key_types=['EC'],
+            rsa_key_sizes=[2048, 4096],
+            elliptic_curves=['P521', 'P384'],
+            reuse_allowed=False)
+        policy.key_pair = kp
+
+        defaults = get_defaults_obj()
+        defaults.key_pair = DefaultKeyPair(
+            key_type='EC',
+            rsa_key_size=2048,
+            elliptic_curve='P521')
+
+        ps = self._create_policy_cloud(policy=policy, defaults=defaults)
+        self.assertEqual(ps.policy.key_pair.key_types[0].upper(), KeyType.ECDSA.upper(), "Policy Key Type is not EC")
+        self.assertTrue(len(ps.policy.key_pair.elliptic_curves) == 2,
+                        f"Expected 2 accepted Elliptic Curves. Got {len(ps.policy.key_pair.elliptic_curves)}")
+        self.assertIn('P521', ['P521', 'P384'], "[P521] is not in the allowed Elliptic Curves list")
+        self.assertIn('P384', ['P521', 'P384'], "[P384] is not in the allowed Elliptic Curves list")
+
     def _create_policy_cloud(self, policy_spec=None, policy=None, defaults=None):
-        zone = self._get_random_zone()
+        zone = get_vaas_zone()
         response = create_policy(self.cloud_conn, zone, policy_spec, policy, defaults)
         return response
 
@@ -193,17 +215,13 @@ class TestCloudPolicyManagement(unittest.TestCase):
         :param bool service_generated_csr:
         :rtype: common.Policy
         """
-        policy = _get_policy_obj()
+        policy = get_policy_obj()
         policy.key_pair.service_generated = service_generated_csr
-        zone = self._get_random_zone()
+        zone = get_vaas_zone()
         create_policy(connector=self.cloud_conn, zone=zone, policy_spec=None, policy=policy)
         cit = self.cloud_conn._get_template_by_id(zone)
 
         return cit
-
-    @staticmethod
-    def _get_random_zone():
-        return _get_zone()
 
 
 class TestLocalMethods(unittest.TestCase):
@@ -566,7 +584,7 @@ def create_policy(connector, zone, policy_spec=None, policy=None, defaults=None)
 POLICY_DOMAINS = ['vfidev.com', 'vfidev.net', 'venafi.example']
 
 
-def _get_policy_obj(ca_type=None):
+def get_policy_obj(ca_type=None):
     policy = Policy(
         subject=Subject(
             orgs=['OSS Venafi, Inc.'],
@@ -603,7 +621,7 @@ def _get_policy_obj(ca_type=None):
     return policy
 
 
-def _get_defaults_obj():
+def get_defaults_obj():
     defaults = Defaults(
         d_subject=DefaultSubject(
             org='OSS Venafi, Inc.',
@@ -617,24 +635,3 @@ def _get_defaults_obj():
             elliptic_curve='P521'),
         auto_installed=False)
     return defaults
-
-
-def _get_app_name():
-    name = 'vcert-python-app-{}'
-    return name
-
-
-def _get_cit_name():
-    cit_name = 'vcert-python-cit-{}'
-    return cit_name
-
-
-def _get_zone():
-    time = timestamp()
-    zone = f"{_get_app_name().format(time)}\\{_get_cit_name().format(time)}"
-    return zone
-
-
-def _get_tpp_policy_name():
-    time = timestamp()
-    return f"{_get_app_name().format(time)}"
