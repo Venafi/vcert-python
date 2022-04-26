@@ -30,6 +30,18 @@ mt_provisioning = 'Provisioning'
 mt_enrollment = 'Enrollment'
 
 
+class IdentityEntry:
+    def __init__(self, full_name=None, name=None, prefix=None, prefixed_name=None, prefixed_universal=None, type=None,
+                 universal=None):
+        self.full_name = full_name
+        self.name = name
+        self.prefix = prefix
+        self.prefixed_name = prefixed_name
+        self.prefixed_universal = prefixed_universal
+        self.type = type
+        self.universal = universal
+
+
 class TPPPolicy:
     def __init__(self):
         self.name = ""
@@ -253,7 +265,7 @@ class TPPPolicy:
         if policy and kp and len(kp.rsa_key_sizes) > 0 and kp.rsa_key_sizes[0]:
             tpp_policy.key_bit_str = CertField(kp.rsa_key_sizes[0], True)
         elif defaults and d_kp and d_kp.rsa_key_size:
-            tpp_policy.key_bit_str = CertField(d_kp.rsa_key_size,  False)
+            tpp_policy.key_bit_str = CertField(d_kp.rsa_key_size, False)
 
         if policy and kp and len(kp.elliptic_curves) > 0 and kp.elliptic_curves[0]:
             tpp_policy.elliptic_curve = CertField(kp.elliptic_curves[0], True)
@@ -538,3 +550,15 @@ def get_management_type(autoinstalled):
         return mt_provisioning
     elif autoinstalled is False:
         return mt_enrollment
+
+
+def build_identity_entry(data):
+    return IdentityEntry(
+        full_name=data['FullName'] if 'FullName' in data else None,
+        name=data['Name'] if 'Name' in data else None,
+        prefix=data['Prefix'] if 'Prefix' in data else None,
+        prefixed_name=data['PrefixedName'] if 'PrefixedName' in data else None,
+        prefixed_universal=data['PrefixedUniversal'] if 'PrefixedUniversal' in data else None,
+        type=data['Type'] if 'Type' in data else None,
+        universal=data['Universal'] if 'Universal' in data else None
+    )

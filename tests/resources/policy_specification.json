@@ -1,9 +1,13 @@
 {
+  "users": [
+    "osstestuser"
+  ],
   "policy": {
     "domains": [
       "venafi.com",
       "kwan.com"
     ],
+    "certificateAuthority": "\\VED\\Policy\\Certificate Authorities\\Microsoft CA\\QA Venafi CA - Server 90 Days",
     "wildcardAllowed": true,
     "maxValidDays": 120,
     "subject": {

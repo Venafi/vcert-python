@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 import base64
+import json
 import logging as log
 import re
 import time
@@ -23,6 +24,7 @@ from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.x509 import SignatureAlgorithmOID as AlgOID
 from six.moves.urllib import parse as url_parse
+from types import SimpleNamespace
 
 from .common import CertField, CommonConnection, CertificateRequest, CSR_ORIGIN_LOCAL, CSR_ORIGIN_PROVIDED, \
     CSR_ORIGIN_SERVICE, KeyType, CHAIN_OPTION_LAST, CHAIN_OPTION_FIRST, CHAIN_OPTION_IGNORE, Policy, ZoneConfig
@@ -32,7 +34,7 @@ from .http_status import HTTPStatus
 from .pem import parse_pem
 from .policy import RPA, SPA
 from .policy.pm_tpp import TPPPolicy, is_service_generated_csr, SetAttrResponse, validate_policy_spec, \
-    get_int_value
+    get_int_value, build_identity_entry
 from .ssh_utils import SSHCertRequest, SSHCertResponse, build_tpp_retrieve_request, SSHResponse, \
     SSHRetrieveResponse, build_tpp_request, SSHCATemplateRequest, SSHConfig, PATH_SEPARATOR, CA_ROOT_PATH, \
     SSHTPPCADetails
@@ -66,6 +68,8 @@ class URLS:
     POLICY_CREATE = API_BASE_URL + "config/create"
     POLICY_SET_ATTRIBUTE = API_BASE_URL + "config/writepolicy"
     POLICY_CLEAR_ATTRIBUTE = API_BASE_URL + "config/clearpolicyattribute"
+    POLICY_BROWSE_IDENTITY = API_BASE_URL + "identity/browse"
+    POLICY_VALIDATE_IDENTITY = API_BASE_URL + "identity/validate"
 
     SSH_BASE_URL = API_BASE_URL + "SSHCertificates/"
     SSH_CERTIFICATE_REQUEST = SSH_BASE_URL + "request"
@@ -86,6 +90,10 @@ class AbstractTPPConnection(CommonConnection):
     ARG_CHECK_TOKEN = 'check_token'  # nosec
     ARG_INCLUDE_TOKEN_HEADER = 'include_token_header'  # nosec
     ARG_DATA = 'data'
+    IDENTITY_USER = 1
+    IDENTITY_SECURITY_GROUP = 2
+    IDENTITY_DISTRIBUTION_GROUP = 8
+    ALL_IDENTITIES = IDENTITY_USER + IDENTITY_SECURITY_GROUP + IDENTITY_DISTRIBUTION_GROUP
 
     def auth(self):
         raise NotImplementedError
@@ -483,6 +491,8 @@ class AbstractTPPConnection(CommonConnection):
         tpp_policy = TPPPolicy.build_tpp_policy(policy_spec)
         name = self._normalize_zone(zone)
         tpp_policy.name = name
+        identities_list = self.resolve_tpp_contacts(tpp_policy.contact)
+        tpp_policy.contact = identities_list
 
         create_policy = False
         policy_exists = self._policy_exists(name)
@@ -561,7 +571,37 @@ class AbstractTPPConnection(CommonConnection):
         if len(prohibited_sans) > 0:
             self._set_policy_attr(name, SPA.TPP_PROHIBITED_SAN_TYPES, prohibited_sans, False)
 
+        # usernames = self.retrieve_usernames_from_tppcontacts(tpp_policy.name, tpp_policy)
+        # tpp_policy.contact(usernames)
+
         return
+
+    def resolve_tpp_contacts(self, contacts):
+        identities_id_list = list()
+        if contacts:
+            for contact in contacts:
+                identity = self.get_tpp_identity(contact)
+                identities_id_list.append(identity.prefixed_universal)
+        return identities_id_list
+
+    def get_tpp_identity(self, username):
+        if not username or username == "":
+            raise VenafiError("Identity cannot be empty")
+        data = {
+            'Filter': username,
+            'Limit': 2,
+            'IdentityType': self.ALL_IDENTITIES
+        }
+        try:
+            status, response = self._post(URLS.POLICY_BROWSE_IDENTITY, data=data)
+            identities = response['Identities'][0]
+        except VenafiError:
+            log.debug(f"Error while getting contact [{username}]")
+        if len(response['Identities']) > 1:
+            raise VenafiError("Extraneous information returned in the identity response. "
+                              "Expected size: 1, found: 2\n" + str(response['Identities'][1]))
+        identity = build_identity_entry(identities)
+        return identity
 
     def request_ssh_cert(self, request):
         """
@@ -952,3 +992,78 @@ class AbstractTPPConnection(CommonConnection):
                                   f"Message: {response_object.error_msg}")
         else:
             raise ServerUnexptedBehavior(f"Server returns {status} status on requesting SSH CA details")
+
+    def _get_policy_attr(self, zone, attr_name):
+        """
+        :param str zone:
+        :param str attr_name:
+        :rtype: tuple[str, SetAttrResponse]
+        """
+        data = {
+            'ObjectDN': zone,
+            'Class': POLICY_ATTR_CLASS,
+            'AttributeName': attr_name,
+        }
+
+        # TODO: Change _post() with post(args)
+        status, response = self._post(URLS.FIND_POLICY, data=data)
+        if status != HTTPStatus.OK:
+            raise ServerUnexptedBehavior(f"Got status {status} from server")
+
+        response = self._parse_attr_response(response)
+
+        if response.error:
+            raise VenafiError(f"Error while setting attribute [{attr_name}] in policy [{zone}]")
+
+        return status, response
+
+    def retrieve_usernames_from_tpp_contacts(self, zone, tpp_policy):
+        status, response = ""
+        attr_name = tpp_policy.contact
+        users_list = list()
+
+        try:
+            status, response = self._get_policy_attr(zone, attr_name)
+        except VenafiError:
+            log.debug(f"Error while getting attribute [{attr_name}] value from policy [{zone}]")
+        if status == HTTPStatus.OK:
+            if response > 0:
+                contacts = response['Values']
+                for prefixed_universal in contacts:
+                    try:
+                        identity_response = self.validate_identity(prefixed_universal)
+                        username = identity_response.Name
+                        users_list.append(username)
+                    except VenafiError:
+                        log.debug("")
+        return users_list
+
+    def browse_identities(self, username):
+        data = {
+            'Filter': username,
+            'Limit': 2,
+            'IdentityType': self.ALL_IDENTITIES
+        }
+        try:
+            status, response = self._post(URLS.POLICY_BROWSE_IDENTITY, data=data)
+        except VenafiError:
+            log.debug(f"Error while getting contact [{username}]")
+
+        if response['Identities'] > 1:
+            raise VenafiError("Extraneous information returned in the identity response. "
+                              "Expected size: 1, found: 2\n" + str(response['Identities'][1]))
+        #IdentityEntry identity = response['Identities'][0]
+        identity = json.loads(response['Identities'], object_hook=lambda d: SimpleNamespace(**d))
+        return identity
+
+    def validate_identity(self, prefixed_universal):
+        data = {
+            'ID' : {
+                'PrefixedUniversal' : prefixed_universal
+            }
+        }
+        if not prefixed_universal:
+            self.browse_identities()
+        status, response = self.post(URLS.POLICY_VALIDATE_IDENTITY, data=data)
+        identity = json.loads(response['ID'], object_hook=lambda d: SimpleNamespace(**d))
+        return identity

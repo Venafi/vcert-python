@@ -14,8 +14,10 @@
 # limitations under the License.
 #
 import base64
+import json
 import re
 import time
+from types import SimpleNamespace
 
 import requests
 import six.moves.urllib.parse as urlparse
@@ -50,6 +52,8 @@ CSR_ATTR_PROVINCE = 'state'
 CSR_ATTR_COUNTRY = 'country'
 CSR_ATTR_SANS_BY_TYPE = 'subjectAlternativeNamesByType'
 CSR_ATTR_SANS_DNS = 'dnsNames'
+OWNER_TYPE_USER = "USER"
+OWNER_TYPE_TEAM = "TEAM"
 
 log = get_child("connection-vaas")
 
@@ -87,6 +91,8 @@ class URLS:
     ISSUING_TEMPLATES_UPDATE = ISSUING_TEMPLATES + "/{}"
     USER_ACCOUNTS = API_VERSION + "useraccounts"
     DEK_PUBLIC_KEY = API_VERSION + "edgeencryptionkeys/{}"
+    USERS_USERNAME = API_VERSION + "users/username/{}"
+    USERS_ID = API_VERSION + "users/{}"
 
 
 class CondorChainOptions:
@@ -875,3 +881,31 @@ class CloudConnection(CommonConnection):
 
         cert, chain, private_key = zip_to_pem(data, request.chain_option)
         return Certificate(cert=cert, chain=chain, key=private_key)
+
+    def resolve_owners(self, users_list):
+        owners_list = list()
+        owner_dict = {}
+        user_details = self._get_user_details()
+        owner_dict['owner_id'] = user_details.user.user_id
+        owner_dict['owner_type'] = OWNER_TYPE_USER
+        owners_list.append(owner_dict)
+        if users_list:
+            for user in users_list:
+                user = self.get_vaas_identity(user)
+                owners_list.append(user.user_id)
+        return owners_list
+
+    def get_vaas_identity(self, username):
+        if not username or username == "":
+            raise VenafiError("Identity cannot be empty")
+        url = URLS.USERS_USERNAME.format(username)
+        try:
+            status, response = self._get(url)
+            identities = response['users'][0]
+        except VenafiError:
+            log.debug(f"Error while getting contact [{username}]")
+        if len(response['users']) > 1:
+            raise VenafiError("Extraneous information returned in the identity response. "
+                              "Expected size: 1, found: 2\n")
+        identity = build_user(identities)
+        return identity
