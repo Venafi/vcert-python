@@ -613,6 +613,7 @@ class CloudConnection(CommonConnection):
             raise VenafiError('User Details not found')
 
         app_details = self._get_app_details_by_name(app_name)
+        owner_list_id = self.resolve_owners(policy_spec.owners, user_details)
         if app_details:
             # Application exists. Update with cit
             if not self._policy_exists(zone):
@@ -623,11 +624,37 @@ class CloudConnection(CommonConnection):
                     raise VenafiError(f"Could not update Application [{app_name}] with cit [{resp_cit_data}]")
         else:
             # Application does not exist. Create one
-            app_req = build_app_create_request(app_name, user_details, resp_cit_data)
+            app_req = build_app_create_request(app_name, owner_list_id, resp_cit_data)
             status, data = self._post(URLS.APPLICATIONS, app_req)
             if status != HTTPStatus.CREATED:
                 raise VenafiError(f"Could not create application [{app_name}]")
         return
+
+    def resolve_owners(self, users_list, user_details):
+        owners_list = list()
+        user_id = user_details.user.user_id
+        owners_list.append(user_id)
+        if users_list:
+            for user in users_list:
+                user = self.get_vaas_identity(user)
+                owners_list.append(user.user_id)
+        print(owners_list)
+        return owners_list
+
+    def get_vaas_identity(self, username):
+        if not username or username == "":
+            raise VenafiError("Username cannot be empty")
+        url = URLS.USERS_USERNAME.format(username)
+        try:
+            status, response = self._get(url)
+            identities = response['users'][0]
+        except VenafiError:
+            log.debug(f"Error while getting contact [{username}]")
+        if len(response['users']) > 1:
+            raise VenafiError("Extraneous information returned in the identity response. "
+                              "Expected size: 1, found: 2\n")
+        identity = build_user(identities)
+        return identity
 
     def _get_ca_details(self, ca_name):
         """
@@ -882,30 +909,3 @@ class CloudConnection(CommonConnection):
         cert, chain, private_key = zip_to_pem(data, request.chain_option)
         return Certificate(cert=cert, chain=chain, key=private_key)
 
-    def resolve_owners(self, users_list):
-        owners_list = list()
-        owner_dict = {}
-        user_details = self._get_user_details()
-        owner_dict['owner_id'] = user_details.user.user_id
-        owner_dict['owner_type'] = OWNER_TYPE_USER
-        owners_list.append(owner_dict)
-        if users_list:
-            for user in users_list:
-                user = self.get_vaas_identity(user)
-                owners_list.append(user.user_id)
-        return owners_list
-
-    def get_vaas_identity(self, username):
-        if not username or username == "":
-            raise VenafiError("Identity cannot be empty")
-        url = URLS.USERS_USERNAME.format(username)
-        try:
-            status, response = self._get(url)
-            identities = response['users'][0]
-        except VenafiError:
-            log.debug(f"Error while getting contact [{username}]")
-        if len(response['users']) > 1:
-            raise VenafiError("Extraneous information returned in the identity response. "
-                              "Expected size: 1, found: 2\n")
-        identity = build_user(identities)
-        return identity

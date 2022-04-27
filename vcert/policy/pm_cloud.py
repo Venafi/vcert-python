@@ -524,7 +524,7 @@ def build_app_update_request(app_details, cit_data):
     return app_request
 
 
-def build_app_create_request(app_name, user_details, cit_data):
+def build_app_create_request(app_name, owner_list_id, cit_data):
     """
 
     :param str app_name:
@@ -532,10 +532,13 @@ def build_app_create_request(app_name, user_details, cit_data):
     :param dict cit_data:
     :rtype: dict
     """
-    owner_id = {
-        'ownerId': user_details.user.user_id,
-        'ownerType': 'USER'
-    }
+    owner_list = list()
+    for owner_id in owner_list_id:
+        owner = {
+            'ownerId': owner_id,
+            'ownerType': 'USER'
+        }
+        owner_list.append(owner)
     cit_id, cit_name = get_cit_data_from_response(cit_data)
 
     app_issuing_template = {
@@ -543,7 +546,7 @@ def build_app_create_request(app_name, user_details, cit_data):
     }
 
     app_request = {
-        'ownerIdsAndTypes': [owner_id],
+        'ownerIdsAndTypes': owner_list,
         'name': app_name,
         'certificateIssuingTemplateAliasIdMap': app_issuing_template
     }
