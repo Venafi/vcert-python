@@ -1030,12 +1030,18 @@ class AbstractTPPConnection(CommonConnection):
             if response > 0:
                 contacts = response['Values']
                 for prefixed_universal in contacts:
+                    data = {
+                        'ID': {
+                            'PrefixedUniversal': prefixed_universal
+                        }
+                    }
                     try:
-                        identity_response = self.validate_identity(prefixed_universal)
-                        username = identity_response.Name
-                        users_list.append(username)
+                        status, response = self.post(URLS.POLICY_VALIDATE_IDENTITY, data)
+                        identities = response['ID']
+                        identity_response = build_identity_entry(identities)
+                        users_list.append(identity_response.name)
                     except VenafiError:
-                        log.debug("")
+                        log.debug(f"Error while validating contact [{prefixed_universal}]")
         return users_list
 
     def browse_identities(self, username):
@@ -1054,6 +1060,7 @@ class AbstractTPPConnection(CommonConnection):
                               "Expected size: 1, found: 2\n" + str(response['Identities'][1]))
         #IdentityEntry identity = response['Identities'][0]
         identity = json.loads(response['Identities'], object_hook=lambda d: SimpleNamespace(**d))
+        identity = build_identity_entry(response)
         return identity
 
     def validate_identity(self, prefixed_universal):
