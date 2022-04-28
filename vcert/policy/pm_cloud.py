@@ -524,19 +524,18 @@ def build_app_update_request(app_details, cit_data):
     return app_request
 
 
-def build_app_create_request(app_name, owner_list_id, cit_data):
+def build_app_create_request(app_name, owners_list, cit_data):
     """
 
+    :param list[OwnerIdsAndTypes] owners_list:
     :param str app_name:
-    :param UserDetails user_details:
     :param dict cit_data:
-    :rtype: dict
     """
     owner_list = list()
-    for owner_id in owner_list_id:
+    for user in owners_list:
         owner = {
-            'ownerId': owner_id,
-            'ownerType': 'USER'
+            'ownerId': user.owner_id,
+            'ownerType': user.owner_type
         }
         owner_list.append(owner)
     cit_id, cit_name = get_cit_data_from_response(cit_data)
@@ -683,6 +682,20 @@ class User:
         self.creation_date = creation_date
 
 
+class Team:
+    def __int__(self, team_id=None, name=None, role=None, company_id=None):
+        """
+        :param str team_id:
+        :param str name:
+        :param str role:
+        :param str company_id:
+        """
+        self.team_id = team_id
+        self.name = name
+        self.role = role
+        self.company_id = company_id
+
+
 class Company:
     def __init__(self, company_id, name, company_type=None, active=None, creation_date=None, domains=None):
         """
@@ -736,6 +749,18 @@ def build_user(data):
         status=data['userStatus'] if 'userStatus' in data else None,
         creation_date=data['creationDate'] if 'creationDate' in data else None
         )
+
+
+def build_team(data):
+    """
+    :param dict data:
+    """
+    return Team(
+        team_id=data['id'] if 'id' in data else None,
+        name=data['name'] if 'name' in data else None,
+        role=data['role'] if 'role' in data else None,
+        company_id=data['company_id'] if 'company_id' in data else None
+    )
 
 
 def build_company(data):

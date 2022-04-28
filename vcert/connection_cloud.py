@@ -36,8 +36,8 @@ from .policy import PolicySpecification
 from .policy.pm_cloud import (build_policy_spec, validate_policy_spec, AccountDetails, build_cit_request, build_user,
                               UserDetails, build_company, build_apikey, build_app_update_request, get_ca_info,
                               CertificateAuthorityDetails, CertificateAuthorityInfo, build_account_details,
-                              build_app_create_request)
-from .vaas_utils import AppDetails, RecommendedSettings, EdgeEncryptionKey, zip_to_pem, value_matches_regex
+                              build_app_create_request, build_team)
+from .vaas_utils import AppDetails, OwnerIdsAndTypes, RecommendedSettings, EdgeEncryptionKey, zip_to_pem, value_matches_regex
 
 TOKEN_HEADER_NAME = "tppl-api-key"  # nosec
 APPLICATION_SERVER_TYPE_ID = "784938d1-ef0d-11eb-9461-7bb533ba575b"
@@ -93,6 +93,7 @@ class URLS:
     DEK_PUBLIC_KEY = API_VERSION + "edgeencryptionkeys/{}"
     USERS_USERNAME = API_VERSION + "users/username/{}"
     USERS_ID = API_VERSION + "users/{}"
+    TEAMS_ID = API_VERSION + "/teams"
 
 
 class CondorChainOptions:
@@ -123,6 +124,18 @@ def _parse_zone(zone):
     app_name = segments[0]
     cit_alias = segments[1]
     return app_name, cit_alias
+
+
+def create_owner(owner_type, owner_id):
+    owner = OwnerIdsAndTypes(owner_type, owner_id)
+    #owner.owner_type = owner_type
+    #owner.owner_id = owner_id
+    return owner
+
+
+def resolve_apikey_owner(user_details):
+    owner = create_owner(OWNER_TYPE_USER, user_details.user.user_id)
+    return owner
 
 
 class CloudConnection(CommonConnection):
@@ -632,14 +645,45 @@ class CloudConnection(CommonConnection):
 
     def resolve_owners(self, users_list, user_details):
         owners_list = list()
-        user_id = user_details.user.user_id
-        owners_list.append(user_id)
-        if users_list:
+        if not users_list:
+            # When no users are provided on the list, adds apikey user as owner
+            api_owner = resolve_apikey_owner(user_details)
+            owners_list.append(api_owner)
+        else:
+            # Resolving the usernames list
+            # Creating a higher level Teams object to cache the response
+            teams_list = list()
             for user in users_list:
-                user = self.get_vaas_identity(user)
-                owners_list.append(user.user_id)
-        print(owners_list)
+                cloud_owner = self.resolve_user_to_cloud_owner(user)
+                if cloud_owner:
+                    owners_list.append(cloud_owner)
+                else:
+                    if not teams_list:
+                        status, response = self._get(URLS.TEAMS_ID)
+                        teams_list = response
+                    team_owner = self.resolve_user_to_cloud_team(teams_list, user)
+                    if not team_owner:
+                        raise VenafiError(f"Error while getting owner [{user}]")
+                    owners_list.append(team_owner)
         return owners_list
+
+    def resolve_user_to_cloud_owner(self, username):
+        user = self.get_vaas_identity(username)
+        owner = create_owner(OWNER_TYPE_USER, user.user_id)
+        return owner
+
+    def resolve_user_to_cloud_team(self, teams, username):
+        if not teams:
+            try:
+                status, response = self._get(URLS.TEAMS_ID)
+                teams = response['teams']
+            except VenafiError:
+                log.debug(f"Error while getting team [{username}]")
+            for team in teams:
+                if team.name == username:
+                    owner = create_owner(OWNER_TYPE_TEAM, team.team_id)
+                    return owner
+        return None
 
     def get_vaas_identity(self, username):
         if not username or username == "":
