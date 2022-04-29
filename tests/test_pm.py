@@ -26,7 +26,7 @@ from vcert.parser.utils import parse_policy_spec
 from vcert.policy import (Policy, Subject, KeyPair, SubjectAltNames, Defaults, DefaultSubject, DefaultKeyPair,
                           PolicySpecification)
 from vcert.policy.pm_cloud import (CA_TYPE_DIGICERT, CA_TYPE_ENTRUST, validate_policy_spec as validate_ps_vaas,
-                                   get_ca_info, default_error_msg)
+                                   get_ca_info, default_error_msg, ipv4, ipv6)
 from vcert.policy.pm_tpp import (is_service_generated_csr, validate_policy_spec as validate_ps_tpp, no_match_error_msg,
                                  too_many_error_msg, unsupported_error_msg, supported_key_types,
                                  supported_rsa_key_sizes, supported_elliptic_curves)
@@ -203,6 +203,20 @@ class TestCloudPolicyManagement(unittest.TestCase):
                         f"Expected 2 accepted Elliptic Curves. Got {len(ps.policy.key_pair.elliptic_curves)}")
         self.assertIn('P521', ['P521', 'P384'], "[P521] is not in the allowed Elliptic Curves list")
         self.assertIn('P384', ['P521', 'P384'], "[P384] is not in the allowed Elliptic Curves list")
+
+    def test_create_policy_uri_ip_email(self):
+        policy = get_policy_obj()
+        policy.subject_alt_names.email_allowed = True
+        policy.subject_alt_names.uri_allowed = True
+        policy.subject_alt_names.ip_allowed = True
+        uri_protocols = ["https", "ldaps", "spiffe"]
+        policy.subject_alt_names.uri_protocols = uri_protocols
+        ps = self._create_policy_cloud(policy=policy, defaults=get_defaults_obj())
+        self.assertListEqual(ps.policy.subject_alt_names.ip_constraints, [ipv4, ipv6])
+        self.assertListEqual(ps.policy.subject_alt_names.uri_protocols, uri_protocols)
+        self.assertTrue(ps.policy.subject_alt_names.email_allowed)
+        self.assertTrue(ps.policy.subject_alt_names.uri_allowed)
+        self.assertTrue(ps.policy.subject_alt_names.ip_allowed)
 
     def _create_policy_cloud(self, policy_spec=None, policy=None, defaults=None):
         zone = get_vaas_zone()

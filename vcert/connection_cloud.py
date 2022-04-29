@@ -255,6 +255,11 @@ class CloudConnection(CommonConnection):
             d['csrUploadAllowed'] if 'csrUploadAllowed' in d else None,
             d['keyGeneratedByVenafiAllowed'] if 'keyGeneratedByVenafiAllowed' in d else None
         )
+        policy.email_regexes = d['sanRfc822NameRegexes'] if 'sanRfc822NameRegexes' in d else None
+        policy.ip_constraints_regexes = d['sanIpAddressRegexes'] if 'sanIpAddressRegexes' in d else None
+        policy.uri_regexes = d['sanUniformResourceIdentifierRegexes'] if 'sanUniformResourceIdentifierRegexes' in d \
+            else None
+
         for kt in d.get('keyTypes', []):
             key_type = kt['keyType'].lower()
             if key_type == KeyType.RSA:

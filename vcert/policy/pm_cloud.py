@@ -27,7 +27,28 @@ CA_TYPE_ENTRUST = 'ENTRUST'
 REQUESTER_NAME = 'Venafi Cloud Service'
 REQUESTER_EMAIL = 'no-reply@venafi.cloud'
 REQUESTER_PHONE = '801-555-0123'
-ALLOW_ALL = '.*'
+ipv4 = "v4"
+ipv6 = "v6"
+ipv4_private = "v4private"
+ipv6_private = "v6private"
+re_allow_all = '.*'
+re_allow_all_email = '.*@.*'
+re_ipv4 = "\\b((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\\.|$)){4}\\b"
+re_ipv6 = "(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]" \
+          "{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|" \
+          "([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|" \
+          "[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%" \
+          "[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}(25[0-5]|" \
+          "(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.)" \
+          "{3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))"
+re_ipv4_private = "^(172\\.(1[6-9]\\.|2[0-9]\\.|3[0-1]\\.)|192\\.168\\.|10\\.).*"
+re_ipv6_private = "^(::1$)|([fF][cCdD]).*"
+supported_ip_protocols = {
+    ipv4: re_ipv4,
+    ipv6: re_ipv6,
+    ipv4_private: re_ipv4_private,
+    ipv6_private: re_ipv6_private
+}
 DEFAULT_MAX_VALID_DAYS = 365
 DEFAULT_HASH_ALGORITHM = 'SHA256'
 
@@ -119,9 +140,26 @@ def build_policy_spec(cit, ca_info, subject_cn_to_str=True):
     p.key_pair = kp if create_kp else None
 
     sans = SubjectAltNames(False, False, False, False, False)
+    create_sans = False
     if cit.SANRegexes:
         sans.dns_allowed = True
-    p.subject_alt_names = sans
+        create_sans = True
+
+    if cit.email_regexes and len(cit.email_regexes) > 0:
+        sans.email_allowed = True
+        create_sans = True
+
+    if cit.ip_constraints_regexes and len(cit.ip_constraints_regexes) > 0:
+        sans.ip_allowed = True
+        create_sans = True
+        sans.ip_constraints = resolve_ip_constraints(cit.ip_constraints_regexes)
+
+    if cit.uri_regexes and len(cit.uri_regexes) > 0:
+        sans.uri_allowed = True
+        create_sans = True
+        sans.uri_protocols = resolve_uri_protocols(cit.uri_regexes)
+
+    p.subject_alt_names = sans if create_sans else None
 
     ps.policy = p
 
@@ -201,8 +239,17 @@ def validate_policy_spec(policy_spec):
             sans = get_sans(policy_spec.policy.subject_alt_names)
             if len(sans) > 0:
                 for k, v in sans.items():
-                    if v is True and not (k == RPA.TPP_DNS_ALLOWED):
+                    if v is True and (k == RPA.TPP_UPN_ALLOWED):
                         raise VenafiError(f"Subject Alt name [{k}] is not allowed by VaaS")
+                    if v is True and (k == RPA.TPP_URI_ALLOWED):
+                        if len(p.subject_alt_names.uri_protocols) == 0:
+                            raise VenafiError(f"'uriAllowed' attribute is True but 'uriProtocols' list is empty")
+                    if v is True and (k == RPA.TPP_IP_ALLOWED):
+                        ip_constraints = p.subject_alt_names.ip_constraints
+                        if ip_constraints and len(ip_constraints) > 0:
+                            invalid_value = get_invalid_ip_constraint(ip_constraints)
+                            if invalid_value:
+                                raise VenafiError(f"The IP constraint [{invalid_value}] is not supported by VaaS")
 
         # validate default subject values against policy values
         if policy_spec.defaults and policy_spec.defaults.subject and policy_spec.policy.subject:
@@ -325,13 +372,26 @@ def get_sans(names):
     return sans
 
 
+def get_invalid_ip_constraint(ip_list):
+    """
+
+    :param list[str] ip_list:
+    :rtype: str
+    """
+    for ip_value in ip_list:
+        if ip_value not in supported_ip_protocols.keys():
+            return ip_value
+
+    return None
+
+
 def is_valid_policy_value(policy_values, default_value):
     """
     :param list[str] policy_values:
     :param str default_value:
     :rtype: bool
     """
-    if len(policy_values) == 1 and policy_values[0] == ALLOW_ALL:
+    if len(policy_values) == 1 and policy_values[0] == re_allow_all:
         return True
     return True if default_value in policy_values else False
 
@@ -344,7 +404,7 @@ def member_of(sub_list, collection):
     :param list[str] collection:
     :rtype: bool
     """
-    if len(sub_list) == 1 and sub_list[0] == ALLOW_ALL:
+    if len(sub_list) == 1 and sub_list[0] == re_allow_all:
         return True
     return all(x in collection for x in sub_list)
 
@@ -408,39 +468,66 @@ def build_cit_request(ps, ca_details):
     if ps.policy and len(ps.policy.domains) > 0:
         regex_value = convert_to_regex(ps.policy.domains, ps.policy.wildcard_allowed)
         request['subjectCNRegexes'] = regex_value
-        if ps.policy.subject_alt_names and ps.policy.subject_alt_names.dns_allowed is not None:
-            if ps.policy.subject_alt_names.dns_allowed:
+        sans = ps.policy.subject_alt_names
+        if sans and sans.dns_allowed is not None:
+            if sans.dns_allowed:
                 request['sanRegexes'] = regex_value
         else:
             request['sanRegexes'] = regex_value
+
+        if sans and sans.email_allowed:
+            email_regex_list = convert_to_email_regex(ps.policy.domains)
+            request['sanRfc822NameRegexes'] = email_regex_list
+
+        if sans and sans.uri_allowed:
+            uri_regex_list = convert_to_uri_regex(sans.uri_protocols, ps.policy.domains)
+            request['sanUniformResourceIdentifierRegexes'] = uri_regex_list
+
+    # sanIpAddressRegexes
+
     else:
-        request['subjectCNRegexes'] = [ALLOW_ALL]
-        request['sanRegexes'] = [ALLOW_ALL]
+        request['subjectCNRegexes'] = [re_allow_all]
+        request['sanRegexes'] = [re_allow_all]
+        if ps.policy:
+            sans = ps.policy.subject_alt_names
+            if sans and sans.email_allowed:
+                request['sanRfc822NameRegexes'] = [re_allow_all_email]
+            if sans and sans.uri_allowed:
+                uri_regex_list = convert_to_uri_regex(sans.uri_protocols, [re_allow_all])
+                request['sanUniformResourceIdentifierRegexes'] = uri_regex_list
+            if sans and sans.ip_allowed:
+                request['sanIpAddressRegexes'] = []
+
+    if ps.policy and ps.policy.subject_alt_names and ps.policy.subject_alt_names.ip_allowed:
+        if ps.policy.subject_alt_names.ip_constraints and len(ps.policy.subject_alt_names.ip_constraints) > 0:
+            request['sanIpAddressRegexes'] = resolve_ip_regexes(ps.policy.subject_alt_names.ip_constraints)
+        else:
+            request['sanIpAddressRegexes'] = [re_ipv4, re_ipv6]
 
     if ps.policy and ps.policy.subject and len(ps.policy.subject.orgs) > 0:
         request['subjectORegexes'] = ps.policy.subject.orgs
     else:
-        request['subjectORegexes'] = [ALLOW_ALL]
+        request['subjectORegexes'] = [re_allow_all]
 
     if ps.policy and ps.policy.subject and len(ps.policy.subject.org_units) > 0:
         request['subjectOURegexes'] = ps.policy.subject.org_units
     else:
-        request['subjectOURegexes'] = [ALLOW_ALL]
+        request['subjectOURegexes'] = [re_allow_all]
 
     if ps.policy and ps.policy.subject and len(ps.policy.subject.localities) > 0:
         request['subjectLRegexes'] = ps.policy.subject.localities
     else:
-        request['subjectLRegexes'] = [ALLOW_ALL]
+        request['subjectLRegexes'] = [re_allow_all]
 
     if ps.policy and ps.policy.subject and len(ps.policy.subject.states) > 0:
         request['subjectSTRegexes'] = ps.policy.subject.states
     else:
-        request['subjectSTRegexes'] = [ALLOW_ALL]
+        request['subjectSTRegexes'] = [re_allow_all]
 
     if ps.policy and ps.policy.subject and len(ps.policy.subject.countries) > 0:
         request['subjectCValues'] = ps.policy.subject.countries
     else:
-        request['subjectCValues'] = [ALLOW_ALL]
+        request['subjectCValues'] = [re_allow_all]
 
     key_types = []
     if ps.policy and ps.policy.key_pair and len(ps.policy.key_pair.key_types) > 0:
@@ -529,13 +616,15 @@ def build_cit_request(ps, ca_details):
 
 domain_regex = '[a-z]{1}[a-z0-9.-]*\\.'
 domain_regex_wildcard = '[*a-z]{1}[a-z0-9.-]*\\.'
+email_prefix_regex = '.*@{}'
+uri_protocols_regex = "({})://.*\\."
 
 
 def convert_to_regex(domains, wildcard_allowed):
     """
     :param list[str] domains:
     :param bool wildcard_allowed:
-    :rtype: dict
+    :rtype: list[str]
     """
     regex_list = []
     for d in domains:
@@ -546,6 +635,88 @@ def convert_to_regex(domains, wildcard_allowed):
             current = domain_regex + current
         regex_list.append(current)
     return regex_list
+
+
+def convert_to_email_regex(emails_list):
+    """
+
+    :param list[str] emails_list:
+    :rtype: list[str]
+    """
+    regex_list = []
+    for email in emails_list:
+        current = email.replace('.', '\\.')
+        current = email_prefix_regex.format(current)
+        regex_list.append(current)
+
+    return regex_list
+
+
+def convert_to_uri_regex(uri_protocols, domains_list):
+    """
+
+    :param list[str] uri_protocols:
+    :param list[str] domains_list:
+    :rtype: list[str]
+    """
+    protocol_expr = "|".join(uri_protocols)
+    protocol_expr = uri_protocols_regex.format(protocol_expr)
+
+    regex_list = []
+    for d in domains_list:
+        current = d.replace('.', '\\.')
+        current = f"{protocol_expr}{current}"
+        regex_list.append(current)
+
+    return regex_list
+
+
+def resolve_ip_regexes(ip_protocols):
+    """
+
+    :param list[str] ip_protocols:
+    :rtype: list[str]
+    """
+    ip_regexes = list()
+    for ip_str in ip_protocols:
+        regex = supported_ip_protocols.get(ip_str)
+        if regex:
+            ip_regexes.append(regex)
+
+    return ip_regexes
+
+
+def resolve_ip_constraints(ip_constraints_list):
+    """
+
+    :param list[str] ip_constraints_list:
+    :rtype: list[str]
+    """
+    ip_list = list()
+    for ip_regex in ip_constraints_list:
+        for k, v in supported_ip_protocols.items():
+            if ip_regex == v:
+                ip_list.append(k)
+                break
+    return ip_list
+
+
+def resolve_uri_protocols(uri_regexes_list):
+    """
+
+    :param list[str] uri_regexes_list:
+    :rtype: list[str]
+    """
+    protocols_list = list()
+    for uri_regex in uri_regexes_list:
+        index = uri_regex.index(')://')
+        sub_str = uri_regex[1:index]
+        current_protocols = sub_str.split("|")
+        for p in current_protocols:
+            if p not in protocols_list:
+                protocols_list.append(p)
+
+    return protocols_list
 
 
 def convert_to_string(regexes, wildcard_allowed):

@@ -46,6 +46,8 @@ FIELD_IP_ALLOWED = 'ipAllowed'
 FIELD_EMAIL_ALLOWED = 'emailAllowed'
 FIELD_URI_ALLOWED = 'uriAllowed'
 FIELD_UPN_ALLOWED = 'upnAllowed'
+FIELD_URI_PROTOCOLS = 'uriProtocols'
+FIELD_IP_CONSTRAINTS = 'ipConstraints'
 
 FIELD_DEFAULTS = 'defaults'
 FIELD_DEFAULT_DOMAIN = 'domain'
