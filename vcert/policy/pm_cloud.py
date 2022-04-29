@@ -494,34 +494,37 @@ def is_wildcard_allowed(san_regexes):
     return True
 
 
-def build_app_update_request(app_details, cit_data):
+def build_app_update_request(app_details, cit_map):
     """
     :param AppDetails app_details:
-    :param dict cit_data:
+    :param dict cit_map:
     :rtype: dict
     """
-    app_request = {
-        'ownerIdsAndTypes': app_details.owner_ids_and_types,
-        'name': app_details.name,
-        'description': app_details.description,
-        'fqdns': app_details.fq_dns,
-        'internalFqdns': app_details.internal_fq_dns,
-        'internalIpRanges': app_details.internal_ip_ranges,
-        'externalIpRanges': app_details.external_ip_ranges,
-        'internalPorts': app_details.internal_ports,
-        'fullyQualifiedDomainNames': app_details.fully_qualified_domain_names,
-        'ipRanges': app_details.ip_ranges,
-        'ports': app_details.ports,
-        'organizationalUnitId': app_details.org_unit_id
-    }
+    app_request = {'ownerIdsAndTypes': app_details.owner_ids_and_types, 'name': app_details.name,
+                   'description': app_details.description, 'fqdns': app_details.fq_dns,
+                   'internalFqdns': app_details.internal_fq_dns, 'internalIpRanges': app_details.internal_ip_ranges,
+                   'externalIpRanges': app_details.external_ip_ranges, 'internalPorts': app_details.internal_ports,
+                   'fullyQualifiedDomainNames': app_details.fully_qualified_domain_names,
+                   'ipRanges': app_details.ip_ranges, 'ports': app_details.ports,
+                   'organizationalUnitId': app_details.org_unit_id, 'certificateIssuingTemplateAliasIdMap': cit_map}
 
-    cit_map = app_details.cit_alias_id_map
+    #cit_map = app_details.cit_alias_id_map
 
-    cit_id, cit_name = get_cit_data_from_response(cit_data)
-    cit_map[cit_name] = cit_id
+    #cit_id, cit_name = get_cit_data_from_response(cit_data)
+    #cit_map[cit_name] = cit_id
 
-    app_request['certificateIssuingTemplateAliasIdMap'] = cit_map
     return app_request
+
+
+def build_owner_json(owners_list):
+    owner_list = list()
+    for user in owners_list:
+        owner = {
+            'ownerId': user.owner_id,
+            'ownerType': user.owner_type
+        }
+        owner_list.append(owner)
+    return owner_list
 
 
 def build_app_create_request(app_name, owners_list, cit_data):
@@ -531,13 +534,7 @@ def build_app_create_request(app_name, owners_list, cit_data):
     :param str app_name:
     :param dict cit_data:
     """
-    owner_list = list()
-    for user in owners_list:
-        owner = {
-            'ownerId': user.owner_id,
-            'ownerType': user.owner_type
-        }
-        owner_list.append(owner)
+    owner_list = build_owner_json(owners_list)
     cit_id, cit_name = get_cit_data_from_response(cit_data)
 
     app_issuing_template = {
@@ -683,7 +680,7 @@ class User:
 
 
 class Team:
-    def __int__(self, team_id=None, name=None, role=None, company_id=None):
+    def __init__(self, team_id=None, name=None, role=None, company_id=None):
         """
         :param str team_id:
         :param str name:

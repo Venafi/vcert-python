@@ -478,6 +478,7 @@ class AbstractTPPConnection(CommonConnection):
 
         log.info("Building Policy Specification")
         spec = tpp_policy.to_policy_spec()
+        spec.users = self.retrieve_usernames_from_tpp_contacts(policy_name, tpp_policy)
 
         return spec
 
@@ -579,6 +580,7 @@ class AbstractTPPConnection(CommonConnection):
     def resolve_tpp_contacts(self, contacts):
         identities_id_list = list()
         if contacts:
+            contacts = list(set(contacts))
             for contact in contacts:
                 identity = self.get_tpp_identity(contact)
                 identities_id_list.append(identity.prefixed_universal)
@@ -595,6 +597,8 @@ class AbstractTPPConnection(CommonConnection):
         try:
             status, response = self._post(URLS.POLICY_BROWSE_IDENTITY, data=data)
             identities = response['Identities'][0]
+            if len(identities) == 0:
+                raise VenafiError(f"The username [{username}] ws not found.")
         except VenafiError:
             log.debug(f"Error while getting contact [{username}]")
         if len(response['Identities']) > 1:
@@ -1018,30 +1022,28 @@ class AbstractTPPConnection(CommonConnection):
         return status, response
 
     def retrieve_usernames_from_tpp_contacts(self, zone, tpp_policy):
-        status, response = ""
         attr_name = tpp_policy.contact
         users_list = list()
-
+        contacts = list()
         try:
             status, response = self._get_policy_attr(zone, attr_name)
+            contacts = response['Values']
         except VenafiError:
             log.debug(f"Error while getting attribute [{attr_name}] value from policy [{zone}]")
-        if status == HTTPStatus.OK:
-            if response > 0:
-                contacts = response['Values']
-                for prefixed_universal in contacts:
-                    data = {
-                        'ID': {
-                            'PrefixedUniversal': prefixed_universal
-                        }
-                    }
-                    try:
-                        status, response = self.post(URLS.POLICY_VALIDATE_IDENTITY, data)
-                        identities = response['ID']
-                        identity_response = build_identity_entry(identities)
-                        users_list.append(identity_response.name)
-                    except VenafiError:
-                        log.debug(f"Error while validating contact [{prefixed_universal}]")
+        contacts = list(set(contacts))
+        for prefixed_universal in contacts:
+            data = {
+                'ID': {
+                    'PrefixedUniversal': prefixed_universal
+                }
+            }
+            try:
+                status, response = self.post(URLS.POLICY_VALIDATE_IDENTITY, data)
+                identities = response['ID']
+                identity_response = build_identity_entry(identities)
+                users_list.append(identity_response.name)
+            except VenafiError:
+                log.debug(f"Error while validating contact [{prefixed_universal}]")
         return users_list
 
     def browse_identities(self, username):
