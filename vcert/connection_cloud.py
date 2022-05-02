@@ -50,6 +50,9 @@ CSR_ATTR_PROVINCE = 'state'
 CSR_ATTR_COUNTRY = 'country'
 CSR_ATTR_SANS_BY_TYPE = 'subjectAlternativeNamesByType'
 CSR_ATTR_SANS_DNS = 'dnsNames'
+CSR_ATTR_SANS_IP_ADDR = 'ipAddresses'
+CSR_ATTR_SANS_EMAIL_ADDR = 'rfc822Names'
+CSR_ATTR_SANS_URIS = 'uniformResourceIdentifiers'
 CSR_ATTR_KEY_TYPE_PARAMS = 'keyTypeParameters'
 CSR_ATTR_KEY_TYPE = 'keyType'
 CSR_ATTR_KEY_LENGTH = 'keyLength'
@@ -819,8 +822,10 @@ class CloudConnection(CommonConnection):
 
         if len(request.san_dns) > 0:
             sans = {
-                CSR_ATTR_SANS_DNS: request.san_dns
-                # TODO: Other sans should be added here
+                CSR_ATTR_SANS_DNS: request.san_dns,
+                CSR_ATTR_SANS_IP_ADDR: request.ip_addresses,
+                CSR_ATTR_SANS_EMAIL_ADDR: request.email_addresses,
+                CSR_ATTR_SANS_URIS: request.uniform_resource_identifiers
             }
             csr_attr_map[CSR_ATTR_SANS_BY_TYPE] = sans
 
