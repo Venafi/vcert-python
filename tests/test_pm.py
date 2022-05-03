@@ -94,6 +94,9 @@ class TestTPPPolicyManagement(unittest.TestCase):
         self.yaml_file = POLICY_SPEC_YAML
         super(TestTPPPolicyManagement, self).__init__(*args, **kwargs)
 
+    prefixed_universal = None
+    username = "osstestuser"
+
     def test_create_policy_from_json(self):
         # ps = json_parser.parse_file(self.json_file)
         # self._create_policy_tpp(policy_spec=ps)
@@ -119,6 +122,31 @@ class TestTPPPolicyManagement(unittest.TestCase):
         policy = _get_policy_obj(ca_type=CA_TYPE_TPP)
         policy.key_pair.rsa_key_sizes = [2048]
         self._create_policy_tpp(policy=policy)
+
+    def test_browse_identities(self):
+        connector = self.tpp_conn
+        identity = connector.get_tpp_identity(self.username)
+        self.assertEqual(self.username, identity.name)
+        self.prefixed_universal = identity.prefixed_universal
+
+    def test_validate_identity(self):
+        connector = self.tpp_conn
+        if not self.prefixed_universal:
+            self.test_browse_identities()
+        response = connector.validate_identity(self.prefixed_universal)
+        self.assertIsNotNone(response)
+        self.assertEqual(self.username, response.name)
+
+    def test_create_and_get_policy_with_contacts(self):
+        connector = self.tpp_conn
+        zone = f"{TPP_PM_ROOT}\\{_get_tpp_policy_name()}"
+        policy_specification = PolicySpecification()
+        policy_specification.policy = _get_policy_obj(ca_type=CA_TYPE_TPP)
+        policy_specification.defaults = _get_defaults_obj()
+        policy_specification.policy.key_pair.rsa_key_sizes = [2048]
+        connector.set_policy(zone, policy_specification)
+        result = connector.get_policy(zone)
+        self.assertEqual(1, len(result.users))
 
     def _create_policy_tpp(self, policy_spec=None, policy=None, defaults=None):
         zone = f"{TPP_PM_ROOT}\\{_get_tpp_policy_name()}"
@@ -163,6 +191,90 @@ class TestCloudPolicyManagement(unittest.TestCase):
     def test_validate_domains(self):
         policy = self._create_policy_cloud(policy=_get_policy_obj())
         self.assertListEqual(policy.policy.domains, POLICY_DOMAINS)
+
+    def test_create_policy_with_no_users(self):
+        zone = self._get_random_zone()
+        connector = self.cloud_conn
+        policy_specification = PolicySpecification()
+        policy_specification.policy = _get_policy_obj()
+        policy_specification.defaults = _get_defaults_obj()
+        connector.set_policy(zone, policy_specification)
+        result = connector.get_policy(zone)
+        self.assertEqual(1, len(result.users))
+        self.assertEqual("jenkins@opensource.qa.venafi.io", result.users[0])
+
+    def test_create_policy_with_users(self):
+        zone = self._get_random_zone()
+        connector = self.cloud_conn
+        policy_specification = PolicySpecification()
+        policy_specification.policy = _get_policy_obj()
+        policy_specification.defaults = _get_defaults_obj()
+        policy_specification.users = ["pki-admin@opensource.qa.venafi.io", "resource-owner@opensource.qa.venafi.io"]
+        connector.set_policy(zone, policy_specification)
+        result = connector.get_policy(zone)
+        self.assertEqual(2, len(result.users))
+        self.assertIn("pki-admin@opensource.qa.venafi.io", result.users[0])
+        self.assertIn("resource-owner@opensource.qa.venafi.io", result.users[1])
+
+    def test_update_policy_with_no_users(self):
+        zone = self._get_random_zone()
+        connector = self.cloud_conn
+        policy_specification = PolicySpecification()
+        policy_specification.policy = _get_policy_obj()
+        policy_specification.defaults = _get_defaults_obj()
+        policy_specification.users = ["pki-admin@opensource.qa.venafi.io",
+                                       "resource-owner@opensource.qa.venafi.io"]
+        connector.set_policy(zone, policy_specification)
+        result = connector.get_policy(zone)
+        self.assertEqual(2, len(result.users))
+        self.assertIn("pki-admin@opensource.qa.venafi.io", result.users)
+        self.assertIn("resource-owner@opensource.qa.venafi.io", result.users)
+
+        # Update Policy Specification with no users
+        policy_specification2 = PolicySpecification()
+        policy_specification2.policy = _get_policy_obj()
+        policy_specification2.defaults = _get_defaults_obj()
+        connector.set_policy(zone, policy_specification2)
+        result2 = connector.get_policy(zone)
+        self.assertEqual(2, len(result2.users))
+        self.assertIn("pki-admin@opensource.qa.venafi.io", result2.users)
+        self.assertIn("resource-owner@opensource.qa.venafi.io", result2.users)
+
+    def test_update_policy_with_users(self):
+        zone = self._get_random_zone()
+        connector = self.cloud_conn
+        policy_specification = PolicySpecification()
+        policy_specification.policy = _get_policy_obj()
+        policy_specification.defaults = _get_defaults_obj()
+        policy_specification.users = ["jenkins@opensource.qa.venafi.io"]
+        connector.set_policy(zone, policy_specification)
+        result = connector.get_policy(zone)
+        self.assertEqual(1, len(result.users))
+        self.assertEqual("jenkins@opensource.qa.venafi.io", result.users[0])
+
+        # Update Policy Specification with users
+        policy_specification2 = PolicySpecification()
+        policy_specification2.policy = _get_policy_obj()
+        policy_specification2.defaults = _get_defaults_obj()
+        policy_specification2.users = ["pki-admin@opensource.qa.venafi.io",
+                                        "resource-owner@opensource.qa.venafi.io"]
+        connector.set_policy(zone, policy_specification2)
+        result2 = connector.get_policy(zone)
+        self.assertEqual(2, len(result2.users))
+        self.assertIn("pki-admin@opensource.qa.venafi.io", result2.users)
+        self.assertIn("resource-owner@opensource.qa.venafi.io", result2.users)
+
+    def test_create_policy_with_team(self):
+        zone = self._get_random_zone()
+        connector = self.cloud_conn
+        policy_specification = PolicySpecification()
+        policy_specification.policy = _get_policy_obj()
+        policy_specification.defaults = _get_defaults_obj()
+        policy_specification.users = ["DevOpsTeam"]
+        connector.set_policy(zone, policy_specification)
+        result = connector.get_policy(zone)
+        self.assertEqual(1, len(result.users))
+        self.assertEqual("DevOpsTeam", result.users[0])
 
     def _create_policy_cloud(self, policy_spec=None, policy=None, defaults=None):
         zone = self._get_random_zone()

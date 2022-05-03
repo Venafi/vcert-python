@@ -14,10 +14,8 @@
 # limitations under the License.
 #
 import base64
-import json
 import re
 import time
-from types import SimpleNamespace
 
 import requests
 import six.moves.urllib.parse as urlparse
@@ -624,17 +622,19 @@ class CloudConnection(CommonConnection):
             raise VenafiError('User Details not found')
 
         app_details = self._get_app_details_by_name(app_name)
-        owners_list = self.resolve_owners(policy_spec.owners, user_details)
+        for_update, owners_list = self.resolve_owners(policy_spec.users, user_details)
         if app_details:
-            owner_list = build_owner_json(owners_list)
-            if owners_list and len(owners_list) > 0:
+            # Application exists. Update with cit and owners
+            if for_update and len(owners_list) > 0:
+                log.debug("No owners provided in the policy specification")
+            else:
+                owner_list = build_owner_json(owners_list)
                 app_details.owner_ids_and_types = owner_list
-            # Application exists. Update with cit
             if app_details.cit_alias_id_map:
+                # Only link cit with Application when cit is not already associated with Application
                 cit_map = app_details.cit_alias_id_map
                 cit_id, cit_name = get_cit_data_from_response(cit_data)
                 cit_map[cit_name] = cit_id
-            # Only link cit with Application when cit is not already associated with Application
             app_req = build_app_update_request(app_details, cit_map)
             status, data = self._put(URLS.APP_BY_ID.format(app_details.app_id), app_req)
             if status != HTTPStatus.OK:
@@ -649,10 +649,12 @@ class CloudConnection(CommonConnection):
 
     def resolve_owners(self, users_list, user_details):
         owners_list = list()
+        for_update = False
         if not users_list:
             # When no users are provided on the list, adds apikey user as owner
             api_owner = resolve_apikey_owner(user_details)
             owners_list.append(api_owner)
+            for_update = True
         else:
             # Resolving the usernames list
             # Creating a higher level Teams object to cache the response
@@ -673,7 +675,7 @@ class CloudConnection(CommonConnection):
                     if not team_owner:
                         raise VenafiError(f"Unable to find team [{user}]")
                     owners_list.append(team_owner)
-        return owners_list
+        return for_update, owners_list
 
     def resolve_user_to_cloud_owner(self, username):
         user = self.get_vaas_identity(username)
@@ -690,10 +692,6 @@ class CloudConnection(CommonConnection):
                 teams = build_team(data)
             except VenafiError:
                 log.debug(f"Error while getting team [{username}]")
-    #    else:
-    #        data = teams['teams']
-    #        team = build_team(data)
-    #        teams.
         for team in teams:
             if team.name == username:
                 owner = create_owner(OWNER_TYPE_TEAM, team.team_id)
@@ -715,19 +713,19 @@ class CloudConnection(CommonConnection):
             identity = build_user(identities)
             return identity
         except VenafiError:
-            log.debug(f"Error while getting owner [{username}]")
+            log.debug(f"Unable to find identity [{username}] of type USER")
 
     def resolve_cloud_owners_names(self, zone):
         app_name, cit_alias = _parse_zone(zone)
         app_details = self._get_app_details_by_name(app_name)
         users_list = list()
         teams_response = list()
-        for ownerID, ownerType in app_details.owner_ids_and_types:
-            if ownerType == OWNER_TYPE_USER:
-                status, data = self._get(URLS.USERS_ID.format(ownerID))
+        for owner in app_details.owner_ids_and_types:
+            if owner['ownerType'] == OWNER_TYPE_USER:
+                status, data = self._get(URLS.USERS_ID.format(owner['ownerId']))
                 user = build_user(data)
                 users_list.append(user.username)
-            elif ownerType == OWNER_TYPE_TEAM:
+            elif owner['ownerType'] == OWNER_TYPE_TEAM:
                 if not teams_response:
                     status, data = self._get(URLS.TEAMS_ID)
                     data_team = data['teams']
@@ -736,12 +734,9 @@ class CloudConnection(CommonConnection):
                         teams_response.append(team)
                 if teams_response:
                     for team in teams_response:
-                        if team.team_id == ownerID:
+                        if team.team_id == owner['ownerId']:
                             users_list.append(team.name)
         return users_list
-
-
-
 
     def _get_ca_details(self, ca_name):
         """
@@ -947,6 +942,7 @@ class CloudConnection(CommonConnection):
         ps = build_policy_spec(cit, info, subject_cn_to_str)
         users_list = self.resolve_cloud_owners_names(zone)
         ps.owners = users_list
+        ps.users = users_list
         return ps
 
     def _get_dek_hash(self, cert_id):

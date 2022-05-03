@@ -14,7 +14,6 @@
 # limitations under the License.
 #
 import base64
-import json
 import logging as log
 import re
 import time
@@ -478,8 +477,7 @@ class AbstractTPPConnection(CommonConnection):
 
         log.info("Building Policy Specification")
         spec = tpp_policy.to_policy_spec()
-        spec.users = self.retrieve_usernames_from_tpp_contacts(policy_name, tpp_policy)
-
+        spec.users = self.retrieve_usernames_from_tpp_contacts(policy_name, SPA.TPP_CONTACT)
         return spec
 
     def set_policy(self, zone, policy_spec):
@@ -1013,16 +1011,9 @@ class AbstractTPPConnection(CommonConnection):
         status, response = self._post(URLS.FIND_POLICY, data=data)
         if status != HTTPStatus.OK:
             raise ServerUnexptedBehavior(f"Got status {status} from server")
-
-        response = self._parse_attr_response(response)
-
-        if response.error:
-            raise VenafiError(f"Error while setting attribute [{attr_name}] in policy [{zone}]")
-
         return status, response
 
-    def retrieve_usernames_from_tpp_contacts(self, zone, tpp_policy):
-        attr_name = tpp_policy.contact
+    def retrieve_usernames_from_tpp_contacts(self, zone, attr_name):
         users_list = list()
         contacts = list()
         try:
@@ -1032,16 +1023,9 @@ class AbstractTPPConnection(CommonConnection):
             log.debug(f"Error while getting attribute [{attr_name}] value from policy [{zone}]")
         contacts = list(set(contacts))
         for prefixed_universal in contacts:
-            data = {
-                'ID': {
-                    'PrefixedUniversal': prefixed_universal
-                }
-            }
             try:
-                status, response = self.post(URLS.POLICY_VALIDATE_IDENTITY, data)
-                identities = response['ID']
-                identity_response = build_identity_entry(identities)
-                users_list.append(identity_response.name)
+                identity = self.validate_identity(prefixed_universal)
+                users_list.append(identity.name)
             except VenafiError:
                 log.debug(f"Error while validating contact [{prefixed_universal}]")
         return users_list
@@ -1059,20 +1043,16 @@ class AbstractTPPConnection(CommonConnection):
 
         if response['Identities'] > 1:
             raise VenafiError("Extraneous information returned in the identity response. "
-                              "Expected size: 1, found: 2\n" + str(response['Identities'][1]))
-        #IdentityEntry identity = response['Identities'][0]
-        identity = json.loads(response['Identities'], object_hook=lambda d: SimpleNamespace(**d))
+                              "Expected size: 1, found: 2\n")
         identity = build_identity_entry(response)
         return identity
 
     def validate_identity(self, prefixed_universal):
         data = {
-            'ID' : {
-                'PrefixedUniversal' : prefixed_universal
+            'ID': {
+                'PrefixedUniversal': prefixed_universal
             }
         }
-        if not prefixed_universal:
-            self.browse_identities()
-        status, response = self.post(URLS.POLICY_VALIDATE_IDENTITY, data=data)
-        identity = json.loads(response['ID'], object_hook=lambda d: SimpleNamespace(**d))
+        status, response = self._post(URLS.POLICY_VALIDATE_IDENTITY, data=data)
+        identity = build_identity_entry(response['ID'])
         return identity

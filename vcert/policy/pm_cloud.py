@@ -507,12 +507,6 @@ def build_app_update_request(app_details, cit_map):
                    'fullyQualifiedDomainNames': app_details.fully_qualified_domain_names,
                    'ipRanges': app_details.ip_ranges, 'ports': app_details.ports,
                    'organizationalUnitId': app_details.org_unit_id, 'certificateIssuingTemplateAliasIdMap': cit_map}
-
-    #cit_map = app_details.cit_alias_id_map
-
-    #cit_id, cit_name = get_cit_data_from_response(cit_data)
-    #cit_map[cit_name] = cit_id
-
     return app_request
 
 
