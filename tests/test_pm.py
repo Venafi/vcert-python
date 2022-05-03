@@ -213,8 +213,8 @@ class TestCloudPolicyManagement(unittest.TestCase):
         connector.set_policy(zone, policy_specification)
         result = connector.get_policy(zone)
         self.assertEqual(2, len(result.users))
-        self.assertIn("pki-admin@opensource.qa.venafi.io", result.users[0])
-        self.assertIn("resource-owner@opensource.qa.venafi.io", result.users[1])
+        self.assertIn("pki-admin@opensource.qa.venafi.io", result.users)
+        self.assertIn("resource-owner@opensource.qa.venafi.io", result.users)
 
     def test_update_policy_with_no_users(self):
         zone = self._get_random_zone()
