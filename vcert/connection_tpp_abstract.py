@@ -598,7 +598,7 @@ class AbstractTPPConnection(CommonConnection):
             log.debug(f"Error while getting contact [{username}]: {err.args[0]}")
         if len(response['Identities']) > 1:
             raise VenafiError("Extraneous information returned in the identity response. "
-                              "Expected size: 1, more than 1\n")
+                              "Expected size: 1, found more than 1 \n")
         identity = build_identity_entry(identities)
         return identity
 
@@ -1014,7 +1014,7 @@ class AbstractTPPConnection(CommonConnection):
         users_list = list()
         contacts = list()
         try:
-            status, response = self._get_policy_attr(zone, 'Contact')
+            status, response = self._get_policy_attr(zone, SPA.TPP_CONTACT)
             contacts = response['Values']
         except VenafiError as err:
             log.debug(f"Error while getting attribute [Contact] value from policy [{zone}]: {err.args[0]}")

@@ -274,7 +274,7 @@ class TestCloudPolicyManagement(unittest.TestCase):
         connector.set_policy(zone, policy_specification)
         result = connector.get_policy(zone)
         self.assertEqual(1, len(result.users))
-        self.assertEqual("DevOpsTeam", result.users[0])
+        self.assertEqual(CLOUD_TEAM, result.users[0])
 
     def _create_policy_cloud(self, policy_spec=None, policy=None, defaults=None):
         zone = self._get_random_zone()

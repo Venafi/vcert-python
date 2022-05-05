@@ -625,7 +625,7 @@ class CloudConnection(CommonConnection):
         for_update, owners_list = self.resolve_owners(policy_spec.users, user_details)
         if app_details:
             # Application exists. Update with cit and owners
-            if for_update and len(owners_list) == 1:
+            if for_update and len(policy_spec.users) == 0:
                 log.debug("No users provided in the policy specification")
             else:
                 owner_list = build_owner_json(owners_list)
