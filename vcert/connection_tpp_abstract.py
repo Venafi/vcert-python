@@ -477,7 +477,7 @@ class AbstractTPPConnection(CommonConnection):
 
         log.info("Building Policy Specification")
         spec = tpp_policy.to_policy_spec()
-        spec.users = self.retrieve_usernames_from_tpp_contacts(policy_name, SPA.TPP_CONTACT)
+        spec.users = self.retrieve_usernames_from_tpp_contacts(policy_name)
         return spec
 
     def set_policy(self, zone, policy_spec):
@@ -570,9 +570,6 @@ class AbstractTPPConnection(CommonConnection):
         if len(prohibited_sans) > 0:
             self._set_policy_attr(name, SPA.TPP_PROHIBITED_SAN_TYPES, prohibited_sans, False)
 
-        # usernames = self.retrieve_usernames_from_tppcontacts(tpp_policy.name, tpp_policy)
-        # tpp_policy.contact(usernames)
-
         return
 
     def resolve_tpp_contacts(self, contacts):
@@ -596,12 +593,12 @@ class AbstractTPPConnection(CommonConnection):
             status, response = self._post(URLS.POLICY_BROWSE_IDENTITY, data=data)
             identities = response['Identities'][0]
             if len(identities) == 0:
-                raise VenafiError(f"The username [{username}] ws not found.")
-        except VenafiError:
-            log.debug(f"Error while getting contact [{username}]")
+                raise VenafiError(f"The username [{username}] was not found.")
+        except VenafiError as err :
+            log.debug(f"Error while getting contact [{username}]: {err.args[0]}")
         if len(response['Identities']) > 1:
             raise VenafiError("Extraneous information returned in the identity response. "
-                              "Expected size: 1, found: 2\n" + str(response['Identities'][1]))
+                              "Expected size: 1, more than 1\n")
         identity = build_identity_entry(identities)
         return identity
 
@@ -1013,21 +1010,21 @@ class AbstractTPPConnection(CommonConnection):
             raise ServerUnexptedBehavior(f"Got status {status} from server")
         return status, response
 
-    def retrieve_usernames_from_tpp_contacts(self, zone, attr_name):
+    def retrieve_usernames_from_tpp_contacts(self, zone):
         users_list = list()
         contacts = list()
         try:
-            status, response = self._get_policy_attr(zone, attr_name)
+            status, response = self._get_policy_attr(zone, 'Contact')
             contacts = response['Values']
-        except VenafiError:
-            log.debug(f"Error while getting attribute [{attr_name}] value from policy [{zone}]")
+        except VenafiError as err:
+            log.debug(f"Error while getting attribute [Contact] value from policy [{zone}]: {err.args[0]}")
         contacts = list(set(contacts))
         for prefixed_universal in contacts:
             try:
                 identity = self.validate_identity(prefixed_universal)
                 users_list.append(identity.name)
-            except VenafiError:
-                log.debug(f"Error while validating contact [{prefixed_universal}]")
+            except VenafiError as err:
+                log.debug(f"Error while validating contact [{prefixed_universal}]: {err.args[0]}")
         return users_list
 
     def browse_identities(self, username):
@@ -1038,8 +1035,8 @@ class AbstractTPPConnection(CommonConnection):
         }
         try:
             status, response = self._post(URLS.POLICY_BROWSE_IDENTITY, data=data)
-        except VenafiError:
-            log.debug(f"Error while getting contact [{username}]")
+        except VenafiError as err:
+            log.debug(f"Error while getting contact [{username}]: {err.args[0]}")
 
         if response['Identities'] > 1:
             raise VenafiError("Extraneous information returned in the identity response. "

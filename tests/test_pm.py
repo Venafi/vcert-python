@@ -18,7 +18,7 @@ import unittest
 from pprint import pformat
 
 from test_env import (TPP_TOKEN_URL, CLOUD_APIKEY, CLOUD_URL, TPP_PM_ROOT, CLOUD_ENTRUST_CA_NAME,
-                      CLOUD_DIGICERT_CA_NAME, TPP_CA_NAME, TPP_USER, TPP_PASSWORD)
+                      CLOUD_DIGICERT_CA_NAME, TPP_CA_NAME, TPP_USER, TPP_PASSWORD, CLOUD_TEAM)
 from test_utils import timestamp
 from vcert import TPPTokenConnection, CloudConnection, Authentication, SCOPE_PM, logger, VenafiError
 from vcert.parser import json_parser, yaml_parser
@@ -270,7 +270,7 @@ class TestCloudPolicyManagement(unittest.TestCase):
         policy_specification = PolicySpecification()
         policy_specification.policy = _get_policy_obj()
         policy_specification.defaults = _get_defaults_obj()
-        policy_specification.users = ["DevOpsTeam"]
+        policy_specification.users = [CLOUD_TEAM]
         connector.set_policy(zone, policy_specification)
         result = connector.get_policy(zone)
         self.assertEqual(1, len(result.users))

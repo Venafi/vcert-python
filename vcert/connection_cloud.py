@@ -625,8 +625,8 @@ class CloudConnection(CommonConnection):
         for_update, owners_list = self.resolve_owners(policy_spec.users, user_details)
         if app_details:
             # Application exists. Update with cit and owners
-            if for_update and len(owners_list) > 0:
-                log.debug("No owners provided in the policy specification")
+            if for_update and owners_list == 1:
+                log.debug("No users provided in the policy specification")
             else:
                 owner_list = build_owner_json(owners_list)
                 app_details.owner_ids_and_types = owner_list
@@ -660,20 +660,14 @@ class CloudConnection(CommonConnection):
             # Creating a higher level Teams object to cache the response
             teams_list = list()
             users_list = list(set(users_list))
-            for user in users_list:
-                cloud_owner = self.resolve_user_to_cloud_owner(user)
+            for username in users_list:
+                cloud_owner = self.resolve_user_to_cloud_owner(username)
                 if cloud_owner:
                     owners_list.append(cloud_owner)
                 else:
-                    if not teams_list:
-                        status, response = self._get(URLS.TEAMS_ID)
-                        data_team = response['teams']
-                        for t in data_team:
-                            team = build_team(t)
-                            teams_list.append(team)
-                    team_owner = self.resolve_user_to_cloud_team(teams_list, user)
+                    team_owner = self.resolve_user_to_cloud_team(username)
                     if not team_owner:
-                        raise VenafiError(f"Unable to find team [{user}]")
+                        raise VenafiError(f"Unable to find identity [{username}]")
                     owners_list.append(team_owner)
         return for_update, owners_list
 
@@ -684,18 +678,23 @@ class CloudConnection(CommonConnection):
         owner = create_owner(OWNER_TYPE_USER, user.user_id)
         return owner
 
-    def resolve_user_to_cloud_team(self, teams, username):
-        if not teams:
-            try:
-                status, response = self._get(URLS.TEAMS_ID)
-                data = response['teams']
-                teams = build_team(data)
-            except VenafiError:
-                log.debug(f"Error while getting team [{username}]")
-        for team in teams:
-            if team.name == username:
-                owner = create_owner(OWNER_TYPE_TEAM, team.team_id)
-                return owner
+    def resolve_user_to_cloud_team(self, username):
+        teams = list()
+        data_teams = None
+        try:
+            status, response = self._get(URLS.TEAMS_ID)
+            data_teams = response['teams']
+        except VenafiError as err:
+            log.debug(f"Error while getting team [{username}]: {err.args[0]}")
+        # date_teams will never be empty, we are always expecting at least one team
+        for data in data_teams:
+            team = build_team(data)
+            teams.append(team)
+        if len(teams) > 0:
+            for team in teams:
+                if team.name == username:
+                    owner = create_owner(OWNER_TYPE_TEAM, team.team_id)
+                    return owner
         return None
 
     def get_vaas_identity(self, username):
@@ -704,16 +703,13 @@ class CloudConnection(CommonConnection):
         url = URLS.USERS_USERNAME.format(username)
         try:
             status, response = self._get(url)
-            identities = response['users'][0]
             if status == HTTPStatus.NOT_FOUND:
                 return None
-            if len(response['users']) > 1:
-                raise VenafiError("Extraneous information returned in the identity response. "
-                                  "Expected size: 1, found: 2\n")
+            identities = response['users'][0]
             identity = build_user(identities)
             return identity
-        except VenafiError:
-            log.debug(f"Unable to find identity [{username}] of type USER")
+        except VenafiError as err:
+            log.debug(f"Unable to find identity [{username}] of type USER: {err.args[0]}")
 
     def resolve_cloud_owners_names(self, zone):
         app_name, cit_alias = _parse_zone(zone)
@@ -941,7 +937,6 @@ class CloudConnection(CommonConnection):
 
         ps = build_policy_spec(cit, info, subject_cn_to_str)
         users_list = self.resolve_cloud_owners_names(zone)
-        ps.owners = users_list
         ps.users = users_list
         return ps
 
