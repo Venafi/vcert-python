@@ -494,48 +494,41 @@ def is_wildcard_allowed(san_regexes):
     return True
 
 
-def build_app_update_request(app_details, cit_data):
+def build_app_update_request(app_details, cit_map):
     """
     :param AppDetails app_details:
-    :param dict cit_data:
+    :param dict cit_map:
     :rtype: dict
     """
-    app_request = {
-        'ownerIdsAndTypes': app_details.owner_ids_and_types,
-        'name': app_details.name,
-        'description': app_details.description,
-        'fqdns': app_details.fq_dns,
-        'internalFqdns': app_details.internal_fq_dns,
-        'internalIpRanges': app_details.internal_ip_ranges,
-        'externalIpRanges': app_details.external_ip_ranges,
-        'internalPorts': app_details.internal_ports,
-        'fullyQualifiedDomainNames': app_details.fully_qualified_domain_names,
-        'ipRanges': app_details.ip_ranges,
-        'ports': app_details.ports,
-        'organizationalUnitId': app_details.org_unit_id
-    }
-
-    cit_map = app_details.cit_alias_id_map
-
-    cit_id, cit_name = get_cit_data_from_response(cit_data)
-    cit_map[cit_name] = cit_id
-
-    app_request['certificateIssuingTemplateAliasIdMap'] = cit_map
+    app_request = {'ownerIdsAndTypes': app_details.owner_ids_and_types, 'name': app_details.name,
+                   'description': app_details.description, 'fqdns': app_details.fq_dns,
+                   'internalFqdns': app_details.internal_fq_dns, 'internalIpRanges': app_details.internal_ip_ranges,
+                   'externalIpRanges': app_details.external_ip_ranges, 'internalPorts': app_details.internal_ports,
+                   'fullyQualifiedDomainNames': app_details.fully_qualified_domain_names,
+                   'ipRanges': app_details.ip_ranges, 'ports': app_details.ports,
+                   'organizationalUnitId': app_details.org_unit_id, 'certificateIssuingTemplateAliasIdMap': cit_map}
     return app_request
 
 
-def build_app_create_request(app_name, user_details, cit_data):
+def build_owner_json(owners_list):
+    owner_list = list()
+    for user in owners_list:
+        owner = {
+            'ownerId': user.owner_id,
+            'ownerType': user.owner_type
+        }
+        owner_list.append(owner)
+    return owner_list
+
+
+def build_app_create_request(app_name, owners_list, cit_data):
     """
 
+    :param list[OwnerIdsAndTypes] owners_list:
     :param str app_name:
-    :param UserDetails user_details:
     :param dict cit_data:
-    :rtype: dict
     """
-    owner_id = {
-        'ownerId': user_details.user.user_id,
-        'ownerType': 'USER'
-    }
+    owner_list = build_owner_json(owners_list)
     cit_id, cit_name = get_cit_data_from_response(cit_data)
 
     app_issuing_template = {
@@ -543,7 +536,7 @@ def build_app_create_request(app_name, user_details, cit_data):
     }
 
     app_request = {
-        'ownerIdsAndTypes': [owner_id],
+        'ownerIdsAndTypes': owner_list,
         'name': app_name,
         'certificateIssuingTemplateAliasIdMap': app_issuing_template
     }
@@ -680,6 +673,20 @@ class User:
         self.creation_date = creation_date
 
 
+class Team:
+    def __init__(self, team_id=None, name=None, role=None, company_id=None):
+        """
+        :param str team_id:
+        :param str name:
+        :param str role:
+        :param str company_id:
+        """
+        self.team_id = team_id
+        self.name = name
+        self.role = role
+        self.company_id = company_id
+
+
 class Company:
     def __init__(self, company_id, name, company_type=None, active=None, creation_date=None, domains=None):
         """
@@ -733,6 +740,18 @@ def build_user(data):
         status=data['userStatus'] if 'userStatus' in data else None,
         creation_date=data['creationDate'] if 'creationDate' in data else None
         )
+
+
+def build_team(data):
+    """
+    :param dict data:
+    """
+    return Team(
+        team_id=data['id'] if 'id' in data else None,
+        name=data['name'] if 'name' in data else None,
+        role=data['role'] if 'role' in data else None,
+        company_id=data['company_id'] if 'company_id' in data else None
+    )
 
 
 def build_company(data):
