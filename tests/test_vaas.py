@@ -21,11 +21,15 @@ from datetime import datetime, timedelta
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePrivateKey
 from cryptography.x509.oid import NameOID
 
+from policy import KeyPair, DefaultKeyPair, PolicySpecification
 from test_env import CLOUD_ZONE, CLOUD_APIKEY, CLOUD_URL, RANDOM_DOMAIN
-from test_utils import random_word, enroll, renew, renew_by_thumbprint, renew_without_key_reuse, simple_enroll
+from test_pm import get_policy_obj, get_defaults_obj
+from test_utils import random_word, enroll, renew, renew_by_thumbprint, renew_without_key_reuse, simple_enroll, \
+    get_vaas_zone
 from vcert import CloudConnection, KeyType, CertificateRequest, CustomField, logger, CSR_ORIGIN_SERVICE
 
 log = logger.get_child("test-vaas")
@@ -165,3 +169,49 @@ class TestCloudMethods(unittest.TestCase):
 
         output = cert_object.as_pkcs12('FooBarPass123')
         log.info(f"PKCS12 created successfully for certificate with CN: {cn}")
+
+    def test_enroll_ec_key_certificate(self):
+        policy = get_policy_obj()
+        kp = KeyPair(
+            key_types=['EC'],
+            elliptic_curves=['P521', 'P384'],
+            reuse_allowed=False)
+        policy.key_pair = kp
+
+        defaults = get_defaults_obj()
+        defaults.key_pair = DefaultKeyPair(
+            key_type='EC',
+            elliptic_curve='P521')
+
+        policy_spec = PolicySpecification()
+        policy_spec.policy = policy
+        policy_spec.defaults = defaults
+
+        zone = get_vaas_zone()
+
+        self.cloud_conn.set_policy(zone, policy_spec)
+        password = 'FooBarPass123'
+
+        request = CertificateRequest(
+            common_name=f"{random_word(10)}.venafi.example",
+            key_type=KeyType(
+                key_type="ec",
+                option="P384"
+            ),
+            csr_origin=CSR_ORIGIN_SERVICE,
+            key_password=password
+        )
+
+        self.cloud_conn.request_cert(request, zone)
+        cert = self.cloud_conn.retrieve_cert(request)
+
+        p_key = None
+        try:
+            p_key = serialization.load_pem_private_key(data=cert.key.encode(), password=password.encode(),
+                                                       backend=default_backend())
+        except Exception as e:
+            log.error(msg=f"Error parsing Private Key: {e.message}")
+
+        if p_key:
+            self.assertIsInstance(p_key, EllipticCurvePrivateKey, "returned private key is not of type Elliptic Curve")
+            self.assertEqual(p_key.curve.key_size, 384, f"Private Key expected curve: 384. Got: {p_key.curve.key_size}")

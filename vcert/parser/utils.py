@@ -79,6 +79,8 @@ def parse_data(data):
             subject_alt_names.ip_allowed = sans[FIELD_IP_ALLOWED] if FIELD_IP_ALLOWED in sans else None
             subject_alt_names.upn_allowed = sans[FIELD_UPN_ALLOWED] if FIELD_UPN_ALLOWED in sans else None
             subject_alt_names.uri_allowed = sans[FIELD_URI_ALLOWED] if FIELD_URI_ALLOWED in sans else None
+            subject_alt_names.uri_protocols = sans[FIELD_URI_PROTOCOLS] if FIELD_URI_PROTOCOLS in sans else []
+            subject_alt_names.ip_constraints = sans[FIELD_IP_CONSTRAINTS] if FIELD_IP_CONSTRAINTS in sans else []
 
     policy.subject = subject
     policy.key_pair = key_pair
@@ -176,7 +178,9 @@ def parse_policy_spec(policy_spec):
                 FIELD_EMAIL_ALLOWED: sans.email_allowed,
                 FIELD_IP_ALLOWED: sans.ip_allowed,
                 FIELD_UPN_ALLOWED: sans.upn_allowed,
-                FIELD_URI_ALLOWED: sans.uri_allowed
+                FIELD_URI_ALLOWED: sans.uri_allowed,
+                FIELD_IP_CONSTRAINTS: sans.ip_constraints,
+                FIELD_URI_PROTOCOLS: sans.uri_protocols
             }
 
     ds_data = dict()

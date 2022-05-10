@@ -179,7 +179,8 @@ class Policy:
                  subject_ou_regexes=None, subject_st_regexes=None, subject_l_regexes=None, subject_c_regexes=None,
                  san_regexes=None, key_types=None, key_reuse=None, cert_authority=None, cert_authority_account_id=None,
                  cert_authority_product_option_id=None, priority=None, modification_date=None, status=None, reason=None,
-                 validity_period=None, recommended_settings=None):
+                 validity_period=None, recommended_settings=None, csr_upload_allowed=None,
+                 key_generated_by_venafi_allowed=None):
         """
         :param str policy_id:
         :param str company_id:
@@ -204,6 +205,8 @@ class Policy:
         :param str reason:
         :param str validity_period:
         :param vaas_utils.RecommendedSettings recommended_settings:
+        :param bool csr_upload_allowed:
+        :param bool key_generated_by_venafi_allowed:
         """
         self.id = policy_id
         self.company_id = company_id
@@ -229,6 +232,11 @@ class Policy:
         self.reason = reason
         self.validity_period = validity_period
         self.recommended_settings = recommended_settings
+        self.csr_upload_allowed = csr_upload_allowed
+        self.key_generated_by_venafi_allowed = key_generated_by_venafi_allowed
+        self.email_regexes = None  # type: list[str]
+        self.ip_constraints_regexes = None  # type: list[str]
+        self.uri_regexes = None  # type: list[str]
 
     def __repr__(self):
         return "Policy:\n" + "\n".join([f"  {k}: {v}" for k, v in (
