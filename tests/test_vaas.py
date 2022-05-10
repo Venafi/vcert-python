@@ -25,12 +25,12 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePrivateKey
 from cryptography.x509.oid import NameOID
 
-from policy import KeyPair, DefaultKeyPair, PolicySpecification
 from test_env import CLOUD_ZONE, CLOUD_APIKEY, CLOUD_URL, RANDOM_DOMAIN
 from test_pm import get_policy_obj, get_defaults_obj
 from test_utils import random_word, enroll, renew, renew_by_thumbprint, renew_without_key_reuse, simple_enroll, \
     get_vaas_zone
 from vcert import CloudConnection, KeyType, CertificateRequest, CustomField, logger, CSR_ORIGIN_SERVICE
+from vcert.policy import KeyPair, DefaultKeyPair, PolicySpecification
 
 log = logger.get_child("test-vaas")
 
