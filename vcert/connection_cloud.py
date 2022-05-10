@@ -34,8 +34,9 @@ from .policy import PolicySpecification
 from .policy.pm_cloud import (build_policy_spec, validate_policy_spec, AccountDetails, build_cit_request, build_user,
                               UserDetails, build_company, build_apikey, build_app_update_request, get_ca_info,
                               CertificateAuthorityDetails, CertificateAuthorityInfo, build_account_details,
-                              build_app_create_request, supported_rsa_key_sizes, supported_elliptic_curves)
-from .vaas_utils import AppDetails, RecommendedSettings, EdgeEncryptionKey, zip_to_pem, value_matches_regex
+                              build_app_create_request, build_team, get_cit_data_from_response, build_owner_json,
+                              supported_rsa_key_sizes, supported_elliptic_curves)
+from .vaas_utils import AppDetails, OwnerIdsAndTypes, RecommendedSettings, EdgeEncryptionKey, zip_to_pem, value_matches_regex
 
 TOKEN_HEADER_NAME = "tppl-api-key"  # nosec
 APPLICATION_SERVER_TYPE_ID = "784938d1-ef0d-11eb-9461-7bb533ba575b"
@@ -57,6 +58,8 @@ CSR_ATTR_KEY_TYPE_PARAMS = 'keyTypeParameters'
 CSR_ATTR_KEY_TYPE = 'keyType'
 CSR_ATTR_KEY_LENGTH = 'keyLength'
 CSR_ATTR_KEY_CURVE = 'keyCurve'
+OWNER_TYPE_USER = "USER"
+OWNER_TYPE_TEAM = "TEAM"
 
 log = get_child("connection-vaas")
 
@@ -94,6 +97,9 @@ class URLS:
     ISSUING_TEMPLATES_UPDATE = ISSUING_TEMPLATES + "/{}"
     USER_ACCOUNTS = API_VERSION + "useraccounts"
     DEK_PUBLIC_KEY = API_VERSION + "edgeencryptionkeys/{}"
+    USERS_USERNAME = API_VERSION + "users/username/{}"
+    USERS_ID = API_VERSION + "users/{}"
+    TEAMS_ID = API_VERSION + "teams"
 
 
 class CondorChainOptions:
@@ -124,6 +130,16 @@ def _parse_zone(zone):
     app_name = segments[0]
     cit_alias = segments[1]
     return app_name, cit_alias
+
+
+def create_owner(owner_type, owner_id):
+    owner = OwnerIdsAndTypes(owner_type, owner_id)
+    return owner
+
+
+def resolve_apikey_owner(user_details):
+    owner = create_owner(OWNER_TYPE_USER, user_details.user.user_id)
+    return owner
 
 
 class CloudConnection(CommonConnection):
@@ -628,21 +644,117 @@ class CloudConnection(CommonConnection):
             raise VenafiError('User Details not found')
 
         app_details = self._get_app_details_by_name(app_name)
+        for_update, owners_list = self.resolve_owners(policy_spec.users, user_details)
         if app_details:
-            # Application exists. Update with cit
-            if not self._policy_exists(zone):
+            # Application exists. Update with cit and owners
+            if for_update and len(policy_spec.users) == 0:
+                log.debug("No users provided in the policy specification")
+            else:
+                owner_list = build_owner_json(owners_list)
+                app_details.owner_ids_and_types = owner_list
+            if app_details.cit_alias_id_map:
                 # Only link cit with Application when cit is not already associated with Application
-                app_req = build_app_update_request(app_details, resp_cit_data)
-                status, data = self._put(URLS.APP_BY_ID.format(app_details.app_id), app_req)
-                if status != HTTPStatus.OK:
-                    raise VenafiError(f"Could not update Application [{app_name}] with cit [{resp_cit_data}]")
+                cit_map = app_details.cit_alias_id_map
+                cit_id, cit_name = get_cit_data_from_response(cit_data)
+                cit_map[cit_name] = cit_id
+            app_req = build_app_update_request(app_details, cit_map)
+            status, data = self._put(URLS.APP_BY_ID.format(app_details.app_id), app_req)
+            if status != HTTPStatus.OK:
+                raise VenafiError(f"Could not update Application [{app_name}] with cit [{resp_cit_data}]")
         else:
             # Application does not exist. Create one
-            app_req = build_app_create_request(app_name, user_details, resp_cit_data)
+            app_req = build_app_create_request(app_name, owners_list, resp_cit_data)
             status, data = self._post(URLS.APPLICATIONS, app_req)
             if status != HTTPStatus.CREATED:
                 raise VenafiError(f"Could not create application [{app_name}]")
         return
+
+    def resolve_owners(self, users_list, user_details):
+        owners_list = list()
+        for_update = False
+        if not users_list:
+            # When no users are provided on the list, adds apikey user as owner
+            api_owner = resolve_apikey_owner(user_details)
+            owners_list.append(api_owner)
+            for_update = True
+        else:
+            # Resolving the usernames list
+            # Creating a higher level Teams object to cache the response
+            teams_list = list()
+            users_list = list(set(users_list))
+            for username in users_list:
+                cloud_owner = self.resolve_user_to_cloud_owner(username)
+                if cloud_owner:
+                    owners_list.append(cloud_owner)
+                else:
+                    team_owner = self.resolve_user_to_cloud_team(username)
+                    if not team_owner:
+                        raise VenafiError(f"Unable to find identity [{username}]")
+                    owners_list.append(team_owner)
+        return for_update, owners_list
+
+    def resolve_user_to_cloud_owner(self, username):
+        user = self.get_vaas_identity(username)
+        if not user:
+            return None
+        owner = create_owner(OWNER_TYPE_USER, user.user_id)
+        return owner
+
+    def resolve_user_to_cloud_team(self, username):
+        teams = list()
+        data_teams = None
+        try:
+            status, response = self._get(URLS.TEAMS_ID)
+            data_teams = response['teams']
+        except VenafiError as err:
+            log.debug(f"Error while getting team [{username}]: {err.args[0]}")
+        # date_teams will never be empty, we are always expecting at least one team
+        for data in data_teams:
+            team = build_team(data)
+            teams.append(team)
+        if len(teams) > 0:
+            for team in teams:
+                if team.name == username:
+                    owner = create_owner(OWNER_TYPE_TEAM, team.team_id)
+                    return owner
+        return None
+
+    def get_vaas_identity(self, username):
+        if not username or username == "":
+            raise VenafiError("Username cannot be empty")
+        url = URLS.USERS_USERNAME.format(username)
+        try:
+            status, response = self._get(url)
+            if status == HTTPStatus.NOT_FOUND:
+                return None
+            identities = response['users'][0]
+            identity = build_user(identities)
+            return identity
+        except VenafiError as err:
+            log.debug(f"Unable to find identity [{username}] of type USER: {err.args[0]}")
+
+    def resolve_cloud_owners_names(self, zone):
+        app_name, cit_alias = _parse_zone(zone)
+        app_details = self._get_app_details_by_name(app_name)
+        users_list = list()
+        teams_response = list()
+        for owner in app_details.owner_ids_and_types:
+            if owner['ownerType'] == OWNER_TYPE_USER:
+                status, data = self._get(URLS.USERS_ID.format(owner['ownerId']))
+                user = build_user(data)
+                users_list.append(user.username)
+            elif owner['ownerType'] == OWNER_TYPE_TEAM:
+                if not teams_response:
+                    status, data = self._get(URLS.TEAMS_ID)
+                    data_team = data['teams']
+                    for t in data_team:
+                        team = build_team(t)
+                        teams_response.append(team)
+                if teams_response:
+                    for team in teams_response:
+                        if team.team_id == owner['ownerId']:
+                            users_list.append(team.name)
+        return users_list
 
     def _get_ca_details(self, ca_name):
         """
@@ -893,6 +1005,8 @@ class CloudConnection(CommonConnection):
             raise VenafiError("Certificate Authority info not found")
 
         ps = build_policy_spec(cit, info, subject_cn_to_str)
+        users_list = self.resolve_cloud_owners_names(zone)
+        ps.users = users_list
         return ps
 
     def _get_dek_hash(self, cert_id):
@@ -943,3 +1057,4 @@ class CloudConnection(CommonConnection):
 
         cert, chain, private_key = zip_to_pem(data, request.chain_option)
         return Certificate(cert=cert, chain=chain, key=private_key)
+

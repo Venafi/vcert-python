@@ -50,6 +50,16 @@ class AppDetails:
         self.org_unit_id = org_unit_id
 
 
+class OwnerIdsAndTypes:
+    def __init__(self, owner_type=None, owner_id=None):
+        """
+        :param owner_type:
+        :param owner_id:
+        """
+        self.owner_type = owner_type
+        self.owner_id = owner_id
+
+
 class RecommendedSettings:
     def __init__(self, subject_o_value=None, subject_ou_value=None, subject_l_value=None, subject_st_value=None,
                  subject_c_value=None, key_type=None, key_reuse=None):

@@ -30,6 +30,7 @@ TPP_ACCESS_TOKEN = environ.get('TPP_ACCESS_TOKEN')
 CLOUD_URL = environ.get('CLOUD_URL')
 CLOUD_APIKEY = environ.get('CLOUD_APIKEY')
 CLOUD_ZONE = environ.get('CLOUD_ZONE')
+CLOUD_TEAM = environ.get('CLOUD_TEAM')
 
 TPP_PM_ROOT = environ.get('TPP_PM_ROOT')
 TPP_CA_NAME = environ.get('TPP_CA_NAME')
