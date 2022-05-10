@@ -234,6 +234,9 @@ class Policy:
         self.recommended_settings = recommended_settings
         self.csr_upload_allowed = csr_upload_allowed
         self.key_generated_by_venafi_allowed = key_generated_by_venafi_allowed
+        self.email_regexes = None  # type: list[str]
+        self.ip_constraints_regexes = None  # type: list[str]
+        self.uri_regexes = None  # type: list[str]
 
     def __repr__(self):
         return "Policy:\n" + "\n".join([f"  {k}: {v}" for k, v in (
