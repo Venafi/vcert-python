@@ -247,7 +247,7 @@ class TestCloudPolicyManagement(unittest.TestCase):
         self.assertTrue(ps.policy.subject_alt_names.ip_allowed)
 
     def test_create_policy_with_no_users(self):
-        zone = self._get_random_zone()
+        zone = get_vaas_zone()
         connector = self.cloud_conn
         policy_specification = PolicySpecification()
         policy_specification.policy = get_policy_obj()
@@ -258,7 +258,7 @@ class TestCloudPolicyManagement(unittest.TestCase):
         self.assertEqual("jenkins@opensource.qa.venafi.io", result.users[0])
 
     def test_create_policy_with_users(self):
-        zone = self._get_random_zone()
+        zone = get_vaas_zone()
         connector = self.cloud_conn
         policy_specification = PolicySpecification()
         policy_specification.policy = get_policy_obj()
@@ -271,13 +271,12 @@ class TestCloudPolicyManagement(unittest.TestCase):
         self.assertIn("resource-owner@opensource.qa.venafi.io", result.users)
 
     def test_update_policy_with_no_users(self):
-        zone = self._get_random_zone()
+        zone = get_vaas_zone()
         connector = self.cloud_conn
         policy_specification = PolicySpecification()
         policy_specification.policy = get_policy_obj()
         policy_specification.defaults = get_defaults_obj()
-        policy_specification.users = ["pki-admin@opensource.qa.venafi.io",
-                                       "resource-owner@opensource.qa.venafi.io"]
+        policy_specification.users = ["pki-admin@opensource.qa.venafi.io", "resource-owner@opensource.qa.venafi.io"]
         connector.set_policy(zone, policy_specification)
         result = connector.get_policy(zone)
         self.assertEqual(2, len(result.users))
@@ -295,7 +294,7 @@ class TestCloudPolicyManagement(unittest.TestCase):
         self.assertIn("resource-owner@opensource.qa.venafi.io", result2.users)
 
     def test_update_policy_with_users(self):
-        zone = self._get_random_zone()
+        zone = get_vaas_zone()
         connector = self.cloud_conn
         policy_specification = PolicySpecification()
         policy_specification.policy = get_policy_obj()
@@ -311,7 +310,7 @@ class TestCloudPolicyManagement(unittest.TestCase):
         policy_specification2.policy = get_policy_obj()
         policy_specification2.defaults = get_defaults_obj()
         policy_specification2.users = ["pki-admin@opensource.qa.venafi.io",
-                                        "resource-owner@opensource.qa.venafi.io"]
+                                       "resource-owner@opensource.qa.venafi.io"]
         connector.set_policy(zone, policy_specification2)
         result2 = connector.get_policy(zone)
         self.assertEqual(2, len(result2.users))
@@ -319,7 +318,7 @@ class TestCloudPolicyManagement(unittest.TestCase):
         self.assertIn("resource-owner@opensource.qa.venafi.io", result2.users)
 
     def test_create_policy_with_team(self):
-        zone = self._get_random_zone()
+        zone = get_vaas_zone()
         connector = self.cloud_conn
         policy_specification = PolicySpecification()
         policy_specification.policy = get_policy_obj()
