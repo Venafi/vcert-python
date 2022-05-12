@@ -563,7 +563,11 @@ class TestLocalMethods(unittest.TestCase):
                      elliptic_curves=["asd"],
                      service_generated=True)
         ps.policy.key_pair = kp
-        ps.policy.subject_alt_names = SubjectAltNames(dns_allowed=True,  email_allowed=True)
+        ps.policy.subject_alt_names = SubjectAltNames(
+            dns_allowed=True,
+            email_allowed=True,
+            upn_allowed=True
+        )
         s = Subject(orgs=["Venafi"],
                     org_units=["QA Venafi"],
                     localities=["Salt Lake City"],
@@ -586,15 +590,10 @@ class TestLocalMethods(unittest.TestCase):
         try:
             validate_ps_vaas(ps)
         except VenafiError as err:
-            msg = "Key Type values exceeded. Only one Key Type is allowed by VaaS"
-            self.assertEqual(err.args[0], msg)
-        ps.policy.key_pair.key_types = ["foo"]
-        try:
-            validate_ps_vaas(ps)
-        except VenafiError as err:
             msg = f"Key Type [{ps.policy.key_pair.key_types[0]}] is not supported by VaaS"
             self.assertEqual(err.args[0], msg)
         ps.policy.key_pair.key_types = ["RSA"]
+
         try:
             validate_ps_vaas(ps)
         except VenafiError as err:
@@ -606,9 +605,9 @@ class TestLocalMethods(unittest.TestCase):
         try:
             validate_ps_vaas(ps)
         except VenafiError as err:
-            msg = "Subject Alt name [SubjAltNameEmailAllowed] is not allowed by VaaS"
+            msg = "Subject Alt name [SubjAltNameUpnAllowed] is not allowed by VaaS"
             self.assertEqual(err.args[0], msg)
-        ps.policy.subject_alt_names.email_allowed = False
+        ps.policy.subject_alt_names.upn_allowed = False
 
         # validate default subject values against policy values
         try:
@@ -617,24 +616,28 @@ class TestLocalMethods(unittest.TestCase):
             msg = default_error_msg.format('Organization', ds.org, s.orgs)
             self.assertEqual(err.args[0], msg)
         ps.defaults.subject.org = s.orgs[0]
+
         try:
             validate_ps_vaas(ps)
         except VenafiError as err:
             msg = default_error_msg.format('Org Units', ds.org_units, s.org_units)
             self.assertEqual(err.args[0], msg)
         ps.defaults.subject.org_units = s.org_units
+
         try:
             validate_ps_vaas(ps)
         except VenafiError as err:
             msg = default_error_msg.format('Localities', ds.locality, s.localities)
             self.assertEqual(err.args[0], msg)
         ps.defaults.subject.locality = s.localities[0]
+
         try:
             validate_ps_vaas(ps)
         except VenafiError as err:
             msg = default_error_msg.format('States', ds.state, s.states)
             self.assertEqual(err.args[0], msg)
         ps.defaults.subject.state = s.states[0]
+
         try:
             validate_ps_vaas(ps)
         except VenafiError as err:
@@ -648,24 +651,28 @@ class TestLocalMethods(unittest.TestCase):
         except VenafiError as err:
             msg = default_error_msg.format('Key Types', dkp.key_type, kp.key_types)
             self.assertEqual(err.args[0], msg)
+
         ps.defaults.key_pair.key_type = kp.key_types[0]
         try:
             validate_ps_vaas(ps)
         except VenafiError as err:
             msg = default_error_msg.format('RSA Key Sizes', dkp.rsa_key_size, kp.rsa_key_sizes)
             self.assertEqual(err.args[0], msg)
+
         ps.defaults.key_pair.rsa_key_size = kp.rsa_key_sizes[0]
         try:
             validate_ps_vaas(ps)
         except VenafiError as err:
             msg = default_error_msg.format('Elliptic Curves', dkp.elliptic_curve, kp.elliptic_curves)
             self.assertEqual(err.args[0], msg)
+
         ps.defaults.key_pair.elliptic_curve = kp.elliptic_curves[0]
         try:
             validate_ps_vaas(ps)
         except VenafiError as err:
             msg = default_error_msg.format('Service Generated', dkp.service_generated, kp.service_generated)
             self.assertEqual(err.args[0], msg)
+
         ps.defaults.key_pair.service_generated = kp.service_generated
 
         # validate default values when policy is not defined
@@ -681,12 +688,14 @@ class TestLocalMethods(unittest.TestCase):
         except VenafiError as err:
             msg = f"Default Key Type [{dkp2.key_type}] is not supported by VaaS"
             self.assertEqual(err.args[0], msg)
+
         ps.defaults.key_pair.key_type = "RSA"
         try:
             validate_ps_vaas(ps)
         except VenafiError as err:
-            msg = f"Default Key Size [{256}] is not supported by VaaS"
+            msg = f"Default RSA Key Size [{256}] is not supported by VaaS"
             self.assertEqual(err.args[0], msg)
+
         ps.defaults.key_pair.rsa_key_size = 4096
 
 
