@@ -139,10 +139,10 @@ class TestTPPPolicyManagement(unittest.TestCase):
 
     def test_create_and_get_policy_with_contacts(self):
         connector = self.tpp_conn
-        zone = f"{TPP_PM_ROOT}\\{_get_tpp_policy_name()}"
+        zone = f"{TPP_PM_ROOT}\\{get_tpp_policy_name()}"
         policy_specification = PolicySpecification()
-        policy_specification.policy = _get_policy_obj(ca_type=CA_TYPE_TPP)
-        policy_specification.defaults = _get_defaults_obj()
+        policy_specification.policy = get_policy_obj(ca_type=CA_TYPE_TPP)
+        policy_specification.defaults = get_defaults_obj()
         policy_specification.policy.key_pair.rsa_key_sizes = [2048]
         connector.set_policy(zone, policy_specification)
         result = connector.get_policy(zone)
@@ -247,22 +247,22 @@ class TestCloudPolicyManagement(unittest.TestCase):
         self.assertTrue(ps.policy.subject_alt_names.ip_allowed)
 
     def test_create_policy_with_no_users(self):
-        zone = self._get_random_zone()
+        zone = get_vaas_zone()
         connector = self.cloud_conn
         policy_specification = PolicySpecification()
-        policy_specification.policy = _get_policy_obj()
-        policy_specification.defaults = _get_defaults_obj()
+        policy_specification.policy = get_policy_obj()
+        policy_specification.defaults = get_defaults_obj()
         connector.set_policy(zone, policy_specification)
         result = connector.get_policy(zone)
         self.assertEqual(1, len(result.users))
         self.assertEqual("jenkins@opensource.qa.venafi.io", result.users[0])
 
     def test_create_policy_with_users(self):
-        zone = self._get_random_zone()
+        zone = get_vaas_zone()
         connector = self.cloud_conn
         policy_specification = PolicySpecification()
-        policy_specification.policy = _get_policy_obj()
-        policy_specification.defaults = _get_defaults_obj()
+        policy_specification.policy = get_policy_obj()
+        policy_specification.defaults = get_defaults_obj()
         policy_specification.users = ["pki-admin@opensource.qa.venafi.io", "resource-owner@opensource.qa.venafi.io"]
         connector.set_policy(zone, policy_specification)
         result = connector.get_policy(zone)
@@ -271,13 +271,12 @@ class TestCloudPolicyManagement(unittest.TestCase):
         self.assertIn("resource-owner@opensource.qa.venafi.io", result.users)
 
     def test_update_policy_with_no_users(self):
-        zone = self._get_random_zone()
+        zone = get_vaas_zone()
         connector = self.cloud_conn
         policy_specification = PolicySpecification()
-        policy_specification.policy = _get_policy_obj()
-        policy_specification.defaults = _get_defaults_obj()
-        policy_specification.users = ["pki-admin@opensource.qa.venafi.io",
-                                       "resource-owner@opensource.qa.venafi.io"]
+        policy_specification.policy = get_policy_obj()
+        policy_specification.defaults = get_defaults_obj()
+        policy_specification.users = ["pki-admin@opensource.qa.venafi.io", "resource-owner@opensource.qa.venafi.io"]
         connector.set_policy(zone, policy_specification)
         result = connector.get_policy(zone)
         self.assertEqual(2, len(result.users))
@@ -286,8 +285,8 @@ class TestCloudPolicyManagement(unittest.TestCase):
 
         # Update Policy Specification with no users
         policy_specification2 = PolicySpecification()
-        policy_specification2.policy = _get_policy_obj()
-        policy_specification2.defaults = _get_defaults_obj()
+        policy_specification2.policy = get_policy_obj()
+        policy_specification2.defaults = get_defaults_obj()
         connector.set_policy(zone, policy_specification2)
         result2 = connector.get_policy(zone)
         self.assertEqual(2, len(result2.users))
@@ -295,11 +294,11 @@ class TestCloudPolicyManagement(unittest.TestCase):
         self.assertIn("resource-owner@opensource.qa.venafi.io", result2.users)
 
     def test_update_policy_with_users(self):
-        zone = self._get_random_zone()
+        zone = get_vaas_zone()
         connector = self.cloud_conn
         policy_specification = PolicySpecification()
-        policy_specification.policy = _get_policy_obj()
-        policy_specification.defaults = _get_defaults_obj()
+        policy_specification.policy = get_policy_obj()
+        policy_specification.defaults = get_defaults_obj()
         policy_specification.users = ["jenkins@opensource.qa.venafi.io"]
         connector.set_policy(zone, policy_specification)
         result = connector.get_policy(zone)
@@ -308,10 +307,10 @@ class TestCloudPolicyManagement(unittest.TestCase):
 
         # Update Policy Specification with users
         policy_specification2 = PolicySpecification()
-        policy_specification2.policy = _get_policy_obj()
-        policy_specification2.defaults = _get_defaults_obj()
+        policy_specification2.policy = get_policy_obj()
+        policy_specification2.defaults = get_defaults_obj()
         policy_specification2.users = ["pki-admin@opensource.qa.venafi.io",
-                                        "resource-owner@opensource.qa.venafi.io"]
+                                       "resource-owner@opensource.qa.venafi.io"]
         connector.set_policy(zone, policy_specification2)
         result2 = connector.get_policy(zone)
         self.assertEqual(2, len(result2.users))
@@ -319,11 +318,11 @@ class TestCloudPolicyManagement(unittest.TestCase):
         self.assertIn("resource-owner@opensource.qa.venafi.io", result2.users)
 
     def test_create_policy_with_team(self):
-        zone = self._get_random_zone()
+        zone = get_vaas_zone()
         connector = self.cloud_conn
         policy_specification = PolicySpecification()
-        policy_specification.policy = _get_policy_obj()
-        policy_specification.defaults = _get_defaults_obj()
+        policy_specification.policy = get_policy_obj()
+        policy_specification.defaults = get_defaults_obj()
         policy_specification.users = [CLOUD_TEAM]
         connector.set_policy(zone, policy_specification)
         result = connector.get_policy(zone)
@@ -564,7 +563,11 @@ class TestLocalMethods(unittest.TestCase):
                      elliptic_curves=["asd"],
                      service_generated=True)
         ps.policy.key_pair = kp
-        ps.policy.subject_alt_names = SubjectAltNames(dns_allowed=True,  email_allowed=True)
+        ps.policy.subject_alt_names = SubjectAltNames(
+            dns_allowed=True,
+            email_allowed=True,
+            upn_allowed=True
+        )
         s = Subject(orgs=["Venafi"],
                     org_units=["QA Venafi"],
                     localities=["Salt Lake City"],
@@ -587,15 +590,10 @@ class TestLocalMethods(unittest.TestCase):
         try:
             validate_ps_vaas(ps)
         except VenafiError as err:
-            msg = "Key Type values exceeded. Only one Key Type is allowed by VaaS"
-            self.assertEqual(err.args[0], msg)
-        ps.policy.key_pair.key_types = ["foo"]
-        try:
-            validate_ps_vaas(ps)
-        except VenafiError as err:
             msg = f"Key Type [{ps.policy.key_pair.key_types[0]}] is not supported by VaaS"
             self.assertEqual(err.args[0], msg)
         ps.policy.key_pair.key_types = ["RSA"]
+
         try:
             validate_ps_vaas(ps)
         except VenafiError as err:
@@ -607,9 +605,9 @@ class TestLocalMethods(unittest.TestCase):
         try:
             validate_ps_vaas(ps)
         except VenafiError as err:
-            msg = "Subject Alt name [SubjAltNameEmailAllowed] is not allowed by VaaS"
+            msg = "Subject Alt name [SubjAltNameUpnAllowed] is not allowed by VaaS"
             self.assertEqual(err.args[0], msg)
-        ps.policy.subject_alt_names.email_allowed = False
+        ps.policy.subject_alt_names.upn_allowed = False
 
         # validate default subject values against policy values
         try:
@@ -618,24 +616,28 @@ class TestLocalMethods(unittest.TestCase):
             msg = default_error_msg.format('Organization', ds.org, s.orgs)
             self.assertEqual(err.args[0], msg)
         ps.defaults.subject.org = s.orgs[0]
+
         try:
             validate_ps_vaas(ps)
         except VenafiError as err:
             msg = default_error_msg.format('Org Units', ds.org_units, s.org_units)
             self.assertEqual(err.args[0], msg)
         ps.defaults.subject.org_units = s.org_units
+
         try:
             validate_ps_vaas(ps)
         except VenafiError as err:
             msg = default_error_msg.format('Localities', ds.locality, s.localities)
             self.assertEqual(err.args[0], msg)
         ps.defaults.subject.locality = s.localities[0]
+
         try:
             validate_ps_vaas(ps)
         except VenafiError as err:
             msg = default_error_msg.format('States', ds.state, s.states)
             self.assertEqual(err.args[0], msg)
         ps.defaults.subject.state = s.states[0]
+
         try:
             validate_ps_vaas(ps)
         except VenafiError as err:
@@ -649,24 +651,28 @@ class TestLocalMethods(unittest.TestCase):
         except VenafiError as err:
             msg = default_error_msg.format('Key Types', dkp.key_type, kp.key_types)
             self.assertEqual(err.args[0], msg)
+
         ps.defaults.key_pair.key_type = kp.key_types[0]
         try:
             validate_ps_vaas(ps)
         except VenafiError as err:
             msg = default_error_msg.format('RSA Key Sizes', dkp.rsa_key_size, kp.rsa_key_sizes)
             self.assertEqual(err.args[0], msg)
+
         ps.defaults.key_pair.rsa_key_size = kp.rsa_key_sizes[0]
         try:
             validate_ps_vaas(ps)
         except VenafiError as err:
             msg = default_error_msg.format('Elliptic Curves', dkp.elliptic_curve, kp.elliptic_curves)
             self.assertEqual(err.args[0], msg)
+
         ps.defaults.key_pair.elliptic_curve = kp.elliptic_curves[0]
         try:
             validate_ps_vaas(ps)
         except VenafiError as err:
             msg = default_error_msg.format('Service Generated', dkp.service_generated, kp.service_generated)
             self.assertEqual(err.args[0], msg)
+
         ps.defaults.key_pair.service_generated = kp.service_generated
 
         # validate default values when policy is not defined
@@ -682,12 +688,14 @@ class TestLocalMethods(unittest.TestCase):
         except VenafiError as err:
             msg = f"Default Key Type [{dkp2.key_type}] is not supported by VaaS"
             self.assertEqual(err.args[0], msg)
+
         ps.defaults.key_pair.key_type = "RSA"
         try:
             validate_ps_vaas(ps)
         except VenafiError as err:
-            msg = f"Default Key Size [{256}] is not supported by VaaS"
+            msg = f"Default RSA Key Size [{256}] is not supported by VaaS"
             self.assertEqual(err.args[0], msg)
+
         ps.defaults.key_pair.rsa_key_size = 4096
 
 

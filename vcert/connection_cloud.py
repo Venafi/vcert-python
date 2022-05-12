@@ -933,12 +933,16 @@ class CloudConnection(CommonConnection):
             csr_attr_map[CSR_ATTR_COUNTRY] = ps.defaults.subject.country
 
         if len(request.san_dns) > 0:
-            sans = {
-                CSR_ATTR_SANS_DNS: request.san_dns,
-                CSR_ATTR_SANS_IP_ADDR: request.ip_addresses,
-                CSR_ATTR_SANS_EMAIL_ADDR: request.email_addresses,
-                CSR_ATTR_SANS_URIS: request.uniform_resource_identifiers
-            }
+            sans = dict()
+            if request.san_dns and len(request.san_dns) > 0:
+                sans[CSR_ATTR_SANS_DNS] = request.san_dns
+            if request.ip_addresses and len(request.ip_addresses) > 0:
+                sans[CSR_ATTR_SANS_IP_ADDR] = request.ip_addresses
+            if request.email_addresses and len(request.email_addresses) > 0:
+                sans[CSR_ATTR_SANS_EMAIL_ADDR] = request.email_addresses
+            if request.uniform_resource_identifiers and len(request.uniform_resource_identifiers) > 0:
+                sans[CSR_ATTR_SANS_URIS] = request.uniform_resource_identifiers
+
             csr_attr_map[CSR_ATTR_SANS_BY_TYPE] = sans
 
         if request.key_type:
@@ -953,7 +957,7 @@ class CloudConnection(CommonConnection):
                 req_kt_option = request.key_type.option
                 if request.key_type.key_type.lower() == KeyType.RSA:
                     policy_rsa_sizes = ps.policy.key_pair.rsa_key_sizes
-                    valid = value_matches_regex(value=req_kt_option, pattern_list=policy_rsa_sizes)
+                    valid = True if req_kt_option in policy_rsa_sizes else False
                     if not valid:
                         rsa_str = "RSA Key Size"
                         log.error(MSG_VALUE_NOT_MATCH_POLICY.format(rsa_str, f"{rsa_str}s", req_kt_option,
@@ -970,11 +974,11 @@ class CloudConnection(CommonConnection):
             kt_param = {
                 CSR_ATTR_KEY_TYPE: request.key_type.key_type.upper()
             }
-            kt_option = request.key_type.option.upper()
-            if kt_option == KeyType.RSA:
-                kt_param[CSR_ATTR_KEY_LENGTH] = kt_option
-            elif request.key_type.key_type == KeyType.ECDSA:
-                kt_param[CSR_ATTR_KEY_CURVE] = kt_option
+            kt_type = request.key_type.key_type.lower()
+            if kt_type == KeyType.RSA:
+                kt_param[CSR_ATTR_KEY_LENGTH] = request.key_type.option
+            elif kt_type == KeyType.ECDSA:
+                kt_param[CSR_ATTR_KEY_CURVE] = request.key_type.option.upper()
 
             csr_attr_map[CSR_ATTR_KEY_TYPE_PARAMS] = kt_param
         elif ps.defaults and ps.defaults.key_pair:
