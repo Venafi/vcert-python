@@ -974,11 +974,11 @@ class CloudConnection(CommonConnection):
             kt_param = {
                 CSR_ATTR_KEY_TYPE: request.key_type.key_type.upper()
             }
-            kt_option = request.key_type.key_type.lower()
-            if kt_option == KeyType.RSA:
+            kt_type = request.key_type.key_type.lower()
+            if kt_type == KeyType.RSA:
                 kt_param[CSR_ATTR_KEY_LENGTH] = request.key_type.option
-            elif request.key_type.key_type == KeyType.ECDSA:
-                kt_param[CSR_ATTR_KEY_CURVE] = request.key_type.option
+            elif kt_type == KeyType.ECDSA:
+                kt_param[CSR_ATTR_KEY_CURVE] = request.key_type.option.upper()
 
             csr_attr_map[CSR_ATTR_KEY_TYPE_PARAMS] = kt_param
         elif ps.defaults and ps.defaults.key_pair:
