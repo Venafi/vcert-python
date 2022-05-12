@@ -558,6 +558,12 @@ def build_cit_request(ps, ca_details):
                 ec_kt['keyCurves'] = ['P256']
 
             key_types.append(ec_kt)
+    else:
+        rsa_kt = {
+         'keyType': KeyType.RSA.upper(),
+         'keyLengths': [2048]
+        }
+        key_types.append(rsa_kt)
 
     request['keyTypes'] = key_types
 
