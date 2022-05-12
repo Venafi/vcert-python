@@ -139,10 +139,10 @@ class TestTPPPolicyManagement(unittest.TestCase):
 
     def test_create_and_get_policy_with_contacts(self):
         connector = self.tpp_conn
-        zone = f"{TPP_PM_ROOT}\\{_get_tpp_policy_name()}"
+        zone = f"{TPP_PM_ROOT}\\{get_tpp_policy_name()}"
         policy_specification = PolicySpecification()
-        policy_specification.policy = _get_policy_obj(ca_type=CA_TYPE_TPP)
-        policy_specification.defaults = _get_defaults_obj()
+        policy_specification.policy = get_policy_obj(ca_type=CA_TYPE_TPP)
+        policy_specification.defaults = get_defaults_obj()
         policy_specification.policy.key_pair.rsa_key_sizes = [2048]
         connector.set_policy(zone, policy_specification)
         result = connector.get_policy(zone)
@@ -250,8 +250,8 @@ class TestCloudPolicyManagement(unittest.TestCase):
         zone = self._get_random_zone()
         connector = self.cloud_conn
         policy_specification = PolicySpecification()
-        policy_specification.policy = _get_policy_obj()
-        policy_specification.defaults = _get_defaults_obj()
+        policy_specification.policy = get_policy_obj()
+        policy_specification.defaults = get_defaults_obj()
         connector.set_policy(zone, policy_specification)
         result = connector.get_policy(zone)
         self.assertEqual(1, len(result.users))
@@ -261,8 +261,8 @@ class TestCloudPolicyManagement(unittest.TestCase):
         zone = self._get_random_zone()
         connector = self.cloud_conn
         policy_specification = PolicySpecification()
-        policy_specification.policy = _get_policy_obj()
-        policy_specification.defaults = _get_defaults_obj()
+        policy_specification.policy = get_policy_obj()
+        policy_specification.defaults = get_defaults_obj()
         policy_specification.users = ["pki-admin@opensource.qa.venafi.io", "resource-owner@opensource.qa.venafi.io"]
         connector.set_policy(zone, policy_specification)
         result = connector.get_policy(zone)
@@ -274,8 +274,8 @@ class TestCloudPolicyManagement(unittest.TestCase):
         zone = self._get_random_zone()
         connector = self.cloud_conn
         policy_specification = PolicySpecification()
-        policy_specification.policy = _get_policy_obj()
-        policy_specification.defaults = _get_defaults_obj()
+        policy_specification.policy = get_policy_obj()
+        policy_specification.defaults = get_defaults_obj()
         policy_specification.users = ["pki-admin@opensource.qa.venafi.io",
                                        "resource-owner@opensource.qa.venafi.io"]
         connector.set_policy(zone, policy_specification)
@@ -286,8 +286,8 @@ class TestCloudPolicyManagement(unittest.TestCase):
 
         # Update Policy Specification with no users
         policy_specification2 = PolicySpecification()
-        policy_specification2.policy = _get_policy_obj()
-        policy_specification2.defaults = _get_defaults_obj()
+        policy_specification2.policy = get_policy_obj()
+        policy_specification2.defaults = get_defaults_obj()
         connector.set_policy(zone, policy_specification2)
         result2 = connector.get_policy(zone)
         self.assertEqual(2, len(result2.users))
@@ -298,8 +298,8 @@ class TestCloudPolicyManagement(unittest.TestCase):
         zone = self._get_random_zone()
         connector = self.cloud_conn
         policy_specification = PolicySpecification()
-        policy_specification.policy = _get_policy_obj()
-        policy_specification.defaults = _get_defaults_obj()
+        policy_specification.policy = get_policy_obj()
+        policy_specification.defaults = get_defaults_obj()
         policy_specification.users = ["jenkins@opensource.qa.venafi.io"]
         connector.set_policy(zone, policy_specification)
         result = connector.get_policy(zone)
@@ -308,8 +308,8 @@ class TestCloudPolicyManagement(unittest.TestCase):
 
         # Update Policy Specification with users
         policy_specification2 = PolicySpecification()
-        policy_specification2.policy = _get_policy_obj()
-        policy_specification2.defaults = _get_defaults_obj()
+        policy_specification2.policy = get_policy_obj()
+        policy_specification2.defaults = get_defaults_obj()
         policy_specification2.users = ["pki-admin@opensource.qa.venafi.io",
                                         "resource-owner@opensource.qa.venafi.io"]
         connector.set_policy(zone, policy_specification2)
@@ -322,8 +322,8 @@ class TestCloudPolicyManagement(unittest.TestCase):
         zone = self._get_random_zone()
         connector = self.cloud_conn
         policy_specification = PolicySpecification()
-        policy_specification.policy = _get_policy_obj()
-        policy_specification.defaults = _get_defaults_obj()
+        policy_specification.policy = get_policy_obj()
+        policy_specification.defaults = get_defaults_obj()
         policy_specification.users = [CLOUD_TEAM]
         connector.set_policy(zone, policy_specification)
         result = connector.get_policy(zone)
