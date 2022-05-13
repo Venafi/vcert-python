@@ -139,7 +139,7 @@ class TestTPPMethods(unittest.TestCase):
         with self.assertRaises(Exception):
             self.tpp_conn.retrieve_cert(self.tpp_zone + "\\devops\\vcert\\test-non-issued.example.com")
 
-    def test_tpp_search_by_thumbpint(self):
+    def test_tpp_search_by_thumbprint(self):
         req, cert = simple_enroll(self.tpp_conn, self.tpp_zone)
         cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
         fingerprint = binascii.hexlify(cert.fingerprint(hashes.SHA1())).decode()

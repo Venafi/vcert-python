@@ -35,11 +35,11 @@ from vcert.policy import KeyPair, DefaultKeyPair, PolicySpecification
 log = logger.get_child("test-vaas")
 
 
-class TestCloudMethods(unittest.TestCase):
+class TestVaaSMethods(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         self.cloud_zone = CLOUD_ZONE
         self.cloud_conn = CloudConnection(token=CLOUD_APIKEY, url=CLOUD_URL)
-        super(TestCloudMethods, self).__init__(*args, **kwargs)
+        super(TestVaaSMethods, self).__init__(*args, **kwargs)
 
     def test_cloud_enroll(self):
         cn = f"{random_word(10)}.venafi.example.com"
