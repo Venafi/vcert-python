@@ -276,7 +276,8 @@ class CertificateRequest:
                  csr_origin=CSR_ORIGIN_LOCAL,
                  include_private_key=False,
                  validity_hours=None,
-                 issuer_hint=IssuerHint.DEFAULT):
+                 issuer_hint=IssuerHint.DEFAULT,
+                 use_legacy_pem=False):
         """
         :param str cert_id: Certificate request id. Generating by server.
         :param list[str] san_dns: Alternative names for SNI.
@@ -304,6 +305,7 @@ class CertificateRequest:
         :param bool include_private_key: Indicates if the private key should be returned by the server or not.
         :param int validity_hours: time in hours before the certificate expires.
         :param IssuerHint issuer_hint: Issuer of the certificate. Ignored when platform is not TPP.
+        :param bool use_legacy_pem: Flag that indicates the private key must be in PKCS1 format. Default is PKCS8.
         """
 
         self.chain_option = CHAIN_OPTION_LAST  # "last"
@@ -340,6 +342,7 @@ class CertificateRequest:
         self.include_private_key = include_private_key
         self.validity_hours = validity_hours
         self.issuer_hint = issuer_hint
+        self.use_legacy_pem = use_legacy_pem
 
     def __setattr__(self, key, value):
         if key == "key_password":
@@ -501,9 +504,14 @@ class CertificateRequest:
         else:
             encryption = serialization.NoEncryption()
 
+        if self.use_legacy_pem:
+            pk_format = serialization.PrivateFormat.TraditionalOpenSSL
+        else:
+            pk_format = serialization.PrivateFormat.PKCS8
+
         return self.private_key.private_bytes(
             encoding=serialization.Encoding.PEM,
-            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            format=pk_format,
             encryption_algorithm=encryption,
         ).decode()
 

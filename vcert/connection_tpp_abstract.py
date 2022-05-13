@@ -182,8 +182,11 @@ class AbstractTPPConnection(CommonConnection):
         log.debug(f"Getting certificate status for id {cert_request.id}")
 
         retrieve_request = dict(CertificateDN=cert_request.id,
-                                Format="base64",
+                                Format="Base64 (PKCS #8)",
                                 IncludeChain=True)
+
+        if cert_request.use_legacy_pem:
+            retrieve_request["Format"] = "base64"
 
         if cert_request.csr_origin == CSR_ORIGIN_SERVICE:
             retrieve_request['IncludePrivateKey'] = cert_request.include_private_key
