@@ -591,15 +591,22 @@ class AbstractTPPConnection(CommonConnection):
         }
         try:
             status, response = self._post(URLS.POLICY_BROWSE_IDENTITY, data=data)
-            identities = response['Identities'][0]
-            if len(identities) == 0:
-                raise VenafiError(f"The username [{username}] was not found.")
-        except VenafiError as err :
+        except VenafiError as err:
             log.debug(f"Error while getting contact [{username}]: {err.args[0]}")
+        if len(response['Identities']) == 0:
+            raise VenafiError(f"The username [{username}] was not found.")
+        identity = None
         if len(response['Identities']) > 1:
-            raise VenafiError("Extraneous information returned in the identity response. "
-                              "Expected size: 1, found more than 1 \n")
-        identity = build_identity_entry(identities)
+            for identy_entry in response['Identities']:
+                identy_user = build_identity_entry(identy_entry)
+                if identy_user.name.casefold() == username:
+                    identity = identy_user
+                    break
+        else:
+            identities = response['Identities'][0]
+            identity = build_identity_entry(identities)
+        if not identity:
+            raise VenafiError(f"The username [{username}] was not found.")
         return identity
 
     def request_ssh_cert(self, request):
