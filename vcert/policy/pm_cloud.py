@@ -88,30 +88,6 @@ def build_policy_spec(cit, ca_info, subject_cn_to_str=True):
         ca = f"{ca_info.ca_type}\\{ca_info.ca_account_key}\\{ca_info.vendor_name}"
         p.certificate_authority = ca
 
-    # s = Subject()
-    # create_subject = False
-    # if cit.SubjectORegexes is None:
-    #     s.orgs = [""]
-    # elif len(cit.SubjectORegexes) > 0:
-    #     create_subject = True
-    #     s.orgs = cit.SubjectORegexes
-    #
-    # if len(cit.SubjectOURegexes) > 0:
-    #     create_subject = True
-    #     s.org_units = cit.SubjectOURegexes
-    #
-    # if len(cit.SubjectLRegexes) > 0:
-    #     create_subject = True
-    #     s.localities = cit.SubjectLRegexes
-    #
-    # if len(cit.SubjectSTRegexes) > 0:
-    #     create_subject = True
-    #     s.states = cit.SubjectSTRegexes
-    #
-    # if len(cit.SubjectCRegexes) > 0:
-    #     create_subject = True
-    #     s.countries = cit.SubjectCRegexes
-
     p.subject = build_policy_spec_subject(cit)
 
     kp = KeyPair()
