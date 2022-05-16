@@ -153,12 +153,12 @@ class TestTPPPolicyManagement(unittest.TestCase):
         create_policy(self.tpp_conn, zone, policy_spec, policy, defaults)
 
 
-class TestCloudPolicyManagement(unittest.TestCase):
+class TestVaaSPolicyManagement(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         self.cloud_conn = CloudConnection(token=CLOUD_APIKEY, url=CLOUD_URL)
         self.json_file = POLICY_SPEC_JSON
         self.yaml_file = POLICY_SPEC_YAML
-        super(TestCloudPolicyManagement, self).__init__(*args, **kwargs)
+        super(TestVaaSPolicyManagement, self).__init__(*args, **kwargs)
 
     def test_create_policy_from_json(self):
         # ps = json_parser.parse_file(self.json_file)
@@ -328,6 +328,23 @@ class TestCloudPolicyManagement(unittest.TestCase):
         result = connector.get_policy(zone)
         self.assertEqual(1, len(result.users))
         self.assertEqual(CLOUD_TEAM, result.users[0])
+
+    def test_create_policy_disabled_subject_fields(self):
+        zone = get_vaas_zone()
+        policy = get_policy_obj()
+        policy.subject.orgs = [""]
+        policy.subject.org_units = [""]
+        policy.subject.localities = [""]
+        policy.subject.states = [""]
+        policy.subject.countries = [""]
+        ps_response = create_policy(connector=self.cloud_conn, zone=zone,policy=policy)
+        self.assertIsNotNone(ps_response.policy)
+        self.assertIsNotNone(ps_response.policy.subject)
+        self.assertListEqual(ps_response.policy.subject.orgs, [""])
+        self.assertListEqual(ps_response.policy.subject.org_units, [""])
+        self.assertListEqual(ps_response.policy.subject.localities, [""])
+        self.assertListEqual(ps_response.policy.subject.states, [""])
+        self.assertListEqual(ps_response.policy.subject.countries, [""])
 
     def _create_policy_cloud(self, policy_spec=None, policy=None, defaults=None):
         zone = get_vaas_zone()

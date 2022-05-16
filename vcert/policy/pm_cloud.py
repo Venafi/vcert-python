@@ -88,25 +88,31 @@ def build_policy_spec(cit, ca_info, subject_cn_to_str=True):
         ca = f"{ca_info.ca_type}\\{ca_info.ca_account_key}\\{ca_info.vendor_name}"
         p.certificate_authority = ca
 
-    s = Subject()
-    create_subject = False
-    if len(cit.SubjectORegexes) > 0:
-        create_subject = True
-        s.orgs = cit.SubjectORegexes
-    if len(cit.SubjectOURegexes) > 0:
-        create_subject = True
-        s.org_units = cit.SubjectOURegexes
-    if len(cit.SubjectLRegexes) > 0:
-        create_subject = True
-        s.localities = cit.SubjectLRegexes
-    if len(cit.SubjectSTRegexes) > 0:
-        create_subject = True
-        s.states = cit.SubjectSTRegexes
-    if len(cit.SubjectCRegexes) > 0:
-        create_subject = True
-        s.countries = cit.SubjectCRegexes
+    # s = Subject()
+    # create_subject = False
+    # if cit.SubjectORegexes is None:
+    #     s.orgs = [""]
+    # elif len(cit.SubjectORegexes) > 0:
+    #     create_subject = True
+    #     s.orgs = cit.SubjectORegexes
+    #
+    # if len(cit.SubjectOURegexes) > 0:
+    #     create_subject = True
+    #     s.org_units = cit.SubjectOURegexes
+    #
+    # if len(cit.SubjectLRegexes) > 0:
+    #     create_subject = True
+    #     s.localities = cit.SubjectLRegexes
+    #
+    # if len(cit.SubjectSTRegexes) > 0:
+    #     create_subject = True
+    #     s.states = cit.SubjectSTRegexes
+    #
+    # if len(cit.SubjectCRegexes) > 0:
+    #     create_subject = True
+    #     s.countries = cit.SubjectCRegexes
 
-    p.subject = s if create_subject else None
+    p.subject = build_policy_spec_subject(cit)
 
     kp = KeyPair()
     create_kp = False
@@ -202,6 +208,63 @@ def build_policy_spec(cit, ca_info, subject_cn_to_str=True):
 
         ps.defaults = d
     return ps
+
+
+def build_policy_spec_subject(cit):
+    """
+
+    :param Cit cit:
+    :return:
+    """
+    s = Subject()
+    return_subject = False
+
+    orgs_values = None
+    if cit.SubjectORegexes is None:
+        orgs_values = [""]
+    elif len(cit.SubjectORegexes) > 0:
+        orgs_values = cit.SubjectORegexes
+    if orgs_values:
+        s.orgs = orgs_values
+        return_subject = True
+
+    org_units_values = None
+    if cit.SubjectOURegexes is None:
+        org_units_values = [""]
+    elif len(cit.SubjectOURegexes) > 0:
+        org_units_values = cit.SubjectOURegexes
+    if org_units_values:
+        s.org_units = org_units_values
+        return_subject = True
+
+    localities_values = None
+    if cit.SubjectLRegexes is None:
+        localities_values = [""]
+    elif len(cit.SubjectLRegexes) > 0:
+        localities_values = cit.SubjectLRegexes
+    if localities_values:
+        s.localities = localities_values
+        return_subject = True
+
+    states_values = None
+    if cit.SubjectSTRegexes is None:
+        states_values = [""]
+    elif len(cit.SubjectSTRegexes) > 0:
+        states_values = cit.SubjectSTRegexes
+    if states_values:
+        s.states = states_values
+        return_subject = True
+
+    countries_values = None
+    if cit.SubjectCRegexes is None:
+        countries_values = [""]
+    elif len(cit.SubjectCRegexes) > 0:
+        countries_values = cit.SubjectCRegexes
+    if countries_values:
+        s.countries = countries_values
+        return_subject = True
+
+    return s if return_subject else None
 
 
 def validate_policy_spec(policy_spec):
@@ -505,27 +568,42 @@ def build_cit_request(ps, ca_details):
             request['sanIpAddressRegexes'] = [re_ipv4, re_ipv6]
 
     if ps.policy and ps.policy.subject and len(ps.policy.subject.orgs) > 0:
-        request['subjectORegexes'] = ps.policy.subject.orgs
+        if len(ps.policy.subject.orgs) == 1 and ps.policy.subject.orgs[0] == "":
+            request['subjectORegexes'] = None
+        else:
+            request['subjectORegexes'] = ps.policy.subject.orgs
     else:
         request['subjectORegexes'] = [re_allow_all]
 
     if ps.policy and ps.policy.subject and len(ps.policy.subject.org_units) > 0:
-        request['subjectOURegexes'] = ps.policy.subject.org_units
+        if len(ps.policy.subject.org_units) == 1 and ps.policy.subject.org_units[0] == "":
+            request['subjectOURegexes'] = None
+        else:
+            request['subjectOURegexes'] = ps.policy.subject.org_units
     else:
         request['subjectOURegexes'] = [re_allow_all]
 
     if ps.policy and ps.policy.subject and len(ps.policy.subject.localities) > 0:
-        request['subjectLRegexes'] = ps.policy.subject.localities
+        if len(ps.policy.subject.localities) == 1 and ps.policy.subject.localities[0] == "":
+            request['subjectLRegexes'] = None
+        else:
+            request['subjectLRegexes'] = ps.policy.subject.localities
     else:
         request['subjectLRegexes'] = [re_allow_all]
 
     if ps.policy and ps.policy.subject and len(ps.policy.subject.states) > 0:
-        request['subjectSTRegexes'] = ps.policy.subject.states
+        if len(ps.policy.subject.states) and ps.policy.subject.states[0] == "":
+            request['subjectSTRegexes'] = None
+        else:
+            request['subjectSTRegexes'] = ps.policy.subject.states
     else:
         request['subjectSTRegexes'] = [re_allow_all]
 
     if ps.policy and ps.policy.subject and len(ps.policy.subject.countries) > 0:
-        request['subjectCValues'] = ps.policy.subject.countries
+        if len(ps.policy.subject.countries) == 1 and ps.policy.subject.countries[0] == "":
+            request['subjectCValues'] = None
+        else:
+            request['subjectCValues'] = ps.policy.subject.countries
     else:
         request['subjectCValues'] = [re_allow_all]
 
