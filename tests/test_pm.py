@@ -72,17 +72,29 @@ class TestParsers(unittest.TestCase):
         """
         self.assertIsNotNone(ps)
         self.assertIn("venafi.com", ps.policy.domains)
-        self.assertIn("kwan.com", ps.policy.domains)
+        self.assertIn("vfidev.com", ps.policy.domains)
+        self.assertIn("vfidev.net", ps.policy.domains)
+        self.assertIn("venafi.example", ps.policy.domains)
         self.assertIn("venafi.com", ps.policy.subject.orgs)
         self.assertTrue(len(ps.policy.subject.orgs) == 1)
         self.assertIn("DevOps", ps.policy.subject.org_units)
         self.assertTrue(len(ps.policy.subject.org_units) == 1)
         self.assertIn("Merida", ps.policy.subject.localities)
         self.assertTrue(len(ps.policy.subject.localities) == 1)
+
+        self.assertIn("Yucatan", ps.policy.subject.states)
+        self.assertTrue(len(ps.policy.subject.states) == 1)
+
+        self.assertIn("MX", ps.policy.subject.countries)
+        self.assertTrue(len(ps.policy.subject.countries) == 1)
+
         self.assertIn("RSA", ps.policy.key_pair.key_types)
-        self.assertTrue(len(ps.policy.key_pair.key_types) == 1)
+        self.assertIn("EC", ps.policy.key_pair.key_types)
+        self.assertTrue(len(ps.policy.key_pair.key_types) == 2)
         self.assertIn(2048, ps.policy.key_pair.rsa_key_sizes)
-        self.assertTrue(len(ps.policy.key_pair.rsa_key_sizes) == 1)
+        self.assertIn(4096, ps.policy.key_pair.rsa_key_sizes)
+        self.assertIn("P521", ps.policy.key_pair.elliptic_curves)
+        self.assertIn("P384", ps.policy.key_pair.elliptic_curves)
 
 
 class TestTPPPolicyManagement(unittest.TestCase):
