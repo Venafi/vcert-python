@@ -102,7 +102,7 @@ See https://packaging.python.org/guides/installing-using-pip-and-virtual-environ
 
 ## Version History
 
-[Check version history here](.github/version_history.md)
+[Check version history here](docs/version_history.md)
 
 ## License
 
