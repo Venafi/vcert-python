@@ -1,4 +1,4 @@
-[![Venafi](.github/images/Venafi_logo.png)](https://www.venafi.com/)
+[![Venafi](https://raw.githubusercontent.com/Venafi/.github/master/images/Venafi_logo.png)](https://www.venafi.com/)
 
 [![Apache 2.0 License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 ![Community Supported](https://img.shields.io/badge/Support%20Level-Community-brightgreen)
@@ -102,7 +102,7 @@ See https://packaging.python.org/guides/installing-using-pip-and-virtual-environ
 
 ## Version History
 
-[Check version history here](.github/version_history.md)
+[Check version history here](docs/version_history.md)
 
 ## License
 
