@@ -7,8 +7,8 @@
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=Venafi_vcert-python&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=Venafi_vcert-python)
 
 _**This open source project is community-supported.** To report a problem or share an idea, use
-**[Issues](../../issues)**; and if you have a suggestion for fixing the issue, please include those details, too.
-In addition, use **[Pull Requests](../../pulls)** to contribute actual bug fixes or proposed enhancements.
+**[Issues](https://github.com/Venafi/vcert-python/issues)**; and if you have a suggestion for fixing the issue, please include those details, too.
+In addition, use **[Pull Requests](https://github.com/Venafi/vcert-python/pulls)** to contribute actual bug fixes or proposed enhancements.
 We welcome and appreciate all contributions. Got questions or want to discuss something with our team?
 **[Join us on Slack](https://join.slack.com/t/venafi-integrations/shared_invite/zt-i8fwc379-kDJlmzU8OiIQOJFSwiA~dg)**!_
 
@@ -24,7 +24,7 @@ This implementation is based on the original Go library, https://github.com/Vena
 #### Compatibility
 ***Starting version 0.14.0 vcert-python only supports Python 3.6 or higher*** 
 
-VCert releases are tested using the latest version of Trust Protection Platform.  The [latest VCert release](../../releases/latest) should be compatible with Trust Protection Platform 17.3 or higher based on the subset of API methods it consumes.
+VCert releases are tested using the latest version of Trust Protection Platform.  The [latest VCert release](https://github.com/Venafi/vcert-python/releases/latest) should be compatible with Trust Protection Platform 17.3 or higher based on the subset of API methods it consumes.
 
 ## Installation
 Get the library using pip:  
@@ -102,12 +102,12 @@ See https://packaging.python.org/guides/installing-using-pip-and-virtual-environ
 
 ## Version History
 
-[Check version history here](docs/version_history.md)
+[Check version history here](https://github.com/Venafi/vcert-python/blob/master/docs/version_history.md)
 
 ## License
 
 Copyright &copy; Venafi, Inc. All rights reserved.
 
-VCert is licensed under the Apache License, Version 2.0. See `LICENSE` for the full license text.
+VCert is licensed under the Apache License, Version 2.0. See [`LICENSE`](https://github.com/Venafi/vcert-python/blob/master/LICENSE) for the full license text.
 
 Please direct questions/comments to opensource@venafi.com.
