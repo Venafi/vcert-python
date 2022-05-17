@@ -10,8 +10,8 @@
 * Closed **[Issue 113](https://github.com/Venafi/vcert-python/issues/113)**: Added support for legacy PKCS1 format on private keys when requesting a certificate. Default now is PKCS8 for both TPP and VaaS
 * Closed **[Issue 116](https://github.com/Venafi/vcert-python/issues/116)**: Added ability to disable the following Subject fields when creating a policy on VaaS: organizations, org units, localities, states, countries
 #### 0.14.0
-* **Dropped support for Python2. New baseline is Python 3.6+**
-* Minor bug fixes on Policy Management
-* Added integration with sonarcloud for code analysis
+* Closed **[Issue 90](https://github.com/Venafi/vcert-python/issues/90)**: **Dropped support for Python2. New baseline is Python 3.6+**
+* Closed **[Issue 98](https://github.com/Venafi/vcert-python/issues/98)**: Added integration with sonarcloud for code analysis
 * Created version history file
+* Minor bug fixes on Policy Management
 
