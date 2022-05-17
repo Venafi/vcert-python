@@ -2,7 +2,9 @@
   "policy": {
     "domains": [
       "venafi.com",
-      "kwan.com"
+      "vfidev.com",
+      "vfidev.net",
+      "venafi.example"
     ],
     "wildcardAllowed": true,
     "maxValidDays": 120,
@@ -25,23 +27,35 @@
     },
     "keyPair": {
       "keyTypes": [
-        "RSA"
+        "RSA",
+        "EC"
       ],
       "rsaKeySizes": [
-        2048
+        2048,
+        4096
       ],
       "ellipticCurves": [
+        "P521",
         "P384"
       ],
-      "serviceGenerated": false,
+      "serviceGenerated": true,
       "reuseAllowed": false
     },
     "subjectAltNames": {
-      "dnsAllowed": false,
-      "ipAllowed": false,
-      "emailAllowed": false,
-      "uriAllowed": false,
-      "upnAllowed": false
+      "dnsAllowed": true,
+      "ipAllowed": true,
+      "emailAllowed": true,
+      "uriAllowed": true,
+      "upnAllowed": false,
+      "ipConstraints": [
+        "v4",
+        "v6"
+      ],
+      "uriProtocols": [
+        "https",
+        "ldaps",
+        "spiffe"
+      ]
     }
   },
   "defaults": {
@@ -59,7 +73,7 @@
       "keyType": "RSA",
       "rsaKeySize": 2048,
       "ellipticCurve": "",
-      "serviceGenerated": false
+      "serviceGenerated": true
     }
   }
 }

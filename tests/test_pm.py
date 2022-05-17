@@ -72,17 +72,29 @@ class TestParsers(unittest.TestCase):
         """
         self.assertIsNotNone(ps)
         self.assertIn("venafi.com", ps.policy.domains)
-        self.assertIn("kwan.com", ps.policy.domains)
+        self.assertIn("vfidev.com", ps.policy.domains)
+        self.assertIn("vfidev.net", ps.policy.domains)
+        self.assertIn("venafi.example", ps.policy.domains)
         self.assertIn("venafi.com", ps.policy.subject.orgs)
         self.assertTrue(len(ps.policy.subject.orgs) == 1)
         self.assertIn("DevOps", ps.policy.subject.org_units)
         self.assertTrue(len(ps.policy.subject.org_units) == 1)
         self.assertIn("Merida", ps.policy.subject.localities)
         self.assertTrue(len(ps.policy.subject.localities) == 1)
+
+        self.assertIn("Yucatan", ps.policy.subject.states)
+        self.assertTrue(len(ps.policy.subject.states) == 1)
+
+        self.assertIn("MX", ps.policy.subject.countries)
+        self.assertTrue(len(ps.policy.subject.countries) == 1)
+
         self.assertIn("RSA", ps.policy.key_pair.key_types)
-        self.assertTrue(len(ps.policy.key_pair.key_types) == 1)
+        self.assertIn("EC", ps.policy.key_pair.key_types)
+        self.assertTrue(len(ps.policy.key_pair.key_types) == 2)
         self.assertIn(2048, ps.policy.key_pair.rsa_key_sizes)
-        self.assertTrue(len(ps.policy.key_pair.rsa_key_sizes) == 1)
+        self.assertIn(4096, ps.policy.key_pair.rsa_key_sizes)
+        self.assertIn("P521", ps.policy.key_pair.elliptic_curves)
+        self.assertIn("P384", ps.policy.key_pair.elliptic_curves)
 
 
 class TestTPPPolicyManagement(unittest.TestCase):
@@ -153,12 +165,12 @@ class TestTPPPolicyManagement(unittest.TestCase):
         create_policy(self.tpp_conn, zone, policy_spec, policy, defaults)
 
 
-class TestCloudPolicyManagement(unittest.TestCase):
+class TestVaaSPolicyManagement(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         self.cloud_conn = CloudConnection(token=CLOUD_APIKEY, url=CLOUD_URL)
         self.json_file = POLICY_SPEC_JSON
         self.yaml_file = POLICY_SPEC_YAML
-        super(TestCloudPolicyManagement, self).__init__(*args, **kwargs)
+        super(TestVaaSPolicyManagement, self).__init__(*args, **kwargs)
 
     def test_create_policy_from_json(self):
         # ps = json_parser.parse_file(self.json_file)
@@ -328,6 +340,23 @@ class TestCloudPolicyManagement(unittest.TestCase):
         result = connector.get_policy(zone)
         self.assertEqual(1, len(result.users))
         self.assertEqual(CLOUD_TEAM, result.users[0])
+
+    def test_create_policy_disabled_subject_fields(self):
+        zone = get_vaas_zone()
+        policy = get_policy_obj()
+        policy.subject.orgs = [""]
+        policy.subject.org_units = [""]
+        policy.subject.localities = [""]
+        policy.subject.states = [""]
+        policy.subject.countries = [""]
+        ps_response = create_policy(connector=self.cloud_conn, zone=zone,policy=policy)
+        self.assertIsNotNone(ps_response.policy)
+        self.assertIsNotNone(ps_response.policy.subject)
+        self.assertListEqual(ps_response.policy.subject.orgs, [""])
+        self.assertListEqual(ps_response.policy.subject.org_units, [""])
+        self.assertListEqual(ps_response.policy.subject.localities, [""])
+        self.assertListEqual(ps_response.policy.subject.states, [""])
+        self.assertListEqual(ps_response.policy.subject.countries, [""])
 
     def _create_policy_cloud(self, policy_spec=None, policy=None, defaults=None):
         zone = get_vaas_zone()

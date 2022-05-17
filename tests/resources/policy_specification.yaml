@@ -2,8 +2,9 @@
 policy:
   domains:
     - venafi.com
-    - kwan.com
-    - yaml.com
+    - vfidev.com
+    - vfidev.net
+    - venafi.example
   wildcardAllowed: true
   maxValidDays: 120
   subject:
@@ -16,22 +17,32 @@ policy:
     states:
       - Yucatan
     countries:
-      - US
+      - MX
   keyPair:
     keyTypes:
       - RSA
+      - EC
     rsaKeySizes:
       - 2048
+      - 4096
     ellipticCurves:
+      - P521
       - P384
-    serviceGenerated: false
+    serviceGenerated: true
     reuseAllowed: false
   subjectAltNames:
-    dnsAllowed: false
-    ipAllowed: false
-    emailAllowed: false
-    uriAllowed: false
+    dnsAllowed: true
+    ipAllowed: true
+    emailAllowed: true
+    uriAllowed: true
     upnAllowed: false
+    ipConstraints:
+      - v4
+      - v6
+    uriProtocols:
+      - https
+      - ldaps
+      - spiffe
 defaults:
   domain: venafi.com
   subject:
@@ -40,9 +51,9 @@ defaults:
       - DevOps
     locality: Merida
     state: Yucatan
-    country: Mexico
+    country: MX
   keyPair:
     keyType: RSA
     rsaKeySize: 2048
     ellipticCurve: ''
-    serviceGenerated: ''
+    serviceGenerated: true
