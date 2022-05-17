@@ -73,7 +73,7 @@
       "keyType": "RSA",
       "rsaKeySize": 2048,
       "ellipticCurve": "",
-      "serviceGenerated": false
+      "serviceGenerated": true
     }
   }
 }
