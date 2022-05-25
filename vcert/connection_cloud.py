@@ -366,8 +366,7 @@ class CloudConnection(CommonConnection):
                               data['internalPorts'] if 'internalPorts' in data else None,
                               data['fullyQualifiedDomainNames'] if 'fullyQualifiedDomainNames' in data else None,
                               data['ipRanges'] if 'ipRanges' in data else None,
-                              data['ports'] if 'ports' in data else None,
-                              data['organizationalUnitId'] if 'organizationalUnitId' in data else None
+                              data['ports'] if 'ports' in data else None
                               )
         elif status in (HTTPStatus.BAD_REQUEST, HTTPStatus.NOT_FOUND, HTTPStatus.PRECONDITION_FAILED):
             log_errors(data)
