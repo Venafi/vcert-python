@@ -28,7 +28,7 @@ class AppDetails:
     def __init__(self, app_id=None, cit_map=None, company_id=None, name=None, description=None,
                  owner_ids_and_types=None, fq_dns=None, internal_fq_dns=None, external_ip_ranges=None,
                  internal_ip_ranges=None, internal_ports=None, fully_qualified_domain_names=None, ip_ranges=None,
-                 ports=None, org_unit_id=None):
+                 ports=None):
         """
         :param str app_id:
         :param dict cit_map:
@@ -47,7 +47,6 @@ class AppDetails:
         self.fully_qualified_domain_names = fully_qualified_domain_names
         self.ip_ranges = ip_ranges
         self.ports = ports
-        self.org_unit_id = org_unit_id
 
 
 class OwnerIdsAndTypes:
