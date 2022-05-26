@@ -821,7 +821,7 @@ def build_app_update_request(app_details, cit_map):
                    'externalIpRanges': app_details.external_ip_ranges, 'internalPorts': app_details.internal_ports,
                    'fullyQualifiedDomainNames': app_details.fully_qualified_domain_names,
                    'ipRanges': app_details.ip_ranges, 'ports': app_details.ports,
-                   'organizationalUnitId': app_details.org_unit_id, 'certificateIssuingTemplateAliasIdMap': cit_map}
+                   'certificateIssuingTemplateAliasIdMap': cit_map}
     return app_request
 
 
