@@ -80,8 +80,7 @@ class TestVaaSMethods(unittest.TestCase):
         self.assertEqual(zone.key_type.key_type, KeyType.RSA)
         self.assertEqual(zone.key_type.option, 2048)
         p = zone.policy
-        self.assertListEqual(p.SubjectCNRegexes, ['.*.example.com', '.*.example.org', '.*.example.net', '.*.invalid',
-                                                  '.*.local', '.*.localhost', '.*.test', '.*.vfidev.com'])
+        self.assertListEqual(p.SubjectCNRegexes, ['.*'])
         self.assertListEqual(p.SubjectCRegexes, [".*"])
         self.assertListEqual(p.SubjectLRegexes, [".*"])
         self.assertListEqual(p.SubjectORegexes, [".*"])
