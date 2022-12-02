@@ -53,3 +53,7 @@ class VenafiParsingError(VenafiError):
 
 class RetrieveCertificateTimeoutError(VenafiError):
     pass
+
+
+class RetrieveCertificateNotFoundError(VenafiError):
+    pass

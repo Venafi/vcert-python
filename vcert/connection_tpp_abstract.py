@@ -28,7 +28,7 @@ from types import SimpleNamespace
 from .common import CertField, CommonConnection, CertificateRequest, CSR_ORIGIN_LOCAL, CSR_ORIGIN_PROVIDED, \
     CSR_ORIGIN_SERVICE, KeyType, CHAIN_OPTION_LAST, CHAIN_OPTION_FIRST, CHAIN_OPTION_IGNORE, Policy, ZoneConfig
 from .errors import VenafiError, ServerUnexptedBehavior, ClientBadData, RetrieveCertificateTimeoutError, \
-    CertificateRequestError, CertificateRenewError
+    RetrieveCertificateNotFoundError, CertificateRequestError, CertificateRenewError
 from .http_status import HTTPStatus
 from .pem import parse_pem
 from .policy import RPA, SPA
@@ -214,7 +214,7 @@ class AbstractTPPConnection(CommonConnection):
                 status, data = self._post(URLS.CERTIFICATE_RETRIEVE, data=retrieve_request)
             except VenafiError:
                 log.debug(f"Certificate with id {cert_request.id} not found")
-                status = 0
+                status = HTTPStatus.NOT_FOUND
 
             if status == HTTPStatus.OK:
                 pem64 = data['CertificateData']
@@ -224,6 +224,8 @@ class AbstractTPPConnection(CommonConnection):
                     log.debug("Adding private key to response...")
                     cert_response.key = cert_request.private_key_pem
                 return cert_response
+            elif status == HTTPStatus.NOT_FOUND:
+                raise RetrieveCertificateNotFoundError(f"Certificate with id {cert_request.id} not found")
             elif (time.time() - time_start) < cert_request.timeout:
                 log.debug("Waiting for certificate...")
                 time.sleep(2)
