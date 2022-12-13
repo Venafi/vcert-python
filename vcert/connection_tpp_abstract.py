@@ -212,9 +212,13 @@ class AbstractTPPConnection(CommonConnection):
             try:
                 # TODO: Change _post() with post(args)
                 status, data = self._post(URLS.CERTIFICATE_RETRIEVE, data=retrieve_request)
-            except VenafiError as e:
-                log.debug(str(e))
-                status = e.status_code
+            except VenafiError as error:
+                log.debug(error.content)
+                status = error.status_code
+                if status == HTTPStatus.NOT_FOUND:
+                    raise RetrieveCertificateNotFoundError(f"Certificate with id {cert_request.id} not found")
+                elif status == HTTPStatus.BAD_REQUEST:
+                    raise ClientBadData(error.content)
 
             if status == HTTPStatus.OK:
                 pem64 = data['CertificateData']
@@ -224,10 +228,6 @@ class AbstractTPPConnection(CommonConnection):
                     log.debug("Adding private key to response...")
                     cert_response.key = cert_request.private_key_pem
                 return cert_response
-            elif status == HTTPStatus.NOT_FOUND:
-                raise RetrieveCertificateNotFoundError(f"Certificate with id {cert_request.id} not found")
-            elif status == HTTPStatus.BAD_REQUEST:
-                raise ClientBadData
             elif (time.time() - time_start) < cert_request.timeout:
                 log.debug("Waiting for certificate...")
                 time.sleep(2)
