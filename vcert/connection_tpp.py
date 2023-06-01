@@ -86,7 +86,7 @@ class TPPConnection(AbstractTPPConnection):
                                   'content-type': MIME_JSON,
                                   'cache-control': 'no-cache'},
                          params=params,
-                         **self._http_request_kwargs)
+                         **self._http_request_kwargs)  # nosec B113
         return self.process_server_response(r)
 
     def _post(self, url, data=None):
@@ -100,7 +100,7 @@ class TPPConnection(AbstractTPPConnection):
                                        'content-type': MIME_JSON,
                                        'cache-control': "no-cache"},
                               json=data,
-                              **self._http_request_kwargs)
+                              **self._http_request_kwargs)  # nosec B113
         else:
             log.error(f"Unexpected client data type: {type(data)} for {url}")
             raise ClientBadData
@@ -126,7 +126,7 @@ class TPPConnection(AbstractTPPConnection):
                           json=data,
                           headers={'content-type': MIME_JSON,
                                    'cache-control': "no-cache"},
-                          **self._http_request_kwargs)
+                          **self._http_request_kwargs)  # nosec B113
 
         status, user = self.process_server_response(r)
         if status == HTTPStatus.OK:

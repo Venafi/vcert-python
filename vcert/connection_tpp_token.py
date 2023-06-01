@@ -98,7 +98,7 @@ class TPPTokenConnection(AbstractTPPConnection):
             token = self._get_auth_header_value(self._auth.access_token)
             headers[HEADER_AUTHORIZATION] = token
 
-        r = requests.get(self._base_url + url, headers=headers, params=params, **self._http_request_kwargs)
+        r = requests.get(self._base_url + url, headers=headers, params=params, **self._http_request_kwargs)  # nosec B113
         return self.process_server_response(r)
 
     def _post(self, url=None, data=None, check_token=True, include_token_header=True):
@@ -115,7 +115,7 @@ class TPPTokenConnection(AbstractTPPConnection):
 
         if isinstance(data, dict):
             log.debug(f"POST Request\n\tURL: {self._base_url+url}\n\tHeaders:{headers}\n\tBody:{data}\n")
-            r = requests.post(self._base_url + url, headers=headers, json=data,  **self._http_request_kwargs)
+            r = requests.post(self._base_url + url, headers=headers, json=data,  **self._http_request_kwargs)  # nosec B113
         else:
             log.error(f"Unexpected client data type: {type(data)} for {url}")
             raise ClientBadData
