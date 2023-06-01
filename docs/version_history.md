@@ -2,6 +2,10 @@
 
 ## Version History
 
+#### 0.16.0
+* Fixed **[Issue 124](https://github.com/Venafi/vcert-python/issues/124)**: Fixed an issue where adding a Certificate Issuing Template to an existing Application failed
+* Upgraded cryptography dependency to 40.0.2 to cover a security risk CVE-2023-23931
+* Removed orgUnit field from AppDetails, as Venafi as a Service dropped the use of the field
 #### 0.15.0
 * Fixed **[Issue 100](https://github.com/Venafi/vcert-python/issues/100)**: Updated behavior for 'serviceGenerated' attribute on VaaS
 * Fixed **[Issue 101](https://github.com/Venafi/vcert-python/issues/101)**: Added support for the following Subject Alternative Names when creating a policy on VaaS: email, IP, URI
