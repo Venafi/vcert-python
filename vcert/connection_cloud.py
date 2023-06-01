@@ -169,7 +169,7 @@ class CloudConnection(CommonConnection):
             'accept': MIME_ANY,
             'cache-control': "no-cache"
         }
-        r = requests.get(self._base_url + url, params=params, headers=headers, **self._http_request_kwargs)
+        r = requests.get(self._base_url + url, params=params, headers=headers, **self._http_request_kwargs)  # nosec B113
         return self.process_server_response(r)
 
     def _post(self, url, data=None):
@@ -185,7 +185,7 @@ class CloudConnection(CommonConnection):
             'cache-control': "no-cache"
         }
         if isinstance(data, dict):
-            r = requests.post(self._base_url + url, json=data, headers=headers, **self._http_request_kwargs)
+            r = requests.post(self._base_url + url, json=data, headers=headers, **self._http_request_kwargs)  # nosec B113
         else:
             log.error(f"Unexpected client data type: {type(data)} for {url}")
             raise ClientBadData
@@ -204,7 +204,7 @@ class CloudConnection(CommonConnection):
             'accept': MIME_JSON
         }
         if isinstance(data, dict):
-            r = requests.put(self._base_url + url, json=data, headers=headers, **self._http_request_kwargs)
+            r = requests.put(self._base_url + url, json=data, headers=headers, **self._http_request_kwargs)  # nosec B113
         else:
             log.error(f"Unexpected client data type: {type(data)} for {url}")
             raise ClientBadData
