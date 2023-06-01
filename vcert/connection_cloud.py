@@ -654,7 +654,7 @@ class CloudConnection(CommonConnection):
             if app_details.cit_alias_id_map:
                 # Only link cit with Application when cit is not already associated with Application
                 cit_map = app_details.cit_alias_id_map
-                cit_id, cit_name = get_cit_data_from_response(cit_data)
+                cit_id, cit_name = get_cit_data_from_response(resp_cit_data)
                 cit_map[cit_name] = cit_id
             app_req = build_app_update_request(app_details, cit_map)
             status, data = self._put(URLS.APP_BY_ID.format(app_details.app_id), app_req)
