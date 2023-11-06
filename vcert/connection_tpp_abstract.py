@@ -101,7 +101,8 @@ class AbstractTPPConnection(CommonConnection):
         request_data = {
             'PolicyDN': self._normalize_zone(zone),
             'ObjectName': request.friendly_name,
-            'DisableAutomaticRenewal': "true"
+            'DisableAutomaticRenewal': "true",
+            'CertificateType': "Auto"
         }
         zone_config = self.read_zone_conf(zone)
         request.update_from_zone_config(zone_config)
