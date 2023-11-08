@@ -11,7 +11,7 @@ with open(os.path.join(base_dir, "README.md")) as f:
     long_description = f.read()
 
 setup(name='vcert',
-      version='0.16.1',
+      version='0.16.2',
       url="https://github.com/Venafi/vcert-python",
       packages=['vcert', 'vcert.parser', 'vcert.policy'],
       install_requires=['requests==2.31.0', 'python-dateutil==2.8.2', 'certvalidator<=0.11.1', 'six==1.16.0',
