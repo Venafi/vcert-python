@@ -59,6 +59,7 @@ class URLS:
     CERTIFICATE_REVOKE = API_BASE_URL + "certificates/revoke"
     CERTIFICATE_RENEW = API_BASE_URL + "certificates/renew"
     CERTIFICATE_SEARCH = API_BASE_URL + "certificates/"
+    CERTIFICATE_UPDATE = API_BASE_URL + "certificates/"
     CERTIFICATE_IMPORT = API_BASE_URL + "certificates/import"
     ZONE_CONFIG = API_BASE_URL + "certificates/checkpolicy"
     CONFIG_READ_DN = API_BASE_URL + "Config/ReadDn"
@@ -349,23 +350,37 @@ class AbstractTPPConnection(CommonConnection):
         raise ServerUnexptedBehavior
 
     def retire_cert(self, request):
-        if not (request.id or request.thumbprint):
+        if not (request.id or request.thumbprint or request.guid):
             raise ClientBadData
-        d = {
-            'Disable': request.disable
+        data = {
+            'AttributeData': [
+                {
+                    'Name': 'Disabled',
+                    'Value': [
+                        '1'
+                    ]
+                }
+            ]
         }
-        if request.reason:
-            d['Reason'] = request.reason
         if request.id:
-            d['CertificateDN'] = request.id
-        elif request.thumbprint:
-            d['Thumbprint'] = request.thumbprint
+            cert_guid = self.get_certificate_guid_from_dn(request.id)
+        elif request.guid:
+            cert_guid = request.guid
         else:
             raise ClientBadData
-        if request.comments:
-            d['Comments'] = request.comments
-        # TODO: Change _post() with post(args)
-        status, data = self._post(URLS.CERTIFICATE_REVOKE, data=d)
+
+        if request.description:
+            data['AttributeData'] += {
+                'Name': 'Description',
+                'Value': [
+                    request.description
+                ]
+            }
+        args = {
+            self.ARG_URL: URLS.CERTIFICATE_UPDATE+cert_guid,
+            self.ARG_DATA: data
+        }
+        status, data = self.put(args)
         if status in (HTTPStatus.OK, HTTPStatus.ACCEPTED):
             return data
 
@@ -748,6 +763,14 @@ class AbstractTPPConnection(CommonConnection):
         raise NotImplementedError
 
     def post(self, args):
+        """
+
+        :param dict args:
+        :rtype: tuple[Any, Any]
+        """
+        raise NotImplementedError
+
+    def put(self, args):
         """
 
         :param dict args:
