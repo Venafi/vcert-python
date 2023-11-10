@@ -62,6 +62,8 @@ class URLS:
     CERTIFICATE_IMPORT = API_BASE_URL + "certificates/import"
     ZONE_CONFIG = API_BASE_URL + "certificates/checkpolicy"
     CONFIG_READ_DN = API_BASE_URL + "Config/ReadDn"
+    CONFIG_DN_TO_GUID = API_BASE_URL + "Config/DnToGuid"
+    CONFIG_GUID_TO_DN = API_BASE_URL + "Config/GuidToDn"
 
     POLICY_IS_VALID = API_BASE_URL + "config/isvalid"
     POLICY_CREATE = API_BASE_URL + "config/create"
@@ -328,6 +330,27 @@ class AbstractTPPConnection(CommonConnection):
     def revoke_cert(self, request):
         if not (request.id or request.thumbprint):
             raise ClientBadData
+        d = dict()
+        if request.id:
+            d['CertificateDN'] = request.id
+        elif request.thumbprint:
+            d['Thumbprint'] = request.thumbprint
+        else:
+            raise ClientBadData
+        req_args = {
+            'url': URLS.CERTIFICATE_REVOKE,
+            'data': d
+        }
+        # TODO: Change _post() with post(args)
+        status, data = self._post(URLS.CERTIFICATE_REVOKE, data=d)
+        if status in (HTTPStatus.OK, HTTPStatus.ACCEPTED):
+            return data
+
+        raise ServerUnexptedBehavior
+
+    def retire_cert(self, request):
+        if not (request.id or request.thumbprint):
+            raise ClientBadData
         d = {
             'Disable': request.disable
         }
@@ -347,6 +370,7 @@ class AbstractTPPConnection(CommonConnection):
             return data
 
         raise ServerUnexptedBehavior
+
 
     def import_cert(self, request):
         raise NotImplementedError
@@ -1064,3 +1088,28 @@ class AbstractTPPConnection(CommonConnection):
         status, response = self._post(URLS.POLICY_VALIDATE_IDENTITY, data=data)
         identity = build_identity_entry(response['ID'])
         return identity
+
+    def get_certificate_guid_from_dn(self, cert_dn):
+        request_data = {
+            'ObjectDN': cert_dn
+        }
+        args = {
+            self.ARG_URL: URLS.CONFIG_DN_TO_GUID,
+            self.ARG_DATA: request_data
+        }
+        status, response = self.post(args)
+        cert_guid = response(['GUID'])
+        return cert_guid
+
+    def get_certificate_dn_from_guid(self, cert_guid):
+        request_data = {
+            'ObjectGUID': cert_guid
+        }
+        args = {
+            self.ARG_URL: URLS.CONFIG_GUID_TO_DN,
+            self.ARG_DATA: request_data
+        }
+        status, response = self.post(args)
+        cert_dn = response(['ObjectDN'])
+        return cert_dn
+
