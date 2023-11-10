@@ -403,7 +403,9 @@ class CloudConnection(CommonConnection):
         status, data = self._post(URLS.CERTIFICATE_REQUESTS, data=request_data)
         if status == HTTPStatus.CREATED:
             request.id = data['certificateRequests'][0]['id']
-            request.cert_guid = data['certificateRequests'][0]['certificateIds'][0]
+            if 'certificateIds' in data['certificateRequests'][0] \
+                    and len(data['certificateRequests'][0]['certificateIds']) > 0:
+                request.cert_guid = data['certificateRequests'][0]['certificateIds'][0]
             return True
         else:
             log.error(f"unexpected server response {status}: {data}")
@@ -413,11 +415,26 @@ class CloudConnection(CommonConnection):
         cert_status = self._get_cert_status(request)
         if cert_status.status == CertStatuses.PENDING or cert_status.status == CertStatuses.REQUESTED:
             log.info(f"Certificate status is {cert_status.status}")
-            return None
-        elif cert_status.status == CertStatuses.FAILED:
+            # Time in seconds
+            time_start = time.time()
+            while True:
+                log.debug("Waiting for certificate...")
+                time.sleep(3)
+                cert_status = self._get_cert_status(request)
+                if cert_status.status == CertStatuses.ISSUED:
+                    log.info(f"Certificate status is {cert_status.status}")
+                    break
+                elif (time.time() - time_start) < request.timeout:
+                    continue
+                else:
+                    raise RetrieveCertificateTimeoutError(f"Operation timed out at {request.timeout} seconds "
+                                                          f"while waiting for certificate with id {request.id} to be ISSUED")
+
+        if cert_status.status == CertStatuses.FAILED:
             log.debug(f"Certificate status is {cert_status.status}. Returning data for debug")
             return "Certificate FAILED"
-        elif cert_status.status == CertStatuses.ISSUED:
+
+        if cert_status.status == CertStatuses.ISSUED:
             request.cert_guid = cert_status.certificateIds[0]
             dek_info = self._get_dek_hash(request.cert_guid)
             if dek_info and dek_info.public_key:
