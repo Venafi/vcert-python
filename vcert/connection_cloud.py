@@ -85,6 +85,7 @@ class URLS:
     CERTIFICATE_STATUS = CERTIFICATE_REQUESTS + "/{}"
     CERTIFICATE_RETRIEVE = API_BASE_PATH + "certificates/{}/contents"
     CERTIFICATE_SEARCH = API_BASE_PATH + "certificatesearch"
+    CERTIFICATE_RETIRE = API_BASE_PATH + "certificates/retirement"
     APPLICATIONS = API_BASE_PATH + "applications"
     APP_BY_ID = APPLICATIONS + "/{}"
     CERTIFICATE_TEMPLATE_BY_ID = APP_BY_ID + "/certificateissuingtemplates/{}"
@@ -476,6 +477,39 @@ class CloudConnection(CommonConnection):
     def revoke_cert(self, request):
         # not supported in Venafi Cloud
         raise NotImplementedError
+
+    def retire_cert(self, request):
+        cert_id = None
+        if not request.id and not request.thumbprint:
+            log.error("prev_cert_id or thumbprint or manage_id must be specified for renewing certificate")
+            raise ClientBadData
+
+        if request.thumbprint:
+            response = self.search_by_thumbprint(request.thumbprint)
+            cert_id = response.id
+
+        if request.id:
+            cert_id = request.id
+
+        retire_data = {
+            'certificateIds': [
+                cert_id
+            ]
+        }
+
+        status, data = self._post(URLS.CERTIFICATE_RETIRE, retire_data)
+        if status == HTTPStatus.OK:
+            if len(data) == 0:
+                log.error(f"certificate retirement was not successful for {cert_id}")
+                raise VenafiError
+            else:
+                return True
+        elif status == HTTPStatus.BAD_REQUEST or status == HTTPStatus.PRECONDITION_FAILED:
+            log.error("bad request for certificate retirement")
+            raise ClientBadData
+        else:
+            log.error("unexpected status returned")
+            raise ServerUnexptedBehavior
 
     def renew_cert(self, request, reuse_key=False):
         cert_request_id = None
