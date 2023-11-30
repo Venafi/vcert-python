@@ -481,12 +481,16 @@ class CloudConnection(CommonConnection):
     def retire_cert(self, request):
         cert_id = None
         if not request.id and not request.thumbprint:
-            log.error("prev_cert_id or thumbprint or manage_id must be specified for renewing certificate")
+            log.error("id or thumbprint must be specified for retiring certificate")
             raise ClientBadData
 
         if request.thumbprint:
             response = self.search_by_thumbprint(request.thumbprint)
-            cert_id = response.id
+            cert_ids = response.certificateIds
+            if len(cert_ids) > 1:
+                log.error(f"multiple certificates matching thumbprint found")
+                raise VenafiError
+            cert_id = cert_ids[0]
 
         if request.id:
             cert_id = request.id
