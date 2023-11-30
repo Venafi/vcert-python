@@ -96,7 +96,7 @@ class TPPTokenConnection(AbstractTPPConnection):
         check_token = args[self.ARG_CHECK_TOKEN] if self.ARG_CHECK_TOKEN in args else True
         include_token_header = args[self.ARG_INCLUDE_TOKEN_HEADER] if self.ARG_INCLUDE_TOKEN_HEADER in args else True
 
-        return self._post(url=url, data=data, check_token=check_token, include_token_header=include_token_header)
+        return self._put(url=url, data=data, check_token=check_token, include_token_header=include_token_header)
 
     def _get(self, url=None, params=None, check_token=True, include_token_header=True):
         if check_token:

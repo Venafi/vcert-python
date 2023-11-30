@@ -1121,7 +1121,7 @@ class AbstractTPPConnection(CommonConnection):
             self.ARG_DATA: request_data
         }
         status, response = self.post(args)
-        cert_guid = response(['GUID'])
+        cert_guid = response['GUID']
         return cert_guid
 
     def get_certificate_dn_from_guid(self, cert_guid):
@@ -1133,6 +1133,6 @@ class AbstractTPPConnection(CommonConnection):
             self.ARG_DATA: request_data
         }
         status, response = self.post(args)
-        cert_dn = response(['ObjectDN'])
+        cert_dn = response['ObjectDN']
         return cert_dn
 
