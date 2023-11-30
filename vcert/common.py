@@ -592,15 +592,20 @@ class RevocationRequest:
         self.comments = comments
         self.disable = disable
 
+
 class RetireRequest:
-    def __init__(self, req_id=None, thumbprint=None,  guid=None):
+    def __init__(self, req_id=None, thumbprint=None,  guid=None, description=None):
         """
         :param req_id:
         :param thumbprint:
+        :param guid:
+        :param description:
         """
         self.id = req_id
         self.thumbprint = thumbprint
         self.guid = guid
+        self.description = description
+
 
 class Authentication:
     def __init__(self, user=None, password=None, access_token=None, refresh_token=None, api_key=None, state=None,
