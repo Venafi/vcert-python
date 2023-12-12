@@ -31,6 +31,7 @@ from test_utils import random_word, enroll, renew, renew_by_thumbprint, renew_wi
     get_vaas_zone
 from vcert import CloudConnection, KeyType, CertificateRequest, CustomField, logger, CSR_ORIGIN_SERVICE
 from vcert.policy import KeyPair, DefaultKeyPair, PolicySpecification
+from vcert.common import RetireRequest
 
 log = logger.get_child("test-vaas")
 
@@ -214,3 +215,15 @@ class TestVaaSMethods(unittest.TestCase):
         if p_key:
             self.assertIsInstance(p_key, EllipticCurvePrivateKey, "returned private key is not of type Elliptic Curve")
             self.assertEqual(p_key.curve.key_size, 384, f"Private Key expected curve: 384. Got: {p_key.curve.key_size}")
+
+    def test_cloud_retire_by_thumbprint(self):
+        try:
+            req, cert = simple_enroll(self.cloud_conn, self.cloud_zone)
+            cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
+            fingerprint = binascii.hexlify(cert.fingerprint(hashes.SHA1())).decode()
+            time.sleep(1)
+            ret_request = RetireRequest(thumbprint=fingerprint)
+            ret_data = self.cloud_conn.retire_cert(fingerprint)
+            assert ret_data is True
+        except Exception as e:
+            log.error(msg=f"Error retiring certificate by thumbprint: {e.message}")

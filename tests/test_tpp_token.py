@@ -26,7 +26,7 @@ from cryptography.hazmat.primitives import hashes
 from assets import TEST_KEY_ECDSA, TEST_KEY_RSA_4096, TEST_KEY_RSA_2048_ENCRYPTED
 from test_env import TPP_ZONE, TPP_ZONE_ECDSA, TPP_USER, TPP_PASSWORD, TPP_TOKEN_URL
 from test_utils import (random_word, enroll, renew, renew_by_thumbprint, renew_without_key_reuse,
-                        enroll_with_zone_update, simple_enroll)
+                        enroll_with_zone_update, simple_enroll, retire_by_id, retire_by_thumbprint)
 from vcert import (CustomField, KeyType, RevocationRequest, CertificateRequest, IssuerHint, logger, TPPTokenConnection)
 from vcert.errors import ClientBadData, ServerUnexptedBehavior
 
@@ -267,3 +267,22 @@ class TestTPPTokenMethods(unittest.TestCase):
         cn = f"{random_word(10)}.venafi.example.com"
         with self.assertRaises(Exception):
             enroll(self.tpp_conn, self.tpp_zone, cn)
+
+    def test_tpp_token_retire_cert_id(self):
+        cn = f"{random_word(10)}.venafi.example.com"
+        try:
+            req, cert = simple_enroll(self.tpp_conn, self.tpp_zone)
+            ret_data = retire_by_id(id=req.id)
+            assert ret_data['Success'] is True
+        except Exception as err:
+            self.fail(f"Error in tpp retire by id test: {err.message}")
+
+    def test_tpp_token_retire_cert_thumbprint(self):
+        cn = f"{random_word(10)}.venafi.example.com"
+        try:
+            req, cert = simple_enroll(self.tpp_conn, self.tpp_zone)
+            cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
+            ret_data = retire_by_thumbprint(prev_cert=cert)
+            assert ret_data['Success'] is True
+        except Exception as err:
+            self.fail(f"Error in tpp retire by thumbprint test: {err.message}")

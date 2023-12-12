@@ -362,10 +362,14 @@ class AbstractTPPConnection(CommonConnection):
                 }
             ]
         }
-        if request.id:
-            cert_guid = self.get_certificate_guid_from_dn(request.id)
-        elif request.guid:
+
+        if request.guid:
             cert_guid = request.guid
+        elif request.id:
+            cert_guid = self.get_certificate_guid_from_dn(request.id)
+        elif request.thumbprint:
+            req_id = self.search_by_thumbprint(request.thumbprint)
+            cert_guid = self.get_certificate_guid_from_dn(req_id)
         else:
             raise ClientBadData
 
