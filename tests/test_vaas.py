@@ -223,7 +223,7 @@ class TestVaaSMethods(unittest.TestCase):
             fingerprint = binascii.hexlify(cert.fingerprint(hashes.SHA1())).decode()
             time.sleep(1)
             ret_request = RetireRequest(thumbprint=fingerprint)
-            ret_data = self.cloud_conn.retire_cert(fingerprint)
+            ret_data = self.cloud_conn.retire_cert(ret_request)
             assert ret_data is True
         except Exception as e:
             log.error(msg=f"Error retiring certificate by thumbprint: {e.message}")

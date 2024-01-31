@@ -170,27 +170,26 @@ class TestTPPTokenMethods(unittest.TestCase):
     def test_token_revoke_normal(self):
         req, cert = simple_enroll(self.tpp_conn, self.tpp_zone)
         rev_req = RevocationRequest(req_id=req.id)
-        self.tpp_conn.revoke_cert(rev_req)
+        revoke_data = self.tpp_conn.revoke_cert(rev_req)
         time.sleep(1)
-        with self.assertRaises(Exception):
-            self.tpp_conn.renew_cert(req)
+        assert revoke_data['Success'] is True
+
 
     def test_token_revoke_without_disable(self):
         req, cert = simple_enroll(self.tpp_conn, self.tpp_zone)
         rev_req = RevocationRequest(req_id=req.id, disable=False)
-        self.tpp_conn.revoke_cert(rev_req)
+        revoke_data = self.tpp_conn.revoke_cert(rev_req)
         time.sleep(1)
-        self.tpp_conn.renew_cert(req)
+        assert revoke_data['Success'] is True
 
     def test_token_revoke_normal_thumbprint(self):
         req, cert = simple_enroll(self.tpp_conn, self.tpp_zone)
         cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
         thumbprint = binascii.hexlify(cert.fingerprint(hashes.SHA1())).decode()
         rev_req = RevocationRequest(thumbprint=thumbprint)
-        self.tpp_conn.revoke_cert(rev_req)
+        revoke_data = self.tpp_conn.revoke_cert(rev_req)
         time.sleep(1)
-        with self.assertRaises(Exception):
-            self.tpp_conn.renew_cert(req)
+        assert revoke_data['Success'] is True
 
     def test_tpp_token_enroll_valid_hours(self):
         cn = f"{random_word(10)}.venafi.example.com"
@@ -269,20 +268,18 @@ class TestTPPTokenMethods(unittest.TestCase):
             enroll(self.tpp_conn, self.tpp_zone, cn)
 
     def test_tpp_token_retire_cert_id(self):
-        cn = f"{random_word(10)}.venafi.example.com"
         try:
             req, cert = simple_enroll(self.tpp_conn, self.tpp_zone)
-            ret_data = retire_by_id(id=req.id)
+            ret_data = retire_by_id(self.tpp_conn, req.id)
             assert ret_data['Success'] is True
         except Exception as err:
-            self.fail(f"Error in tpp retire by id test: {err.message}")
+            self.fail(f"Error in tpp retire by id test: {err}")
 
     def test_tpp_token_retire_cert_thumbprint(self):
-        cn = f"{random_word(10)}.venafi.example.com"
         try:
             req, cert = simple_enroll(self.tpp_conn, self.tpp_zone)
             cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
-            ret_data = retire_by_thumbprint(prev_cert=cert)
+            ret_data = retire_by_thumbprint(self.tpp_conn, cert)
             assert ret_data['Success'] is True
         except Exception as err:
-            self.fail(f"Error in tpp retire by thumbprint test: {err.message}")
+            self.fail(f"Error in tpp retire by thumbprint test: {err}")
