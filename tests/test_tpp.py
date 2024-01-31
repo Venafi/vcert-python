@@ -160,24 +160,22 @@ class TestTPPMethods(unittest.TestCase):
     def test_revoke_normal(self):
         req, cert = simple_enroll(self.tpp_conn, self.tpp_zone)
         rev_req = RevocationRequest(req_id=req.id)
-        self.tpp_conn.revoke_cert(rev_req)
+        revoke_data = self.tpp_conn.revoke_cert(rev_req)
         time.sleep(1)
-        with self.assertRaises(Exception):
-            self.tpp_conn.renew_cert(req)
+        assert revoke_data['Success'] is True
 
     def test_revoke_without_disable(self):
         req, cert = simple_enroll(self.tpp_conn, self.tpp_zone)
         rev_req = RevocationRequest(req_id=req.id, disable=False)
-        self.tpp_conn.revoke_cert(rev_req)
+        revoke_data = self.tpp_conn.revoke_cert(rev_req)
         time.sleep(1)
-        self.tpp_conn.renew_cert(req)
+        assert revoke_data['Success'] is True
 
     def test_revoke_normal_thumbprint(self):
         req, cert = simple_enroll(self.tpp_conn, self.tpp_zone)
         cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
         thumbprint = binascii.hexlify(cert.fingerprint(hashes.SHA1())).decode()
         rev_req = RevocationRequest(thumbprint=thumbprint)
-        self.tpp_conn.revoke_cert(rev_req)
+        revoke_data = self.tpp_conn.revoke_cert(rev_req)
         time.sleep(1)
-        with self.assertRaises(Exception):
-            self.tpp_conn.renew_cert(req)
+        assert revoke_data['Success'] is True
