@@ -25,7 +25,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePrivateKey
 from cryptography.x509.oid import NameOID
 
-from test_env import CLOUD_ZONE, CLOUD_APIKEY, CLOUD_URL, RANDOM_DOMAIN
+from test_env import CLOUD_ZONE, CLOUD_APIKEY, CLOUD_URL, RANDOM_DOMAIN, VAAS_ZONE_ONLY_EC
 from test_pm import get_policy_obj, get_defaults_obj
 from test_utils import random_word, enroll, renew, renew_by_thumbprint, renew_without_key_reuse, simple_enroll, \
     get_vaas_zone
@@ -39,6 +39,7 @@ log = logger.get_child("test-vaas")
 class TestVaaSMethods(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         self.cloud_zone = CLOUD_ZONE
+        self.vaas_zone_ec = VAAS_ZONE_ONLY_EC
         self.cloud_conn = CloudConnection(token=CLOUD_APIKEY, url=CLOUD_URL)
         super(TestVaaSMethods, self).__init__(*args, **kwargs)
 
@@ -171,29 +172,12 @@ class TestVaaSMethods(unittest.TestCase):
         log.info(f"PKCS12 created successfully for certificate with CN: {cn}")
 
     def test_enroll_ec_key_certificate(self):
-        policy = get_policy_obj()
-        kp = KeyPair(
-            key_types=['EC'],
-            elliptic_curves=['P521', 'P384'],
-            reuse_allowed=False)
-        policy.key_pair = kp
+        zone = self.vaas_zone_ec
 
-        defaults = get_defaults_obj()
-        defaults.key_pair = DefaultKeyPair(
-            key_type='EC',
-            elliptic_curve='P521')
-
-        policy_spec = PolicySpecification()
-        policy_spec.policy = policy
-        policy_spec.defaults = defaults
-
-        zone = self.get_vaas_zone()
-
-        self.cloud_conn.set_policy(zone, policy_spec)
         password = 'FooBarPass123'
 
         request = CertificateRequest(
-            common_name=f"{random_word(10)}.venafi.example",
+            common_name=f"{random_word(10)}.vfidev.com",
             key_type=KeyType(
                 key_type="ec",
                 option="P384"
