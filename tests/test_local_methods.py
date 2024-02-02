@@ -203,7 +203,7 @@ class TestLocalMethods(unittest.TestCase):
         self.assertEqual(len(p.key_types), 8)
         raw_data['Policy']['KeyPair']['KeySize']['Locked'] = True
         p = conn._parse_zone_config_to_policy(raw_data)
-        self.assertEqual(len(p.key_types), 4)
+        self.assertEqual(len(p.key_types), 5)
         raw_data['Policy']['KeyPair']['KeyAlgorithm']['Locked'] = True
         p = conn._parse_zone_config_to_policy(raw_data)
         self.assertEqual(len(p.key_types), 1)
