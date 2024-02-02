@@ -187,7 +187,7 @@ class TestVaaSMethods(unittest.TestCase):
         policy_spec.policy = policy
         policy_spec.defaults = defaults
 
-        zone = self.cloud_zone
+        zone = self.get_vaas_zone()
 
         self.cloud_conn.set_policy(zone, policy_spec)
         password = 'FooBarPass123'
