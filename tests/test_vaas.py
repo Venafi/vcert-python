@@ -175,9 +175,11 @@ class TestVaaSMethods(unittest.TestCase):
         zone = self.vaas_zone_ec
 
         password = 'FooBarPass123'
+        random_name = f"{random_word(10)}.vfidev.com"
 
         request = CertificateRequest(
-            common_name=f"{random_word(10)}.vfidev.com",
+            common_name=random_name,
+            san_dns=[random_name],
             key_type=KeyType(
                 key_type="ec",
                 option="P384"
