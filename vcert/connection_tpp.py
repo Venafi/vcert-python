@@ -76,6 +76,17 @@ class TPPConnection(AbstractTPPConnection):
 
         return self._post(url=url, data=data)
 
+    def put(self, args):
+        """
+
+        :param dict args:
+        :rtype: tuple[Any, Any]
+        """
+        url = args[self.ARG_URL] if self.ARG_URL in args else None
+        data = args[self.ARG_DATA] if self.ARG_DATA in args else None
+
+        return self._put(url=url, data=data)
+
     def _get(self, url="", params=None):
         if not self._token or self._token[1] < time.time() + 1:
             self.auth()
@@ -106,6 +117,22 @@ class TPPConnection(AbstractTPPConnection):
             raise ClientBadData
         return self.process_server_response(r)
 
+    def _put(self, url, data=None):
+        if not self._token or self._token[1] < time.time() + 1:
+            self.auth()
+            log.debug(f"Token is {self._token[0]}, timeout is {self._token[1]}")
+
+        if isinstance(data, dict):
+            r = requests.put(f"{self._base_url}{url}",
+                              headers={TOKEN_HEADER_NAME: self._token[0],
+                                       'content-type': MIME_JSON,
+                                       'cache-control': "no-cache"},
+                              json=data,
+                              **self._http_request_kwargs)  # nosec B113
+        else:
+            log.error(f"Unexpected client data type: {type(data)} for {url}")
+            raise ClientBadData
+        return self.process_server_response(r)
     @staticmethod
     def _normalize_and_verify_base_url(u):
         if u.startswith('http://'):  # nosec

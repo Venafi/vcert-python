@@ -85,6 +85,18 @@ class TPPTokenConnection(AbstractTPPConnection):
         include_token_header = args[self.ARG_INCLUDE_TOKEN_HEADER] if self.ARG_INCLUDE_TOKEN_HEADER in args else True
 
         return self._post(url=url, data=data, check_token=check_token, include_token_header=include_token_header)
+    def put(self, args):
+        """
+
+        :param dict args:
+        :rtype: tuple[Any, Any]
+        """
+        url = args[self.ARG_URL] if self.ARG_URL in args else None
+        data = args[self.ARG_DATA] if self.ARG_DATA in args else None
+        check_token = args[self.ARG_CHECK_TOKEN] if self.ARG_CHECK_TOKEN in args else True
+        include_token_header = args[self.ARG_INCLUDE_TOKEN_HEADER] if self.ARG_INCLUDE_TOKEN_HEADER in args else True
+
+        return self._put(url=url, data=data, check_token=check_token, include_token_header=include_token_header)
 
     def _get(self, url=None, params=None, check_token=True, include_token_header=True):
         if check_token:
@@ -116,6 +128,27 @@ class TPPTokenConnection(AbstractTPPConnection):
         if isinstance(data, dict):
             log.debug(f"POST Request\n\tURL: {self._base_url+url}\n\tHeaders:{headers}\n\tBody:{data}\n")
             r = requests.post(self._base_url + url, headers=headers, json=data,  **self._http_request_kwargs)  # nosec B113
+        else:
+            log.error(f"Unexpected client data type: {type(data)} for {url}")
+            raise ClientBadData
+        return self.process_server_response(r)
+
+    def _put(self, url, data=None, check_token=True, include_token_header=True):
+        if check_token:
+            self._check_token()
+
+        headers = {
+            'content-type': MIME_JSON,
+            'cache-control': "no-cache"
+        }
+        if include_token_header:
+            token = self._get_auth_header_value(self._auth.access_token)
+            headers[HEADER_AUTHORIZATION] = token
+
+        if isinstance(data, dict):
+            log.debug(f"POST Request\n\tURL: {self._base_url + url}\n\tHeaders:{headers}\n\tBody:{data}\n")
+            r = requests.put(self._base_url + url, headers=headers, json=data,
+                              **self._http_request_kwargs)  # nosec B113
         else:
             log.error(f"Unexpected client data type: {type(data)} for {url}")
             raise ClientBadData
