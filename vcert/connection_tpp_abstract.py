@@ -331,17 +331,21 @@ class AbstractTPPConnection(CommonConnection):
     def revoke_cert(self, request):
         if not (request.id or request.thumbprint):
             raise ClientBadData
+
         d = {
             'Disable': request.disable
         }
         if request.reason:
             d['Reason'] = request.reason
+        if request.comments:
+            d['Comments'] = request.comments
         if request.id:
             d['CertificateDN'] = request.id
         elif request.thumbprint:
             d['Thumbprint'] = request.thumbprint
         else:
             raise ClientBadData
+
         # TODO: Change _post() with post(args)
         status, data = self._post(URLS.CERTIFICATE_REVOKE, data=d)
         if status in (HTTPStatus.OK, HTTPStatus.ACCEPTED):
