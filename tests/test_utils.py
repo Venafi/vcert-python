@@ -28,7 +28,6 @@ from six import string_types
 
 from test_env import RANDOM_DOMAIN
 from vcert import CertificateRequest, FakeConnection, TPPConnection, TPPTokenConnection, CSR_ORIGIN_SERVICE
-from vcert.common import RetireRequest
 
 
 def random_word(length):
@@ -210,18 +209,3 @@ def renew_by_thumbprint(conn, prev_cert):
     print(prev_cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME))
     assert cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME) == prev_cert.subject.get_attributes_for_oid(
         NameOID.COMMON_NAME)
-
-
-def retire_by_id(conn, prev_cert_id):
-    print("trying to retire by id")
-    ret_request = RetireRequest(req_id=prev_cert_id)
-    retire_data = conn.retire_cert(ret_request)
-    return retire_data
-
-
-def retire_by_thumbprint(conn, prev_cert):
-    print("Trying to retire by thumbprint")
-    thumbprint = binascii.hexlify(prev_cert.fingerprint(hashes.SHA1())).decode()
-    ret_request = RetireRequest(thumbprint=thumbprint)
-    retire_data = conn.retire_cert(ret_request)
-    return retire_data

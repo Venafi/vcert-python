@@ -200,10 +200,10 @@ class TestLocalMethods(unittest.TestCase):
         conn = TPPConnection(url="http://example.com/", user="", password="")
         raw_data = json.loads(POLICY_TPP1)
         p = conn._parse_zone_config_to_policy(raw_data)
-        self.assertEqual(len(p.key_types), 8)
+        self.assertEqual(len(p.key_types), 7)
         raw_data['Policy']['KeyPair']['KeySize']['Locked'] = True
         p = conn._parse_zone_config_to_policy(raw_data)
-        self.assertEqual(len(p.key_types), 5)
+        self.assertEqual(len(p.key_types), 4)
         raw_data['Policy']['KeyPair']['KeyAlgorithm']['Locked'] = True
         p = conn._parse_zone_config_to_policy(raw_data)
         self.assertEqual(len(p.key_types), 1)

@@ -109,7 +109,7 @@ def get_ip_address():
 
 class KeyType:
     ALLOWED_SIZES = [2048, 3072, 4096, 8192]
-    ALLOWED_CURVES = ["p256", "p384", "p521", "ed25519"]
+    ALLOWED_CURVES = ["p256", "p384", "p521"]
     RSA = 'rsa'
     ECDSA = 'ec'
 
@@ -125,7 +125,7 @@ class KeyType:
                 raise BadData
         elif self.key_type == KeyType.ECDSA:
             option = {"secp521r1": "p521", "secp384r1": "p384", "secp256r1": "p256", "p256": "p256", "p384": "p384",
-                      "p521": "p521", "ed25519": "ed25519"}[option.lower().strip()]
+                      "p521": "p521"}[option.lower().strip()]
             if option not in KeyType.ALLOWED_CURVES:
                 log.error(f"unknown curve: {option}, should be one of {KeyType.ALLOWED_CURVES}")
                 raise BadData
@@ -591,20 +591,6 @@ class RevocationRequest:
         self.reason = reason
         self.comments = comments
         self.disable = disable
-
-
-class RetireRequest:
-    def __init__(self, req_id=None, thumbprint=None,  guid=None, description=None):
-        """
-        :param req_id:
-        :param thumbprint:
-        :param guid:
-        :param description:
-        """
-        self.id = req_id
-        self.thumbprint = thumbprint
-        self.guid = guid
-        self.description = description
 
 
 class Authentication:

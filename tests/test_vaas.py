@@ -25,13 +25,12 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePrivateKey
 from cryptography.x509.oid import NameOID
 
-from test_env import CLOUD_ZONE, CLOUD_APIKEY, CLOUD_URL, RANDOM_DOMAIN, VAAS_ZONE_ONLY_EC
+from test_env import CLOUD_ZONE, CLOUD_APIKEY, CLOUD_URL, RANDOM_DOMAIN
 from test_pm import get_policy_obj, get_defaults_obj
 from test_utils import random_word, enroll, renew, renew_by_thumbprint, renew_without_key_reuse, simple_enroll, \
     get_vaas_zone
 from vcert import CloudConnection, KeyType, CertificateRequest, CustomField, logger, CSR_ORIGIN_SERVICE
 from vcert.policy import KeyPair, DefaultKeyPair, PolicySpecification
-from vcert.common import RetireRequest
 
 log = logger.get_child("test-vaas")
 
@@ -39,7 +38,6 @@ log = logger.get_child("test-vaas")
 class TestVaaSMethods(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         self.cloud_zone = CLOUD_ZONE
-        self.vaas_zone_ec = VAAS_ZONE_ONLY_EC
         self.cloud_conn = CloudConnection(token=CLOUD_APIKEY, url=CLOUD_URL)
         super(TestVaaSMethods, self).__init__(*args, **kwargs)
 
@@ -172,14 +170,29 @@ class TestVaaSMethods(unittest.TestCase):
         log.info(f"PKCS12 created successfully for certificate with CN: {cn}")
 
     def test_enroll_ec_key_certificate(self):
-        zone = self.vaas_zone_ec
+        policy = get_policy_obj()
+        kp = KeyPair(
+            key_types=['EC'],
+            elliptic_curves=['P521', 'P384'],
+            reuse_allowed=False)
+        policy.key_pair = kp
 
+        defaults = get_defaults_obj()
+        defaults.key_pair = DefaultKeyPair(
+            key_type='EC',
+            elliptic_curve='P521')
+
+        policy_spec = PolicySpecification()
+        policy_spec.policy = policy
+        policy_spec.defaults = defaults
+
+        zone = get_vaas_zone()
+
+        self.cloud_conn.set_policy(zone, policy_spec)
         password = 'FooBarPass123'
-        random_name = f"{random_word(10)}.vfidev.com"
 
         request = CertificateRequest(
-            common_name=random_name,
-            san_dns=[random_name],
+            common_name=f"{random_word(10)}.venafi.example",
             key_type=KeyType(
                 key_type="ec",
                 option="P384"
@@ -201,15 +214,3 @@ class TestVaaSMethods(unittest.TestCase):
         if p_key:
             self.assertIsInstance(p_key, EllipticCurvePrivateKey, "returned private key is not of type Elliptic Curve")
             self.assertEqual(p_key.curve.key_size, 384, f"Private Key expected curve: 384. Got: {p_key.curve.key_size}")
-
-    def test_cloud_retire_by_thumbprint(self):
-        try:
-            req, cert = simple_enroll(self.cloud_conn, self.cloud_zone)
-            cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
-            fingerprint = binascii.hexlify(cert.fingerprint(hashes.SHA1())).decode()
-            time.sleep(1)
-            ret_request = RetireRequest(thumbprint=fingerprint)
-            ret_data = self.cloud_conn.retire_cert(ret_request)
-            assert ret_data is True
-        except Exception as e:
-            log.error(msg=f"Error retiring certificate by thumbprint: {e.message}")
