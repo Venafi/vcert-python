@@ -170,26 +170,28 @@ class TestTPPTokenMethods(unittest.TestCase):
     def test_token_revoke_normal(self):
         req, cert = simple_enroll(self.tpp_conn, self.tpp_zone)
         rev_req = RevocationRequest(req_id=req.id)
-        revoke_data = self.tpp_conn.revoke_cert(rev_req)
+        self.tpp_conn.revoke_cert(rev_req)
         time.sleep(1)
-        assert revoke_data['Success'] is True
+        with self.assertRaises(Exception):
+            self.tpp_conn.renew_cert(req)
 
 
     def test_token_revoke_without_disable(self):
         req, cert = simple_enroll(self.tpp_conn, self.tpp_zone)
         rev_req = RevocationRequest(req_id=req.id, disable=False)
-        revoke_data = self.tpp_conn.revoke_cert(rev_req)
+        self.tpp_conn.revoke_cert(rev_req)
         time.sleep(1)
-        assert revoke_data['Success'] is True
+        self.tpp_conn.renew_cert(req)
 
     def test_token_revoke_normal_thumbprint(self):
         req, cert = simple_enroll(self.tpp_conn, self.tpp_zone)
         cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
         thumbprint = binascii.hexlify(cert.fingerprint(hashes.SHA1())).decode()
         rev_req = RevocationRequest(thumbprint=thumbprint)
-        revoke_data = self.tpp_conn.revoke_cert(rev_req)
+        self.tpp_conn.revoke_cert(rev_req)
         time.sleep(1)
-        assert revoke_data['Success'] is True
+        with self.assertRaises(Exception):
+            self.tpp_conn.renew_cert(req)
 
     def test_tpp_token_enroll_valid_hours(self):
         cn = f"{random_word(10)}.venafi.example.com"
