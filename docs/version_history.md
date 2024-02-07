@@ -1,7 +1,13 @@
 # VCert Python
 
 ## Version History
-
+#### 0.17.0
+* Added ability to retire certificates in both TLSPDC and TLSPC
+* Dropped certvalidator dependency as it has not been needed for a long time
+#### 0.16.2
+* Fixed an issue whereby retrieving a certificate may fail in TLSPC when the CA takes too much time to process a certificate request
+* #### 0.16.1
+* CertificateType set to Auto by default when requesting certificates to TLSPDC 
 #### 0.16.0
 * Fixed **[Issue 124](https://github.com/Venafi/vcert-python/issues/124)**: Fixed an issue where adding a Certificate Issuing Template to an existing Application failed
 * Upgraded cryptography dependency to 40.0.2 to cover a security risk CVE-2023-23931
