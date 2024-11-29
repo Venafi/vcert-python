@@ -14,10 +14,17 @@
 # limitations under the License.
 #
 import base64
+import os
 import re
 import time
 
 import requests
+
+proxies = {
+    "http": os.environ.get('HTTP_PROXY'),
+    "https": os.environ.get('HTTPS_PROXY'),
+}
+
 import six.moves.urllib.parse as urlparse
 from nacl.public import SealedBox
 from six import string_types
@@ -153,6 +160,7 @@ class CloudConnection(CommonConnection):
             http_request_kwargs = {'timeout': 180}
         elif 'timeout' not in http_request_kwargs:
             http_request_kwargs['timeout'] = 180
+        http_request_kwargs['proxies'] = proxies
         self._http_request_kwargs = http_request_kwargs
 
     def __str__(self):

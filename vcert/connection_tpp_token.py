@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 import logging as log
+import os
 import re
 import time
 
@@ -30,6 +31,10 @@ KEY_ACCESS_TOKEN = 'access_token'  # nosec
 KEY_REFRESH_TOKEN = 'refresh_token'  # nosec
 KEY_EXPIRATION_DATE = 'expiration_date'
 
+proxies = {
+    "http": os.environ.get('HTTP_PROXY'),
+    "https": os.environ.get('HTTPS_PROXY'),
+}
 
 class TPPTokenConnection(AbstractTPPConnection):
     def __init__(self, url, user=None, password=None, access_token=None, refresh_token=None, http_request_kwargs=None):
@@ -50,6 +55,7 @@ class TPPTokenConnection(AbstractTPPConnection):
             http_request_kwargs = {'timeout': 180}
         elif 'timeout' not in http_request_kwargs:
             http_request_kwargs['timeout'] = 180
+        http_request_kwargs['proxies'] = proxies
         self._http_request_kwargs = http_request_kwargs or {}
 
     def __setattr__(self, key, value):
