@@ -66,8 +66,11 @@ TPP REST APIs but please be advised this goes against Venafi recommendations.
 
 ## Prerequisites for using with Venafi as a Service
 
-1. The Venafi as a Service REST API is accessible at [https://api.venafi.cloud](https://api.venafi.cloud/vaas) or [https://api.venafi.eu](https://api.venafi.eu/vaas) (if you have an EU account) from the system where VCert
-will be executed.
+1. The Venafi as a Service REST API is accessible from the system where VCert
+will be executed. Currently, we support the following regions:
+   - [https://api.venafi.cloud](https://api.venafi.cloud/vaas) [US]
+   - [https://api.venafi.eu](https://api.venafi.eu/vaas) [EU]
+   - [https://api.au.venafi.cloud](https://api.au.venafi.cloud/vaas) [AU]
 2. You have successfully registered for a Venafi as a Service account, have been granted at least the
 "Resource Owner" role, and know your API key.
 3. A CA Account and Issuing Template exist and have been configured with:
