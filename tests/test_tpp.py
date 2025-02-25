@@ -42,11 +42,10 @@ class TestFakeMethods(unittest.TestCase):
 
 
 class TestTPPMethods(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
+    def setUp(self):
         self.tpp_zone = TPP_ZONE
         self.tpp_zone_ecdsa = TPP_ZONE_ECDSA
         self.tpp_conn = TPPConnection(TPP_USER, TPP_PASSWORD, TPP_URL, http_request_kwargs={'verify': "/tmp/chain.pem"})
-        super(TestTPPMethods, self).__init__(*args, **kwargs)
 
     def test_tpp_enroll(self):
         cn = f"{random_word(10)}.venafi.example.com"

@@ -40,8 +40,7 @@ log = logger.get_child("test-pm")
 
 
 class TestParsers(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        super(TestParsers, self).__init__(*args, **kwargs)
+    def setUp(self):
         self.json_file = POLICY_SPEC_JSON
         self.yaml_file = POLICY_SPEC_YAML
 
@@ -98,13 +97,12 @@ class TestParsers(unittest.TestCase):
 
 
 class TestTPPPolicyManagement(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
+    def setUp(self):
         self.tpp_conn = TPPTokenConnection(url=TPP_TOKEN_URL, http_request_kwargs={'verify': "/tmp/chain.pem"})
         auth = Authentication(user=TPP_USER, password=TPP_PASSWORD, scope=SCOPE_PM)
         self.tpp_conn.get_access_token(auth)
         self.json_file = POLICY_SPEC_JSON
         self.yaml_file = POLICY_SPEC_YAML
-        super(TestTPPPolicyManagement, self).__init__(*args, **kwargs)
 
     prefixed_universal = None
     username = "osstestuser"
@@ -166,11 +164,10 @@ class TestTPPPolicyManagement(unittest.TestCase):
 
 
 class TestVaaSPolicyManagement(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
+    def setUp(self):
         self.cloud_conn = CloudConnection(token=CLOUD_APIKEY, url=CLOUD_URL)
         self.json_file = POLICY_SPEC_JSON
         self.yaml_file = POLICY_SPEC_YAML
-        super(TestVaaSPolicyManagement, self).__init__(*args, **kwargs)
 
     def test_create_policy_from_json(self):
         # ps = json_parser.parse_file(self.json_file)
