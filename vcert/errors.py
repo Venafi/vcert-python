@@ -16,7 +16,10 @@
 
 
 class VenafiError(Exception):
-    pass
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args)
+        for (k,v) in kwargs.items():
+            setattr(self, k, v)
 
 
 class VenafiConnectionError(VenafiError):
@@ -52,4 +55,8 @@ class VenafiParsingError(VenafiError):
 
 
 class RetrieveCertificateTimeoutError(VenafiError):
+    pass
+
+
+class RetrieveCertificateNotFoundError(VenafiError):
     pass
