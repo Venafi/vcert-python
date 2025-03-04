@@ -71,6 +71,7 @@ will be executed. Currently, we support the following regions:
    - [https://api.venafi.cloud](https://api.venafi.cloud/vaas) [US]
    - [https://api.venafi.eu](https://api.venafi.eu/vaas) [EU]
    - [https://api.au.venafi.cloud](https://api.au.venafi.cloud/vaas) [AU]
+   - [https://api.uk.venafi.cloud](https://api.uk.venafi.cloud/vaas) [UK]
 2. You have successfully registered for a Venafi as a Service account, have been granted at least the
 "Resource Owner" role, and know your API key.
 3. A CA Account and Issuing Template exist and have been configured with:
