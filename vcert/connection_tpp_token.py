@@ -30,7 +30,6 @@ KEY_ACCESS_TOKEN = 'access_token'  # nosec
 KEY_REFRESH_TOKEN = 'refresh_token'  # nosec
 KEY_EXPIRATION_DATE = 'expiration_date'
 
-
 class TPPTokenConnection(AbstractTPPConnection):
     def __init__(self, url, user=None, password=None, access_token=None, refresh_token=None, http_request_kwargs=None):
         """
