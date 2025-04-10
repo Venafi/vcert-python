@@ -1,5 +1,5 @@
 #
-# Copyright 2022 Venafi, Inc.
+# Copyright 2022-2025 Venafi, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -111,6 +111,9 @@ class FakeConnection(CommonConnection):
 
     def auth(self):
         return fake_user()
+
+    def get_version(self):
+        return "25.1.0.3419"
 
     def register(self, email):
         return fake_user(email)

@@ -1,5 +1,5 @@
 #
-# Copyright 2019 Venafi, Inc.
+# Copyright 2019-2025 Venafi, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -339,6 +339,9 @@ class CloudConnection(CommonConnection):
         status, data = self._get(URLS.USER_ACCOUNTS)
         if status == HTTPStatus.OK:
             return data
+
+    def get_version(self):
+        raise NotImplementedError
 
     def _get_app_details_by_name(self, app_name):
         """

@@ -1,5 +1,5 @@
 #
-# Copyright 2019 Venafi, Inc.
+# Copyright 2019-2025 Venafi, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -632,6 +632,12 @@ class CommonConnection:
         """
         raise NotImplementedError
 
+    def get_version(self):
+        """
+        Gets version string
+        """
+        raise NotImplementedError
+
     def request_cert(self, request, zone):
         """
         Making request to certificate. It will generate CSR from data if CSR not specified, generate key if required and send to server for signing. Set request.id for retrieving certificate.
@@ -765,5 +771,5 @@ class VenafiPlatform(IntEnum):
         return obj
 
     FAKE = 100, "Connector for testing purposes"
-    TPP = 200, "Trust Protection Platfom"
+    TPP = 200, "Trust Protection Platform"
     VAAS = 400, "Venafi as a Service"

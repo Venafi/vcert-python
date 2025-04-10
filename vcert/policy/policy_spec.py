@@ -1,5 +1,5 @@
 #
-# Copyright 2021 Venafi, Inc.
+# Copyright 2021-2025 Venafi, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -76,19 +76,21 @@ class Subject:
 
 class KeyPair:
     def __init__(self, key_types=None, rsa_key_sizes=None, elliptic_curves=None, service_generated=None,
-                 reuse_allowed=None):
+                 reuse_allowed=None, pkix_parameter_set=None):
         """
         :param list[str] key_types:
         :param list[int] rsa_key_sizes:
         :param list[str] elliptic_curves:
         :param bool service_generated:
         :param bool reuse_allowed:
+        :param list[str] pkix_parameter_set
         """
         self.key_types = key_types if key_types else []
         self.rsa_key_sizes = rsa_key_sizes if rsa_key_sizes else []
         self.elliptic_curves = elliptic_curves if elliptic_curves else []
         self.service_generated = service_generated
         self.reuse_allowed = reuse_allowed
+        self.pkix_parameter_set = pkix_parameter_set if pkix_parameter_set else []
 
 
 class SubjectAltNames:
@@ -143,14 +145,17 @@ class DefaultSubject:
 
 
 class DefaultKeyPair:
-    def __init__(self, key_type=None, rsa_key_size=None, elliptic_curve=None, service_generated=None):
+    def __init__(self, key_type=None, rsa_key_size=None, elliptic_curve=None, service_generated=None,
+                 pkix_parameter_set_default=None):
         """
         :param str key_type:
         :param int rsa_key_size:
         :param str elliptic_curve:
         :param bool service_generated:
+        :param str pkix_parameter_set_default:
         """
         self.key_type = key_type
         self.rsa_key_size = rsa_key_size
         self.elliptic_curve = elliptic_curve
         self.service_generated = service_generated
+        self.pkix_parameter_set_default = pkix_parameter_set_default

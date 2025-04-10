@@ -1,5 +1,5 @@
 #
-# Copyright 2021 Venafi, Inc.
+# Copyright 2021-2025 Venafi, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -62,6 +62,8 @@ class SPA(CommonPA):
     TPP_PROHIBIT_WILDCARD = 'Prohibit Wildcard'
     TPP_DOMAIN_SUFFIX_WHITELIST = 'Domain Suffix Whitelist'
     TPP_ORG_UNIT = 'Organizational Unit'
+    TPP_PKIX_PARAMETER_SET_POLICY = 'PKIX Parameter Set Policy'
+    TPP_PKIX_PARAMETER_SET_POLICY_DEFAULT = 'PKIX Parameter Set Policy Default'
     TPP_KEY_ALGORITHM = 'Key Algorithm'
     TPP_KEY_BIT_STR = 'Key Bit Strength'
     TPP_ELLIPTIC_CURVE = 'Elliptic Curve'
