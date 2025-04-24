@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Venafi, Inc.
+# Copyright 2020-2025 Venafi, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -52,6 +52,7 @@ class URLS:
     REVOKE_TOKEN = API_TOKEN_URL + "revoke/token"  # type: str
 
     AUTHORIZE = API_BASE_URL + "authorize/"
+    VERSION = API_BASE_URL + "systemstatus/version"
     CERTIFICATE_REQUESTS = API_BASE_URL + "certificates/request"
     CERTIFICATE_RETRIEVE = API_BASE_URL + "certificates/retrieve"
     FIND_POLICY = API_BASE_URL + "config/findpolicy"
@@ -98,6 +99,13 @@ class AbstractTPPConnection(CommonConnection):
 
     def auth(self):
         raise NotImplementedError
+
+    def get_version(self):
+        args = { self.ARG_URL: URLS.VERSION }
+        status, data = self.get(args=args)
+        if status != HTTPStatus.OK:
+            raise ServerUnexptedBehavior(f"Server returns {status} status on get version")
+        return data['Version']
 
     def request_cert(self, request, zone):
         request_data = {
@@ -591,14 +599,35 @@ class AbstractTPPConnection(CommonConnection):
             self._set_policy_attr(name, SPA.TPP_STATE, [tpp_policy.state.value], tpp_policy.state.locked)
         if tpp_policy.country:
             self._set_policy_attr(name, SPA.TPP_COUNTRY, [tpp_policy.country.value], tpp_policy.state.locked)
-        if tpp_policy.key_algo:
-            self._set_policy_attr(name, SPA.TPP_KEY_ALGORITHM, [tpp_policy.key_algo.value], tpp_policy.key_algo.locked)
-        if tpp_policy.key_bit_str:
-            self._set_policy_attr(name, SPA.TPP_KEY_BIT_STR, [tpp_policy.key_bit_str.value],
-                                  tpp_policy.key_bit_str.locked)
-        if tpp_policy.elliptic_curve:
-            self._set_policy_attr(name, SPA.TPP_ELLIPTIC_CURVE, [tpp_policy.elliptic_curve.value],
-                                  tpp_policy.elliptic_curve.locked)
+
+        # Check the TPP version is 25.x or greater
+        tpp_version_number = -1
+        tpp_version = self.get_version()
+        if tpp_version and "." in tpp_version:
+            tpp_version_number = int(tpp_version.split(".")[0])
+        if tpp_version_number >= 25:
+            # Create "PKIX Parameter Set" attributes
+            if tpp_policy.pkix_parameter_set:
+                self._set_policy_attr(name, SPA.TPP_PKIX_PARAMETER_SET_POLICY, [tpp_policy.pkix_parameter_set.value], tpp_policy.pkix_parameter_set.locked)
+            else:
+                # For backward compatibility, if the "PKIX Parameter Set" is not set, we need to set it using the "Key Algorithm",
+                # "Key Bit Strength" and "Elliptic Curve" attribute values
+                pkixOid = tpp_policy.pkix_parameter_set_from_old_key_attributes()
+                if pkixOid:
+                    self._set_policy_attr(name, SPA.TPP_PKIX_PARAMETER_SET_POLICY, [pkixOid], tpp_policy.key_algo.locked)
+                    self._set_policy_attr(name, SPA.TPP_PKIX_PARAMETER_SET_POLICY_DEFAULT, [pkixOid], tpp_policy.key_algo.locked)
+            if tpp_policy.pkix_parameter_set_default:
+                self._set_policy_attr(name, SPA.TPP_PKIX_PARAMETER_SET_POLICY_DEFAULT, [tpp_policy.pkix_parameter_set_default.value], tpp_policy.pkix_parameter_set_default.locked)
+        else:
+            if tpp_policy.key_algo:
+                self._set_policy_attr(name, SPA.TPP_KEY_ALGORITHM, [tpp_policy.key_algo.value], tpp_policy.key_algo.locked)
+            if tpp_policy.key_bit_str:
+                self._set_policy_attr(name, SPA.TPP_KEY_BIT_STR, [tpp_policy.key_bit_str.value],
+                                      tpp_policy.key_bit_str.locked)
+            if tpp_policy.elliptic_curve:
+                self._set_policy_attr(name, SPA.TPP_ELLIPTIC_CURVE, [tpp_policy.elliptic_curve.value],
+                                      tpp_policy.elliptic_curve.locked)
+
         if tpp_policy.management_type:
             self._set_policy_attr(name, SPA.TPP_MANAGEMENT_TYPE, [tpp_policy.management_type.value],
                                   tpp_policy.management_type.locked)

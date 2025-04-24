@@ -1,5 +1,5 @@
 #
-# Copyright 2021 Venafi, Inc.
+# Copyright 2021-2025 Venafi, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -56,6 +56,8 @@ class TPPPolicy:
         self.city = None
         self.state = None
         self.country = None
+        self.pkix_parameter_set = None
+        self.pkix_parameter_set_default = None
         self.key_algo = None
         self.key_bit_str = None
         self.elliptic_curve = None
@@ -71,6 +73,31 @@ class TPPPolicy:
 
         self.allow_private_key_reuse = None
         self.want_renewal = None
+
+    def pkix_parameter_set_from_old_key_attributes(self):
+        """
+        For backward compatibility, if the "PKIX Parameter Set" is not set, we need to set it using the "Key Algorithm",
+        "Key Bit Strength" and "Elliptic Curve" attribute values
+        """
+        _key_algorithms_to_pkix = {
+            "RSA": {
+                "1024": "1.3.6.1.4.1.28783.10.1.1.1024",
+                "2048": "1.3.6.1.4.1.28783.10.1.1.2048",
+                "3072": "1.3.6.1.4.1.28783.10.1.1.3072",
+                "4096": "1.3.6.1.4.1.28783.10.1.1.4096",
+            },
+            "ECC": {
+                "P256": "1.3.6.1.4.1.28783.10.2.1.256",
+                "P384": "1.3.6.1.4.1.28783.10.2.1.384",
+                "P521": "1.3.6.1.4.1.28783.10.2.1.521",
+            },
+        }
+        if self.key_algo and self.key_algo.value and self.key_algo.value in _key_algorithms_to_pkix:
+            if self.key_algo.value.upper() != 'RSA' and self.elliptic_curve and self.elliptic_curve.value and self.elliptic_curve.value in _key_algorithms_to_pkix[self.key_algo.value]:
+                return _key_algorithms_to_pkix[self.key_algo.value][self.elliptic_curve.value]
+            if self.key_bit_str and self.key_bit_str.value and str(self.key_bit_str.value) in _key_algorithms_to_pkix[self.key_algo.value]:
+                return _key_algorithms_to_pkix[self.key_algo.value][str(self.key_bit_str.value)]
+        return None
 
     def to_policy_spec(self):
         """
