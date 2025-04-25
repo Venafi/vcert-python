@@ -1,6 +1,10 @@
 # VCert Python
 
 ## Version History
+
+#### 0.18.0
+* Added support for TPP 25.1
+* Upgraded dependencies
 #### 0.17.0
 * Added ability to retire certificates in both TLSPDC and TLSPC
 * Dropped certvalidator dependency as it has not been needed for a long time
