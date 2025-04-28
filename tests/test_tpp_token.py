@@ -34,12 +34,11 @@ log = logger.get_child("test-tpp-token")
 
 
 class TestTPPTokenMethods(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
+    def setUp(self):
         self.tpp_zone = TPP_ZONE
         self.tpp_zone_ecdsa = TPP_ZONE_ECDSA
         self.tpp_conn = TPPTokenConnection(url=TPP_TOKEN_URL, user=TPP_USER, password=TPP_PASSWORD,
                                            http_request_kwargs={'verify': "/tmp/chain.pem"})
-        super(TestTPPTokenMethods, self).__init__(*args, **kwargs)
 
     def test_tpp_token_enroll(self):
         cn = f"{random_word(10)}.venafi.example.com"
