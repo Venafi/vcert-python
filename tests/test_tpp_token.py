@@ -17,6 +17,7 @@
 import binascii
 import time
 import unittest
+import os
 from datetime import datetime, timedelta
 
 from cryptography import x509
