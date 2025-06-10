@@ -17,6 +17,7 @@
 import binascii
 import time
 import unittest
+import os
 from datetime import datetime, timedelta
 
 from cryptography import x509
@@ -43,6 +44,8 @@ class TestTPPTokenMethods(unittest.TestCase):
 
     def test_tpp_token_enroll(self):
         cn = f"{random_word(10)}.venafi.example.com"
+        no_proxy_value = os.environ.get('no_proxy')
+        print(f'\nno_proxy_value: {no_proxy_value or "<no_proxy_set>"}\n')
         try:
             cert_id, pkey, cert, _, cert_guid = enroll(self.tpp_conn, self.tpp_zone, cn)
             cert_config = self.tpp_conn._get_certificate_details(cert_guid)
