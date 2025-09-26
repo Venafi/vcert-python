@@ -33,9 +33,9 @@ def main():
     server_trust_bundle = environ.get('TPP_TRUST_BUNDLE')
 
     # Connection will be chosen automatically based on which arguments are passed.
-    # If token is passed Venafi Cloud connection will be used.
-    # If user, password, and URL Venafi Platform (TPP) will be used.
-    # If your TPP server certificate signed with your own CA, or available only via proxy, you can specify
+    # If token is passed CyberArk Certificate Manager, SaaS connection will be used.
+    # If user, password, and URL CyberArk Certificate Manager, Self-Hosted will be used.
+    # If your CyberArk Certificate Manager, Self-Hosted server certificate signed with your own CA, or available only via proxy, you can specify
     # a trust bundle using http_request_kwargs.
     conn = venafi_connection(url=url, user=user, password=password, http_request_kwargs={'verify': server_trust_bundle})
 
@@ -55,7 +55,7 @@ def main():
     request.key_password = 'Foo.Bar.Pass.123!'
     # Specify ordering certificates in chain. Root can be CHAIN_OPTION_FIRST ("first")
     # or CHAIN_OPTION_LAST ("last"). By default it is CHAIN_OPTION_LAST.
-    # You can also specify CHAIN_OPTION_IGNORE ("ignore") to ignore chain (supported only for TPP).
+    # You can also specify CHAIN_OPTION_IGNORE ("ignore") to ignore chain (supported only for CyberArk Certificate Manager, Self-Hosted).
     # request.chain_option = CHAIN_OPTION_FIRST
     # To set Custom Fields for the certificate, specify an array of CustomField objects as name-value pairs
     # request.custom_fields = [

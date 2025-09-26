@@ -32,7 +32,7 @@ def main():
     password = environ.get('TPP_PASSWORD')
 
     connector = venafi_connection(url=url, user=user, password=password, http_request_kwargs={'verify': False})
-    # If your TPP server certificate is signed with your own CA, or available only via proxy,
+    # If your CyberArk Certificate Manager, Self-Hosted server certificate is signed with your own CA, or available only via proxy,
     # you can specify a trust bundle using requests vars:
     # connector = venafi_connection(url=url, api_key=api_key, access_token=access_token,
     #                          http_request_kwargs={"verify": "/path-to/bundle.pem"})
@@ -40,7 +40,7 @@ def main():
     # Create an Authentication object to request a token with the proper scope to manage SSH certificates
     auth = Authentication(user=user, password=password, scope=SCOPE_SSH)
     # Additionally, you may change the default client id for a custom one
-    # Make sure this id has been registered on the TPP instance beforehand
+    # Make sure this id has been registered on the CyberArk Certificate Manager, Self-Hosted instance beforehand
     # Also, the user (TTP_USER) should be allowed to use this application
     # And the application should have the ssh permissions enabled
     auth.client_id = 'vcert-ssh-demo'
@@ -54,8 +54,8 @@ def main():
     #            without the corresponding private key
     ssh_kp = SSHKeyPair()
     ssh_kp.generate(key_size=4096, passphrase="foobar")
-    # The path to the SSH CA in the TPP instance
-    # This is a placeholder. Make sure an SSH CA already exists on your TPP instance
+    # The path to the SSH CA in the CyberArk Certificate Manager, Self-Hosted instance
+    # This is a placeholder. Make sure an SSH CA already exists on your CyberArk Certificate Manager, Self-Hosted instance
     cadn = "\\VED\\Certificate Authority\\SSH\\Templates\\my-ca"
     # The id of the SSH certificate
     key_id = f"vcert-python-{random_word(12)}"
@@ -71,10 +71,10 @@ def main():
     # Include the locally-generated public key. If not set, the server will generate one for the certificate
     request.set_public_key_data(ssh_kp.public_key())
 
-    # Request the certificate from TPP instance
+    # Request the certificate from CyberArk Certificate Manager, Self-Hosted instance
     success = connector.request_ssh_cert(request)
     if success:
-        # Retrieve the certificate from TPP instance
+        # Retrieve the certificate from CyberArk Certificate Manager, Self-Hosted instance
         response = connector.retrieve_ssh_cert(request)
         # Save the certificate to a file
         # The private and public key are optional values.

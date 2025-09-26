@@ -244,7 +244,7 @@ class AbstractTPPConnection(CommonConnection):
 
     def renew_cert(self, request, reuse_key=False):
         if not request.id and not request.thumbprint:
-            log.debug("Request id or thumbprint must be specified for TPP")
+            log.debug("Request id or thumbprint must be specified for CyberArk Certificate Manager, Self-Hosted")
             raise CertificateRenewError
         if not request.id and request.thumbprint:
             request.id = self.search_by_thumbprint(request.thumbprint)

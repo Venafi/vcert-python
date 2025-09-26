@@ -32,7 +32,7 @@ def main():
     password = environ.get('TPP_PASSWORD')
 
     connector = venafi_connection(url=url, user=user, password=password, http_request_kwargs={'verify': False})
-    # If your TPP server certificate signed with your own CA, or available only via proxy,
+    # If your CyberArk Certificate Manager, Self-Hosted server certificate signed with your own CA, or available only via proxy,
     # you can specify a trust bundle using requests vars:
     # connector = venafi_connection(url=url, api_key=api_key, access_token=access_token,
     #                          http_request_kwargs={"verify": "/path-to/bundle.pem"})
@@ -40,7 +40,7 @@ def main():
     # Create an Authentication object to request a token with the proper scope to manage SSH certificates
     auth = Authentication(user=user, password=password, scope=SCOPE_SSH)
     # Additionally, you may change the default client id for a custom one
-    # Make sure this id has been registered on the TPP instance beforehand
+    # Make sure this id has been registered on the CyberArk Certificate Manager, Self-Hosted instance beforehand
     # Also, the user (TTP_USER) should be allowed to use this application
     # And the application should have the ssh permissions enabled
     auth.client_id = 'vcert-ssh-demo'
@@ -48,7 +48,7 @@ def main():
     # After the request is successful, subsequent api calls will use the same token
     connector.get_access_token(auth)
 
-    # The path to the SSH CA in the TPP instance
+    # The path to the SSH CA in the CyberArk Certificate Manager, Self-Hosted instance
     cadn = "\\VED\\Certificate Authority\\SSH\\Templates\\my-ca"
     # The id of the SSH certificate
     key_id = f"vcert-python-{random_word(12)}"
@@ -62,14 +62,14 @@ def main():
         'permit-pty': ""
     }
 
-    # Request the certificate from TPP instance
+    # Request the certificate from CyberArk Certificate Manager, Self-Hosted instance
     success = connector.request_ssh_cert(request)
     if success:
         # Optional. Define a passphrase for encryption
         # The service generated private key will be encrypted using this passphrase
         # This step should happen after the request has been invoked
         request.private_key_passphrase = "foobar"
-        # Retrieve the certificate from TPP instance
+        # Retrieve the certificate from CyberArk Certificate Manager, Self-Hosted instance
         response = connector.retrieve_ssh_cert(request)
         # Save the certificate, private and public key to files
         write_ssh_files("/path/to/ssh/cert/folder", response.certificate_details.key_id, response.certificate_data,

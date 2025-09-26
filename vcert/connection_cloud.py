@@ -40,7 +40,7 @@ from .vaas_utils import AppDetails, OwnerIdsAndTypes, RecommendedSettings, EdgeE
 
 TOKEN_HEADER_NAME = "tppl-api-key"  # nosec
 APPLICATION_SERVER_TYPE_ID = "784938d1-ef0d-11eb-9461-7bb533ba575b"
-MSG_VALUE_NOT_MATCH_POLICY = "Error while requesting certificate using service generated CSR on VaaS. " \
+MSG_VALUE_NOT_MATCH_POLICY = "Error while requesting certificate using service generated CSR on CyberArk Certificate Manager, SaaS. " \
                              "Request {} does not match CIT valid {}:\n\tRequest value: {},\n\tCIT values: {}"
 
 CSR_ATTR_CN = 'commonName'
@@ -677,7 +677,7 @@ class CloudConnection(CommonConnection):
 
         ca_details = self._get_ca_details(policy_spec.policy.certificate_authority)
         if not ca_details:
-            raise VenafiError(f"CA [{policy_spec.policy.certificate_authority}] not found in Venafi Cloud")
+            raise VenafiError(f"CA [{policy_spec.policy.certificate_authority}] not found in CyberArk Certificate Manager, SaaS")
 
         # CA valid. Create request dictionary
         request = build_cit_request(policy_spec, ca_details)
