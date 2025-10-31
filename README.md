@@ -15,8 +15,8 @@ We welcome and appreciate all contributions. Got questions or want to discuss so
  
 VCert Python is a Python library and SDK  designed to simplify key generation and enrollment of machine identities
 (also known as SSL/TLS certificates and keys) that comply with enterprise security policy by using the
-[CyberArk Certificate Manager, Self-Hosted](https://www.venafi.com/platform/trust-protection-platform) or
-[CyberArk Certificate Manager, SaaS](https://www.venafi.com/venaficloud).
+[CyberArk Certificate Manager, Self-Hosted](https://www.cyberark.com/products/certificate-manager/) or
+[CyberArk Certificate Manager, SaaS](https://www.cyberark.com/products/certificate-manager/).
 
 This implementation is based on the original Go library, https://github.com/Venafi/vcert.
 
@@ -111,8 +111,8 @@ See https://packaging.python.org/guides/installing-using-pip-and-virtual-environ
 
 ## License
 
-Copyright &copy; Venafi, Inc. All rights reserved.
+Copyright &copy; Venafi, Inc. and CyberArk Software Ltd. ("CyberArk")
 
 VCert is licensed under the Apache License, Version 2.0. See [`LICENSE`](https://github.com/Venafi/vcert-python/blob/master/LICENSE) for the full license text.
 
-Please direct questions/comments to opensource@venafi.com.
+Please direct questions/comments to mis-opensource@cyberark.com.
