@@ -1,7 +1,7 @@
 
 [![Apache 2.0 License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 ![Community Supported](https://img.shields.io/badge/Support%20Level-Community-brightgreen)
-![Compatible with TPP 17.3+ & VaaS](https://img.shields.io/badge/Compatibility-Certificate%20Manager%2C%20Self--Hosted_2017.3%2B_%26Certificate%20Manager%2C%20SaaS-f9a90c)
+![Compatible with CyberArk Certificate Manager, Self-Hosted+ & CyberArk Certificate Manager, SaaS](https://img.shields.io/badge/Compatibility-Certificate%20Manager%2C%20Self--Hosted_2017.3%2B_%26Certificate%20Manager%2C%20SaaS-f9a90c)
 [![pypi Downloads](https://img.shields.io/pypi/dw/vcert)](https://pypi.org/project/vcert/)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=Venafi_vcert-python&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=Venafi_vcert-python)
 
