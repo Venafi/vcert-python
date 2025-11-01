@@ -1,5 +1,5 @@
 #
-# Copyright 2020-2025 Venafi, Inc.
+# Copyright Venafi, Inc. and CyberArk Software Ltd. ("CyberArk")
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -244,7 +244,7 @@ class AbstractTPPConnection(CommonConnection):
 
     def renew_cert(self, request, reuse_key=False):
         if not request.id and not request.thumbprint:
-            log.debug("Request id or thumbprint must be specified for TPP")
+            log.debug("Request id or thumbprint must be specified for CyberArk Certificate Manager, Self-Hosted")
             raise CertificateRenewError
         if not request.id and request.thumbprint:
             request.id = self.search_by_thumbprint(request.thumbprint)

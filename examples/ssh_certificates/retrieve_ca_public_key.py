@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright 2021 Venafi, Inc.
+# Copyright Venafi, Inc. and CyberArk Software Ltd. ("CyberArk")
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -33,13 +33,13 @@ def main():
     password = environ.get('TPP_PASSWORD')
 
     # A Connector can be instantiated with no values by using the platform argument.
-    # url argument is always required for TPP.
+    # url argument is always required for CyberArk Certificate Manager, Self-Hosted.
     connector = venafi_connection(platform=VenafiPlatform.TPP, url=url,
                                   http_request_kwargs={'verify': "/tmp/chain.pem"})
     # Optionally, the connector can be instantiated passing the specific arguments:
     # connector = venafi_connection(url=url, user=user, password=password, http_request_kwargs={"verify": False})
 
-    # If your TPP server certificate is signed with your own CA, or available only via proxy,
+    # If your CyberArk Certificate Manager, Self-Hosted server certificate is signed with your own CA, or available only via proxy,
     # you can specify a trust bundle using requests vars:
     # connector = venafi_connection(url=url, api_key=api_key, access_token=access_token,
     #                          http_request_kwargs={"verify": "/path-to/bundle.pem"})
@@ -59,7 +59,7 @@ def main():
     # To retrieve the CA principals create an Authentication object with the proper scope to manage SSH certificates.
     auth = Authentication(user=user, password=password, scope=SCOPE_SSH)
     # Additionally, you may change the default client id for a custom one.
-    # Make sure this id has been registered on the TPP instance beforehand.
+    # Make sure this id has been registered on the CyberArk Certificate Manager, Self-Hosted instance beforehand.
     # Also, the user (TTP_USER) should be allowed to use this application
     # and the application should have the ssh permissions enabled.
     auth.client_id = 'vcert-ssh-ca-pubkey-demo'

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright 2022 Venafi, Inc.
+# Copyright Venafi, Inc. and CyberArk Software Ltd. ("CyberArk")
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,13 +26,13 @@ logging.getLogger("urllib3").setLevel(logging.ERROR)
 
 def main():
     # Get credentials from environment variables
-    url = environ.get('VAAS_URL')  # Optional, only use when connecting to a specific VaaS server
+    url = environ.get('VAAS_URL')  # Optional, only use when connecting to a specific CyberArk Certificate Manager, SaaS server
     api_key = environ.get('VAAS_APIKEY')
     zone = environ.get('VAAS_ZONE')
 
     # Connection will be chosen automatically based on which arguments are passed.
-    # If api_key is passed, Venafi Cloud connection will be used.
-    # url attribute is no required when connecting to production VaaS platform
+    # If api_key is passed, CyberArk Certificate Manager, SaaS connection will be used.
+    # url attribute is no required when connecting to production CyberArk Certificate Manager, SaaS platform
     conn = venafi_connection(url=url, api_key=api_key)
 
     # Build a Certificate request

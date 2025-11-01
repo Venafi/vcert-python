@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright 2022 Venafi, Inc.
+# Copyright Venafi, Inc. and CyberArk Software Ltd. ("CyberArk")
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -40,11 +40,11 @@ def main():
         conn = Connection(fake=True)
     else:
         # Connection will be chosen automatically based on which arguments are passed.
-        # If token is passed Venafi Cloud connection will be used. 
-        # If user, password, and URL Venafi Platform (TPP) will be used.
+        # If token is passed CyberArk Certificate Manager, SaaS connection will be used.
+        # If user, password, and URL CyberArk Certificate Manager, Self-Hosted will be used.
         conn = Connection(url=url, token=token, user=user, password=password,
                           http_request_kwargs={'verify': False})
-        # If your TPP server certificate signed with your own CA, or available only via proxy, you can specify
+        # If your CyberArk Certificate Manager, Self-Hosted server certificate signed with your own CA, or available only via proxy, you can specify
         # a trust bundle using requests vars:
         # conn = Connection(url=url, token=token, user=user, password=password,
         #                  http_request_kwargs={"verify": "/path-to/bundle.pem"})
@@ -52,7 +52,7 @@ def main():
     request = CertificateRequest(common_name=f"{randomword(10)}.venafi.example.com")
     request.san_dns = ["www.client.venafi.example.com", "ww1.client.venafi.example.com"]
     if not isinstance(conn, CloudConnection):
-        # Venafi Cloud doesn't support email or IP SANs in CSR
+        # CyberArk Certificate Manager, SaaS doesn't support email or IP SANs in CSR
         request.email_addresses = ["e1@venafi.example.com", "e2@venafi.example.com"]
         request.ip_addresses = ["127.0.0.1", "192.168.1.1"]
         request.uniform_resource_identifiers = ["http://wgtest.com", "https://ragnartest.com"]

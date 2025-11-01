@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright 2022 Venafi, Inc.
+# Copyright Venafi, Inc. and CyberArk Software Ltd. ("CyberArk")
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -42,7 +42,7 @@ def main():
     # ps = json_parser.parse_file('path/to/file.json')
     # ps = yaml_parser.parse_file('path/to/file.yaml')
 
-    # All of the following values can be omitted to create a Policy with inherited (TPP) or recommended (Cloud) settings
+    # All of the following values can be omitted to create a Policy with inherited (CyberArk Certificate Manager, Self-Hosted) or recommended (CyberArk Certificate Manager, SaaS) settings
     ps.policy = Policy(
         subject=Subject(
             orgs=['OSS Venafi, Inc.'],
@@ -89,7 +89,7 @@ def main():
     # If the policy already exists, it will be updated instead with the new settings
     connector.set_policy(zone, ps)
 
-    # Retrieve the Policy from the Venafi Platform
+    # Retrieve the Policy from the CyberArk Certificate Manager, SaaS Platform
     response = connector.get_policy(zone)
 
     # Transform the PolicySpecification object to a serializable form

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright 2022 Venafi, Inc.
+# Copyright Venafi, Inc. and CyberArk Software Ltd. ("CyberArk")
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -42,7 +42,7 @@ def main():
         # If access_token and refresh_token are passed, there is no need for the username and password.
         # If only access_token is passed, the Connection will fail when token expires, as there is no way to refresh it.
         conn = venafi_connection(url=url, user=user, password=password, http_request_kwargs={'verify': False})
-        # If your TPP server certificate signed with your own CA, or available only via proxy, you can specify
+        # If your CyberArk Certificate Manager, Self-Hosted server certificate signed with your own CA, or available only via proxy, you can specify
         # a trust bundle using requests vars:
         # conn = token_connection(url=url, user=user, password=password,
         #                         http_request_kwargs={"verify": "/path-to/bundle.pem"})

@@ -1,5 +1,5 @@
 #
-# Copyright 2019-2025 Venafi, Inc.
+# Copyright Venafi, Inc. and CyberArk Software Ltd. ("CyberArk")
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -643,7 +643,7 @@ class CommonConnection:
         Making request to certificate. It will generate CSR from data if CSR not specified, generate key if required and send to server for signing. Set request.id for retrieving certificate.
 
         :param CertificateRequest request: Certificate in PEM format
-        :param str zone: Venafi zone tag name
+        :param str zone: CyberArk zone tag name
         :rtype: bool
         """
         raise NotImplementedError

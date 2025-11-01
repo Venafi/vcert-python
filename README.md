@@ -1,8 +1,7 @@
-[![Venafi](https://raw.githubusercontent.com/Venafi/.github/master/images/Venafi_logo.png)](https://www.venafi.com/)
 
 [![Apache 2.0 License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 ![Community Supported](https://img.shields.io/badge/Support%20Level-Community-brightgreen)
-![Compatible with TPP 17.3+ & VaaS](https://img.shields.io/badge/Compatibility-TPP%2017.3+%20%26%20VaaS-f9a90c)
+![Compatible with CyberArk Certificate Manager, Self-Hosted+ & CyberArk Certificate Manager, SaaS](https://img.shields.io/badge/Compatibility-Certificate%20Manager%2C%20Self--Hosted_17.3%2B_%26Certificate%20Manager%2C%20SaaS-f9a90c)
 [![pypi Downloads](https://img.shields.io/pypi/dw/vcert)](https://pypi.org/project/vcert/)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=Venafi_vcert-python&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=Venafi_vcert-python)
 
@@ -16,15 +15,15 @@ We welcome and appreciate all contributions. Got questions or want to discuss so
  
 VCert Python is a Python library and SDK  designed to simplify key generation and enrollment of machine identities
 (also known as SSL/TLS certificates and keys) that comply with enterprise security policy by using the
-[Venafi Trust Protection Platform](https://www.venafi.com/platform/trust-protection-platform) or
-[Venafi as a Service](https://www.venafi.com/venaficloud).
+[CyberArk Certificate Manager, Self-Hosted](https://www.cyberark.com/products/certificate-manager/) or
+[CyberArk Certificate Manager, SaaS](https://www.cyberark.com/products/certificate-manager/).
 
 This implementation is based on the original Go library, https://github.com/Venafi/vcert.
 
 #### Compatibility
 ***Starting version 0.14.0 vcert-python only supports Python 3.6 or higher*** 
 
-VCert releases are tested using the latest version of Trust Protection Platform.  The [latest VCert release](https://github.com/Venafi/vcert-python/releases/latest) should be compatible with Trust Protection Platform 17.3 or higher based on the subset of API methods it consumes.
+VCert releases are tested using the latest version of CyberArk Certificate Manager, Self-Hosted.  The [latest VCert release](https://github.com/Venafi/vcert-python/releases/latest) should be compatible with CyberArk Certificate Manager, Self-Hosted 17.3 or higher based on the subset of API methods it consumes.
 
 ## Installation
 Get the library using pip:  
@@ -39,18 +38,18 @@ If installation fails collecting dependancies, make sure your python setuptools 
 ## Usage example
 
 For code samples of programmatic use, please review the files in [/examples](https://github.com/Venafi/vcert-python/tree/master/examples).
-- For Trust Protection Platform, the `zone` format is the DN of a policy with or without the "\VED\Policy\" prefix (e.g. "\VED\Policy\Certificates\VCert" or simply "Certificates\VCert")
-- For Venafi as a Service, the `zone` format is the name of an OutagePREDICT Application and the API Alias of an Issuing Template assigned to it delimited by a single backslash character (e.g. "My Application\My CIT")
+- For CyberArk Certificate Manager, Self-Hosted, the `zone` format is the DN of a policy with or without the "\VED\Policy\" prefix (e.g. "\VED\Policy\Certificates\VCert" or simply "Certificates\VCert")
+- For CyberArk Certificate Manager, SaaS, the `zone` format is the name of an OutagePREDICT Application and the API Alias of an Issuing Template assigned to it delimited by a single backslash character (e.g. "My Application\My CIT")
 
-## Prerequisites for using with Trust Protection Platform
+## Prerequisites for using with CyberArk Certificate Manager, Self-Hosted
 
 1. A user account that has an authentication token with "certificate:manage,revoke" scope (i.e.
-access to the "Venafi VCert SDK" API Application as of 20.1) or has been granted WebSDK Access
+access to the "CyberArk VCert SDK" API Application as of 20.1) or has been granted WebSDK Access
 2. A folder (zone) where the user has been granted the following permissions: View, Read, Write,
 Create, Revoke (for the revoke action), and Private Key Read (for the pickup action when CSR is
 service generated)
 3. Policy applied to the folder which specifies:
-    1. CA Template that Trust Protection Platform will use to enroll certificate requests submitted by VCert
+    1. CA Template that CyberArk Certificate Manager, Self-Hosted will use to enroll certificate requests submitted by VCert
     2. Subject DN values for Organizational Unit (OU), Organization (O), City (L), State (ST) and Country (C)
     3. Management Type not locked or locked to 'Enrollment'
     4. Certificate Signing Request (CSR) Generation not locked or locked to 'Service Generated CSR'
@@ -59,22 +58,22 @@ service generated)
     7. (Recommended) Key Bit Strength set to 2048 or higher
     8. (Recommended) Domain Whitelisting policy appropriately assigned
 
-The requirement for the CA Template to be assigned by policy follows a long standing Venafi best
+The requirement for the CA Template to be assigned by policy follows a long standing CyberArk best
 practice which also met our design objective to keep the certificate request process simple for
 VCert users. If you require the ability to specify the CA Template with the request you can use the
-TPP REST APIs but please be advised this goes against Venafi recommendations.
+CyberArk Certificate Manager, Self-Hosted REST APIs but please be advised this goes against CyberArk recommendations.
 
-## Prerequisites for using with Venafi as a Service
+## Prerequisites for using with CyberArk Certificate Manager, SaaS
 
-1. The Venafi as a Service REST API is accessible from the system where VCert
+1. The CyberArk Certificate Manager, SaaS REST API is accessible from the system where VCert
 will be executed. Currently, we support the following regions:
-   - [https://api.venafi.cloud](https://api.venafi.cloud/vaas) [US]
-   - [https://api.venafi.eu](https://api.venafi.eu/vaas) [EU]
-   - [https://api.au.venafi.cloud](https://api.au.venafi.cloud/vaas) [AU]
-   - [https://api.uk.venafi.cloud](https://api.uk.venafi.cloud/vaas) [UK]
-   - [https://api.sg.venafi.cloud](https://api.sg.venafi.cloud/vaas) [SG]
-   - [https://api.ca.venafi.cloud](https://api.ca.venafi.cloud/vaas) [CA]
-2. You have successfully registered for a Venafi as a Service account, have been granted at least the
+   - `https://api.venafi.cloud` [US]
+   - `https://api.venafi.eu` [EU]
+   - `https://api.au.venafi.cloud` [AU]
+   - `https://api.uk.venafi.cloud` [UK]
+   - `https://api.sg.venafi.cloud`[SG]
+   - `https://api.ca.venafi.cloud` [CA]
+2. You have successfully registered for a CyberArk Certificate Manager, SaaS account, have been granted at least the
 "Resource Owner" role, and know your API key.
 3. A CA Account and Issuing Template exist and have been configured with:
     1. Recommended Settings values for:
@@ -92,7 +91,7 @@ will be executed. Currently, we support the following regions:
 
 ## Contributing to VCert
 
-Venafi welcomes contributions from the developer community.
+CyberArk welcomes contributions from the developer community.
 
 1. Fork it to your account (https://github.com/Venafi/vcert-python/fork)
 2. Clone your fork (`git clone git@github.com:youracct/vcert-python.git`)
@@ -112,8 +111,8 @@ See https://packaging.python.org/guides/installing-using-pip-and-virtual-environ
 
 ## License
 
-Copyright &copy; Venafi, Inc. All rights reserved.
+Copyright &copy; Venafi, Inc. and CyberArk Software Ltd. ("CyberArk")
 
 VCert is licensed under the Apache License, Version 2.0. See [`LICENSE`](https://github.com/Venafi/vcert-python/blob/master/LICENSE) for the full license text.
 
-Please direct questions/comments to opensource@venafi.com.
+Please direct questions/comments to mis-opensource@cyberark.com.
