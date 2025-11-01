@@ -11,11 +11,11 @@ with open(os.path.join(base_dir, "README.md")) as f:
     long_description = f.read()
 
 setup(name='vcert',
-      version='0.18.0',
+      version='0.18.1',
       url="https://github.com/Venafi/vcert-python",
       packages=['vcert', 'vcert.parser', 'vcert.policy'],
-      install_requires=['requests==2.31.0', 'python-dateutil==2.8.2', 'six==1.16.0',
-                        'cryptography==44.0.3', 'ruamel.yaml==0.18.5', 'pynacl==1.5.0'],
+      install_requires=['requests==2.32.4', 'python-dateutil==2.8.2', 'six==1.17.0',
+                        'cryptography==45.0.7', 'ruamel.yaml==0.18.13', 'pynacl==1.5.0'],
       description='Python client library for CyberArk Certificate Manager, Self-Hosted and CyberArk Certificate Manager, SaaS.',
       long_description=long_description,
       long_description_content_type="text/markdown",
