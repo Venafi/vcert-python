@@ -41,11 +41,12 @@ def main():
         # If user and password are passed, you can get a new token from them.
         # If access_token and refresh_token are passed, there is no need for the username and password.
         # If only access_token is passed, the Connection will fail when token expires, as there is no way to refresh it.
-        conn = venafi_connection(url=url, user=user, password=password, http_request_kwargs={'verify': False})
         # If your CyberArk Certificate Manager, Self-Hosted server certificate signed with your own CA, or available only via proxy, you can specify
         # a trust bundle using requests vars:
-        # conn = token_connection(url=url, user=user, password=password,
-        #                         http_request_kwargs={"verify": "/path-to/bundle.pem"})
+        conn = venafi_connection(url=url, user=user, password=password,
+                                http_request_kwargs={"verify": "/path-to/bundle.pem"})
+        # Lab/testing only — DO NOT use in production:
+        # conn = venafi_connection(url=url, user=user, password=password, http_request_kwargs={'verify': False})
 
     request = CertificateRequest(common_name=f"{random_word(10)}.venafi.example.com")
     request.san_dns = ["www.client.venafi.example.com", "ww1.client.venafi.example.com"]
