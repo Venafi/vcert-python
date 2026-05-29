@@ -46,7 +46,7 @@ def parse(yaml_string):
         log.error('yaml string is empty')
         raise VenafiParsingError
 
-    yaml = YAML(typ='unsafe')
+    yaml = YAML(typ='safe')
     data = yaml.load(yaml_string)
     policy = parse_data(data)
 
@@ -65,6 +65,6 @@ def serialize(policy_spec, file_path):
     abs_path = os.path.abspath(file_path)
     data = parse_policy_spec(policy_spec)
     f = open(abs_path, 'w')
-    yaml = YAML(typ='unsafe')
+    yaml = YAML(typ='safe')
     yaml.dump(data, f)
     f.close()
