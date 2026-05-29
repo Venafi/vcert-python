@@ -90,7 +90,7 @@ class TPPConnection(AbstractTPPConnection):
     def _get(self, url="", params=None):
         if not self._token or self._token[1] < time.time() + 1:
             self.auth()
-            log.debug(f"Token is {self._token[0]}, timeout is {self._token[1]}")
+            log.debug(f"Token is [REDACTED], timeout is {self._token[1]}")
 
         r = requests.get(f"{self._base_url}{url}",
                          headers={TOKEN_HEADER_NAME: self._token[0],
@@ -103,7 +103,7 @@ class TPPConnection(AbstractTPPConnection):
     def _post(self, url, data=None):
         if not self._token or self._token[1] < time.time() + 1:
             self.auth()
-            log.debug(f"Token is {self._token[0]}, timeout is {self._token[1]}")
+            log.debug(f"Token is [REDACTED], timeout is {self._token[1]}")
 
         if isinstance(data, dict):
             r = requests.post(f"{self._base_url}{url}",
@@ -120,7 +120,7 @@ class TPPConnection(AbstractTPPConnection):
     def _put(self, url, data=None):
         if not self._token or self._token[1] < time.time() + 1:
             self.auth()
-            log.debug(f"Token is {self._token[0]}, timeout is {self._token[1]}")
+            log.debug(f"Token is [REDACTED], timeout is {self._token[1]}")
 
         if isinstance(data, dict):
             r = requests.put(f"{self._base_url}{url}",
