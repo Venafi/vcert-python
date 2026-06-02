@@ -755,7 +755,7 @@ class CommonConnection:
             log.debug(r.content.decode())
             return r.status_code, r.content.decode()
         elif content_type.startswith(MIME_OCTET_STREAM):
-            log.debug(r.content)
+            log.debug(f"Received {len(r.content)} bytes (octet-stream body not logged)")
             return r.status_code, r.content
         else:
             log.error(f"Unexpected content type: {content_type} for request {r.request.url}")

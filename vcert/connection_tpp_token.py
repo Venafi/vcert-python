@@ -126,7 +126,9 @@ class TPPTokenConnection(AbstractTPPConnection):
             headers[HEADER_AUTHORIZATION] = token
 
         if isinstance(data, dict):
-            log.debug(f"POST Request\n\tURL: {self._base_url+url}\n\tHeaders:{headers}\n\tBody:{data}\n")
+            safe_headers = {k: ('***' if k == HEADER_AUTHORIZATION else v) for k, v in headers.items()}
+            safe_data = {k: ('***' if k in ('password', 'Password', 'refresh_token', 'client_secret', 'PrivateKeyPassphrase') else v) for k, v in data.items()}
+            log.debug(f"POST Request\n\tURL: {self._base_url+url}\n\tHeaders:{safe_headers}\n\tBody:{safe_data}\n")
             r = requests.post(self._base_url + url, headers=headers, json=data,  **self._http_request_kwargs)  # nosec B113
         else:
             log.error(f"Unexpected client data type: {type(data)} for {url}")
@@ -146,7 +148,9 @@ class TPPTokenConnection(AbstractTPPConnection):
             headers[HEADER_AUTHORIZATION] = token
 
         if isinstance(data, dict):
-            log.debug(f"POST Request\n\tURL: {self._base_url + url}\n\tHeaders:{headers}\n\tBody:{data}\n")
+            safe_headers = {k: ('***' if k == HEADER_AUTHORIZATION else v) for k, v in headers.items()}
+            safe_data = {k: ('***' if k in ('password', 'Password', 'refresh_token', 'client_secret', 'PrivateKeyPassphrase') else v) for k, v in data.items()}
+            log.debug(f"POST Request\n\tURL: {self._base_url + url}\n\tHeaders:{safe_headers}\n\tBody:{safe_data}\n")
             r = requests.put(self._base_url + url, headers=headers, json=data,
                               **self._http_request_kwargs)  # nosec B113
         else:
@@ -157,13 +161,13 @@ class TPPTokenConnection(AbstractTPPConnection):
     def _check_token(self):
         if not self._auth.access_token:
             self.get_access_token()
-            log.debug(f"Token is {self._auth.access_token}, expire date is {self._auth.token_expires}")
+            log.debug(f"Token is [REDACTED], expire date is {self._auth.token_expires}")
 
         # Token expired, get new token
         elif self._auth.token_expires and self._auth.token_expires < time.time():
             if self._auth.refresh_token:
                 self.refresh_access_token()
-                log.debug(f"Token is {self._auth.access_token}, expire date is {self._auth.token_expires}")
+                log.debug(f"Token is [REDACTED], expire date is {self._auth.token_expires}")
             else:
                 raise AuthenticationError("Access Token expired. No refresh token provided.")
 
