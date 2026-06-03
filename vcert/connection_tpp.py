@@ -44,6 +44,12 @@ class TPPConnection(AbstractTPPConnection):
             http_request_kwargs = {'timeout': 180}
         elif 'timeout' not in http_request_kwargs:
             http_request_kwargs['timeout'] = 180
+        if http_request_kwargs.get('verify') is False:
+            log.warning(
+                "TLS certificate verification is DISABLED (verify=False). "
+                "This allows interception of credentials and private-key material. "
+                "Use a CA trust-bundle path (verify='/path/to/bundle.pem') in production."
+            )
         self._http_request_kwargs = http_request_kwargs or {}
 
     def __setattr__(self, key, value):

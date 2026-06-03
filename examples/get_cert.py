@@ -42,12 +42,13 @@ def main():
         # Connection will be chosen automatically based on which arguments are passed.
         # If token is passed CyberArk Certificate Manager, SaaS connection will be used.
         # If user, password, and URL CyberArk Certificate Manager, Self-Hosted will be used.
+        # If your CyberArk Certificate Manager, Self-Hosted server certificate is signed with your own CA,
+        # or available only via proxy, specify the CA trust bundle path:
         conn = Connection(url=url, token=token, user=user, password=password,
-                          http_request_kwargs={'verify': False})
-        # If your CyberArk Certificate Manager, Self-Hosted server certificate signed with your own CA, or available only via proxy, you can specify
-        # a trust bundle using requests vars:
+                          http_request_kwargs={"verify": "/path-to/bundle.pem"})
+        # Lab/testing only — DO NOT use in production:
         # conn = Connection(url=url, token=token, user=user, password=password,
-        #                  http_request_kwargs={"verify": "/path-to/bundle.pem"})
+        #                  http_request_kwargs={'verify': False})
 
     request = CertificateRequest(common_name=f"{randomword(10)}.venafi.example.com")
     request.san_dns = ["www.client.venafi.example.com", "ww1.client.venafi.example.com"]
