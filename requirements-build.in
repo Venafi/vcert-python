@@ -1,0 +1,7 @@
+# Direct build/dev dependencies for vcert-python
+# pip-compile --generate-hashes produces the locked requirements-build.txt
+pip==25.0.1
+pytest==7.4.3
+pytest-cov==4.1.0
+safety==2.3.5
+bandit==1.7.7
