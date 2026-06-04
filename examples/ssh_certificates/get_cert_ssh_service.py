@@ -31,11 +31,12 @@ def main():
     user = environ.get('TPP_USER')
     password = environ.get('TPP_PASSWORD')
 
-    connector = venafi_connection(url=url, user=user, password=password, http_request_kwargs={'verify': False})
     # If your CyberArk Certificate Manager, Self-Hosted server certificate signed with your own CA, or available only via proxy,
     # you can specify a trust bundle using requests vars:
-    # connector = venafi_connection(url=url, api_key=api_key, access_token=access_token,
-    #                          http_request_kwargs={"verify": "/path-to/bundle.pem"})
+    connector = venafi_connection(url=url, user=user, password=password,
+                             http_request_kwargs={"verify": "/path-to/bundle.pem"})
+    # Lab/testing only — DO NOT use in production:
+    # connector = venafi_connection(url=url, user=user, password=password, http_request_kwargs={'verify': False})
 
     # Create an Authentication object to request a token with the proper scope to manage SSH certificates
     auth = Authentication(user=user, password=password, scope=SCOPE_SSH)

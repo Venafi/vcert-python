@@ -155,6 +155,9 @@ class CloudConnection(CommonConnection):
             http_request_kwargs['timeout'] = 180
         self._http_request_kwargs = http_request_kwargs
 
+        if self._http_request_kwargs.get('verify') is False:
+            log.warning("TLS certificate verification is DISABLED; credentials and private keys will be transmitted over unverified connections. This configuration is only appropriate for isolated test environments.")
+
     def __str__(self):
         return f"[Cloud] {self._base_url}"
 

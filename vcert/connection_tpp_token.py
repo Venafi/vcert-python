@@ -52,6 +52,9 @@ class TPPTokenConnection(AbstractTPPConnection):
             http_request_kwargs['timeout'] = 180
         self._http_request_kwargs = http_request_kwargs or {}
 
+        if self._http_request_kwargs.get('verify') is False:
+            log.warning("TLS certificate verification is DISABLED; credentials and private keys will be transmitted over unverified connections. This configuration is only appropriate for isolated test environments.")
+
     def __setattr__(self, key, value):
         if key == '_base_url':
             value = self._normalize_and_verify_base_url(value)
