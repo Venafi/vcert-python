@@ -16,13 +16,16 @@
 #
 import json
 import unittest
+from unittest import mock
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 
 from assets import POLICY_CLOUD1, POLICY_TPP1, EXAMPLE_CSR, EXAMPLE_CHAIN
 from vcert import (CloudConnection, KeyType, TPPConnection, CertificateRequest, ZoneConfig, CertField, FakeConnection,
-                   logger)
+                   NGTSConnection, logger)
+from vcert.connection_ngts import _parse_ngts_zone
+from vcert.errors import ClientBadData, ServerUnexptedBehavior
 from vcert.pem import parse_pem, Certificate
 
 pkcs12_enc_cert = """-----BEGIN CERTIFICATE-----
@@ -346,3 +349,96 @@ class TestLocalMethods(unittest.TestCase):
         cert = Certificate(cert=pkcs12_plain_cert, chain=chain, key=pkcs12_plain_pk)
         output = cert.as_pkcs12()
         log.info(f"PKCS12 created successfully:\n{output}")
+
+    # -- NGTS (offline) -----------------------------------------------------------------------
+
+    @staticmethod
+    def _ngts_conn(**kwargs):
+        defaults = dict(
+            client_id="cid",
+            client_secret="csecret",
+            token_url="https://auth.example.com/oauth2/token",
+            tsg_id="123",
+            url="https://api.sase.paloaltonetworks.com/ngts",
+        )
+        defaults.update(kwargs)
+        return NGTSConnection(**defaults)
+
+    def test_parse_ngts_zone(self):
+        # CIT-only: the whole (trimmed) string is the template alias, no backslash split.
+        self.assertEqual(_parse_ngts_zone("MyTemplate"), "MyTemplate")
+        self.assertEqual(_parse_ngts_zone("  MyTemplate  "), "MyTemplate")
+        # A backslash is NOT a separator for NGTS - it is part of the alias.
+        self.assertEqual(_parse_ngts_zone("App\\CIT"), "App\\CIT")
+        with self.assertRaises(ClientBadData):
+            _parse_ngts_zone("")
+        with self.assertRaises(ClientBadData):
+            _parse_ngts_zone(None)
+
+    def test_ngts_scope_from_tsg_id(self):
+        conn = self._ngts_conn()
+        self.assertEqual(conn._scope, "tsg_id:123")
+
+    def test_ngts_explicit_scope_wins(self):
+        conn = self._ngts_conn(scope="tsg_id:999", tsg_id=None)
+        self.assertEqual(conn._scope, "tsg_id:999")
+
+    def test_ngts_requires_url(self):
+        with self.assertRaises(ClientBadData):
+            self._ngts_conn(url=None)
+
+    def test_ngts_requires_token_url_without_access_token(self):
+        with self.assertRaises(ClientBadData):
+            self._ngts_conn(token_url=None)
+
+    def test_ngts_requires_scope_or_tsg_id(self):
+        with self.assertRaises(ClientBadData):
+            self._ngts_conn(tsg_id=None, scope=None)
+
+    def test_ngts_get_access_token(self):
+        conn = self._ngts_conn()
+        fake_resp = mock.MagicMock()
+        fake_resp.status_code = 200
+        fake_resp.json.return_value = {
+            'access_token': 'abc.def.ghi',
+            'token_type': 'Bearer',
+            'expires_in': 900,
+            'scope': 'tsg_id:123',
+        }
+        with mock.patch('vcert.connection_ngts.requests.post', return_value=fake_resp) as post:
+            token = conn._get_access_token()
+
+        self.assertEqual(token, 'abc.def.ghi')
+        self.assertEqual(conn._access_token, 'abc.def.ghi')
+        self.assertIsNotNone(conn._token_expires)
+        # client_id/client_secret go through HTTP Basic auth; the body carries grant_type + scope.
+        _, kwargs = post.call_args
+        self.assertEqual(kwargs['auth'], ('cid', 'csecret'))
+        self.assertEqual(kwargs['data']['grant_type'], 'client_credentials')
+        self.assertEqual(kwargs['data']['scope'], 'tsg_id:123')
+
+    def test_ngts_access_token_rejects_non_bearer(self):
+        conn = self._ngts_conn()
+        fake_resp = mock.MagicMock()
+        fake_resp.status_code = 200
+        fake_resp.json.return_value = {'access_token': 'x', 'token_type': 'mac', 'expires_in': 900}
+        with mock.patch('vcert.connection_ngts.requests.post', return_value=fake_resp):
+            with self.assertRaises(ServerUnexptedBehavior):
+                conn._get_access_token()
+
+    def test_ngts_auth_header_is_bearer(self):
+        conn = self._ngts_conn(access_token='pre.issued.token', token_url=None)
+        headers = conn._auth_headers('application/json')
+        self.assertEqual(headers['Authorization'], 'Bearer pre.issued.token')
+        self.assertNotIn('tppl-api-key', headers)
+
+    def test_ngts_get_sends_bearer_header(self):
+        conn = self._ngts_conn(access_token='pre.issued.token', token_url=None)
+        fake_resp = mock.MagicMock()
+        fake_resp.status_code = 200
+        fake_resp.headers = {'content-type': 'application/json'}
+        fake_resp.json.return_value = {}
+        with mock.patch('vcert.connection_ngts.requests.get', return_value=fake_resp) as get:
+            conn._get("v1/certificateissuingtemplates")
+        _, kwargs = get.call_args
+        self.assertEqual(kwargs['headers']['Authorization'], 'Bearer pre.issued.token')

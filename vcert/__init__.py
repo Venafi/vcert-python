@@ -17,6 +17,7 @@ from .common import (CertificateRequest, CommonConnection, RevocationRequest, Zo
                      CustomField, Authentication, SCOPE_CM, SCOPE_PM, SCOPE_SSH, CSR_ORIGIN_LOCAL, CSR_ORIGIN_PROVIDED,
                      CSR_ORIGIN_SERVICE, CHAIN_OPTION_FIRST, CHAIN_OPTION_IGNORE, CHAIN_OPTION_LAST, VenafiPlatform)
 from .connection_cloud import CloudConnection
+from .connection_ngts import NGTSConnection
 from .connection_tpp import TPPConnection
 from .connection_tpp_token import TPPTokenConnection
 from .connection_fake import FakeConnection
@@ -54,21 +55,28 @@ def Connection(url=None, token=None, user=None, password=None, fake=False, http_
 
 
 def venafi_connection(url=None, api_key=None, user=None, password=None, access_token=None, refresh_token=None,
-                      fake=False, http_request_kwargs=None, platform=None):
+                      fake=False, http_request_kwargs=None, platform=None, client_id=None, client_secret=None,
+                      token_url=None, scope=None, tsg_id=None):
     """
     Return connection based on credentials list.
     CyberArk Platform (CyberArk Certificate Manager, Self-Hosted) requires URL and access_token (or user and password for getting a new access_token)
     Cloud requires api_key and optional URL
+    NGTS (Palo Alto Networks Next-Gen Trust Security) requires URL, token_url and OAuth2 service-account credentials (client_id, client_secret, tsg_id/scope)
     Fake requires no parameters
-    :param str url: CyberArk Certificate Manager, Self-Hosted or CyberArk Certificate Manager, SaaS URL (for Cloud is optional)
+    :param str url: CyberArk Certificate Manager, Self-Hosted / SaaS / NGTS URL (for Cloud is optional, required for NGTS)
     :param str api_key: CyberArk Certificate Manager, SaaS API Key
     :param str user: CyberArk Certificate Manager, Self-Hosted username for getting new tokens
     :param str password: CyberArk Certificate Manager, Self-Hosted password for getting new tokens
-    :param str access_token: CyberArk Certificate Manager, Self-Hosted access token
+    :param str access_token: CyberArk Certificate Manager, Self-Hosted access token (or a pre-issued NGTS access token)
     :param str refresh_token: CyberArk Certificate Manager, Self-Hosted refresh token (optional)
     :param bool fake: Use fake connection
     :param dict[str, Any] http_request_kwargs: Option for specifying trust bundle or to operate insecurely.
     :param VenafiPlatform platform: The platform to be used with the Connector
+    :param str client_id: NGTS OAuth2 service-account client id
+    :param str client_secret: NGTS OAuth2 service-account client secret
+    :param str token_url: NGTS OAuth2 token endpoint (differs per environment)
+    :param str scope: NGTS OAuth2 scope (``tsg_id:<TSG_ID>``); derived from tsg_id when omitted
+    :param str tsg_id: NGTS tenant service group id
     :rtype CommonConnection:
     """
     if platform:
@@ -79,11 +87,21 @@ def venafi_connection(url=None, api_key=None, user=None, password=None, access_t
                                       refresh_token=refresh_token, http_request_kwargs=http_request_kwargs)
         elif platform == VenafiPlatform.VAAS:
             return CloudConnection(token=api_key, url=url, http_request_kwargs=http_request_kwargs)
+        elif platform == VenafiPlatform.NGTS:
+            return NGTSConnection(client_id=client_id, client_secret=client_secret, token_url=token_url, scope=scope,
+                                  tsg_id=tsg_id, access_token=access_token, url=url,
+                                  http_request_kwargs=http_request_kwargs)
         else:
             raise VenafiError(f"Invalid Platform: {platform}. Cannot instantiate a Connector.")
     else:
         if fake:
             return FakeConnection()
+        # NGTS is detected before the TPP/Cloud branches so its OAuth service-account credentials
+        # are not shadowed by them.
+        if token_url and client_id and client_secret:
+            return NGTSConnection(client_id=client_id, client_secret=client_secret, token_url=token_url, scope=scope,
+                                  tsg_id=tsg_id, access_token=access_token, url=url,
+                                  http_request_kwargs=http_request_kwargs)
         if url and (access_token or refresh_token or (user and password)):
             return TPPTokenConnection(url=url, user=user, password=password, access_token=access_token,
                                       refresh_token=refresh_token, http_request_kwargs=http_request_kwargs)
