@@ -27,18 +27,19 @@ logging.getLogger("urllib3").setLevel(logging.ERROR)
 def main():
     # Get credentials from environment variables.
     # NGTS (Palo Alto Networks Next-Gen Trust Security) authenticates with Strata Cloud Manager
-    # OAuth2 client credentials issued by a service account. Both the API base URL and the token
-    # URL differ per environment (dev/prod), so both must be supplied.
-    url = environ.get('NGTS_URL')                    # NGTS API base URL (e.g. https://api.sase.paloaltonetworks.com/ngts)
-    token_url = environ.get('NGTS_TOKEN_URL')        # OAuth2 token endpoint (different FQDN, env-specific)
+    # OAuth2 client credentials issued by a service account. The API base URL and the token URL
+    # both default to the Palo Alto production endpoints; supply them only for non-production
+    # environments (unset env vars fall back to None -> the production defaults).
+    url = environ.get('NGTS_URL')                    # Optional NGTS API base URL (defaults to production)
+    token_url = environ.get('NGTS_TOKEN_URL')        # Optional OAuth2 token endpoint (defaults to production)
     client_id = environ.get('NGTS_CLIENT_ID')        # Service-account client id
     client_secret = environ.get('NGTS_CLIENT_SECRET')  # Service-account client secret
     tsg_id = environ.get('NGTS_TSG_ID')              # Tenant service group id (used to build the scope)
     scope = environ.get('NGTS_SCOPE')                # Optional: a ready "tsg_id:<TSG_ID>" scope
     zone = environ.get('NGTS_ZONE')                  # Certificate Issuing Template alias (CIT-only)
 
-    # The connection is chosen automatically: when token_url + client_id + client_secret are
-    # present, an NGTS connection is built. The platform can also be set explicitly:
+    # The connection is chosen automatically: when client_id + client_secret are present, an
+    # NGTS connection is built. The platform can also be set explicitly:
     #   conn = venafi_connection(platform=VenafiPlatform.NGTS, ...)
     conn = venafi_connection(url=url, token_url=token_url, client_id=client_id, client_secret=client_secret,
                              tsg_id=tsg_id, scope=scope)

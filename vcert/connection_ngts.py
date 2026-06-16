@@ -15,6 +15,7 @@
 #
 import re
 from datetime import datetime, timedelta
+from urllib.parse import urlsplit
 
 import requests
 
@@ -33,7 +34,66 @@ TOKEN_EXPIRY_BUFFER_SECONDS = 120
 OAUTH_TOKEN_TYPE = "Bearer"  # nosec B105
 DEFAULT_TOKEN_LIFESPAN_SECONDS = 900
 
+# Palo Alto Networks NGTS production API base URL. Matches Go's normalizeURL fallback behavior
+# (vcert/pkg/venafi/ngts/connector.go), but uses the current production host: Go's apiURL constant
+# is the stale "api.sase..." host; production is "api.strata..." - do NOT "fix" this back to sase.
+DEFAULT_API_URL = "https://api.strata.paloaltonetworks.com/ngts"
+
+# Palo Alto Networks NGTS production OAuth2 token endpoint. Defaulted (like DEFAULT_API_URL) so the
+# production path needs no token URL. Non-production environments (e.g. dev) use a different FQDN and
+# must override it. NOTE: Go does not default the token URL yet (validateTokenUrl requires it); this
+# default is a planned-but-not-yet-upstreamed divergence we add deliberately, accepting that pointing
+# the credential exchange at a fixed endpoint is a known security trade-off.
+DEFAULT_TOKEN_URL = "https://auth.apps.paloaltonetworks.com/auth/v1/oauth2/access_token"  # nosec B105
+
+# Service-account credentials (client_id/client_secret) are sent to token_url via HTTP Basic auth, so
+# its host is a credential sink. Every known NGTS token/API host - production and the documented
+# non-production (dev) endpoints alike - lives under paloaltonetworks.com. We warn (not block) when a
+# supplied token_url falls outside this suffix: it surfaces typo'd or hostile overrides that would
+# leak the service-account secrets, without breaking a future legitimate host on another domain.
+TRUSTED_TOKEN_HOST_SUFFIX = ".paloaltonetworks.com"  # nosec B105
+
+# Service-account scope format. Palo Alto TSG IDs are 10-digit integers, so the scope must be
+# exactly "tsg_id:<10 digits>" (mirrors Go's validateScope regex; https://pan.dev/scm/docs/scope/).
+# Matched with fullmatch so the whole scope must conform - no extra digits, prefixes, or trailing
+# garbage.
+SCOPE_PATTERN = re.compile(r"tsg_id:[0-9]{10}")
+
 log = get_child("connection-ngts")
+
+
+def _ensure_https(url):
+    """
+    Force an HTTPS scheme on the OAuth token endpoint. Service-account credentials are sent to
+    this URL via HTTP Basic auth, so they must never travel over cleartext: an ``http://`` URL is
+    upgraded to ``https://`` (with a warning) and a scheme-less URL is assumed to be ``https://``.
+
+    :param str url:
+    :rtype: str
+    """
+    if url.startswith("http://"):
+        log.warning("token_url uses http://; upgrading to https:// to protect service-account credentials")
+        url = f"https://{url[7:]}"
+    elif not url.startswith("https://"):
+        url = f"https://{url}"
+    _warn_if_untrusted_token_host(url)
+    return url
+
+
+def _warn_if_untrusted_token_host(url):
+    """
+    Warn when ``token_url`` points outside the trusted Palo Alto domain. ``token_url`` is where the
+    service-account ``client_id``/``client_secret`` are exchanged via HTTP Basic auth, so a host
+    outside :data:`TRUSTED_TOKEN_HOST_SUFFIX` (a typo'd or hostile override) would leak those
+    credentials. This warns rather than blocks so a future legitimate host on another domain still
+    works; the warning makes the credential sink auditable.
+
+    :param str url:
+    """
+    host = (urlsplit(url).hostname or "").lower()
+    if not host.endswith(TRUSTED_TOKEN_HOST_SUFFIX):
+        log.warning("token_url host [%s] is outside [%s]; service-account credentials will be sent "
+                    "there - verify this endpoint is trusted", host, TRUSTED_TOKEN_HOST_SUFFIX)
 
 
 def _parse_ngts_zone(zone):
@@ -62,22 +122,47 @@ class NGTSConnection(CloudConnection):
       instead of the ``tppl-api-key`` header.
     - Zones are a Certificate Issuing Template alias only (no ``Application\\CIT`` split), and
       request payloads omit ``applicationId``.
+
+    ``url`` is optional: when omitted it defaults to the published Palo Alto production API
+    endpoint (:data:`DEFAULT_API_URL`), matching Go's ``normalizeURL`` fallback. ``token_url`` is
+    likewise optional and defaults to the production OAuth2 token endpoint
+    (:data:`DEFAULT_TOKEN_URL`); non-production environments must supply their own. (Go still
+    requires the token URL - this default is a deliberate planned divergence.)
+
+    Because ``token_url`` is the credential sink (service-account ``client_id``/``client_secret``
+    are exchanged there via HTTP Basic auth), two safeguards guard misconfiguration without giving
+    up the default: falling back to the production ``token_url`` is logged at WARNING (so a non-prod
+    tenant with an unset ``token_url`` doesn't silently leak its credentials to production), and a
+    ``token_url`` whose host falls outside :data:`TRUSTED_TOKEN_HOST_SUFFIX` is flagged at WARNING
+    (typo'd or hostile override). Both warn rather than block.
     """
 
-    def __init__(self, client_id, client_secret, token_url, scope=None, tsg_id=None, access_token=None, url=None,
+    def __init__(self, client_id, client_secret, token_url=None, scope=None, tsg_id=None, access_token=None, url=None,
                  http_request_kwargs=None):
-        # The NGTS API base URL and token URL both differ per environment (dev/prod), including the
-        # path, so neither can be hardcoded - both must be supplied by the caller.
-        if not url:
-            raise ClientBadData("NGTS requires the API base URL (it differs per environment)")
-        if not access_token and not token_url:
-            raise ClientBadData("NGTS requires the token URL (it differs per environment) "
-                                "when no access_token is supplied")
+        # url defaults to the published Palo Alto production endpoint (Go defaults the base URL
+        # too); it must be defaulted before the super().__init__ call, which normalizes whatever
+        # base URL it receives. token_url likewise defaults to the production OAuth2 endpoint;
+        # non-production environments must override it. (Go requires the token URL - defaulting it
+        # is a deliberate planned divergence.)
+        url = url or DEFAULT_API_URL
+        # Service-account credentials are exchanged at token_url via HTTP Basic auth, so force
+        # HTTPS - never let a misconfigured http:// endpoint leak them in cleartext. Falling back to
+        # the production default is logged: an unset/typo'd token_url against a non-prod tenant would
+        # otherwise silently send that tenant's credentials to the production endpoint.
+        if not token_url:
+            log.warning("token_url not supplied; defaulting to the production endpoint [%s]. Set "
+                        "token_url explicitly for non-production environments", DEFAULT_TOKEN_URL)
+        token_url = _ensure_https(token_url or DEFAULT_TOKEN_URL)
 
         if not scope:
             if not tsg_id:
                 raise ClientBadData("NGTS requires either a scope or a tsg_id")
             scope = f"tsg_id:{tsg_id}"
+        # Validate the scope format (mirrors Go's validateScope); also covers tsg_id, since the
+        # scope is derived from it above.
+        if not SCOPE_PATTERN.fullmatch(scope):
+            raise ClientBadData('scope should be in the format "tsg_id:<TSG_ID>" '
+                                "(TSG IDs are 10-digit integers)")
 
         # CloudConnection.__init__ normalizes/verifies the base URL and sets up
         # self._http_request_kwargs. The Bearer token replaces the api-key token entirely.
@@ -96,7 +181,7 @@ class NGTSConnection(CloudConnection):
 
     def _normalize_and_verify_base_url(self):
         # Unlike Cloud (host-only), NGTS base URLs carry an environment-specific path
-        # (e.g. https://api.sase.paloaltonetworks.com/ngts), so path segments must be allowed.
+        # (e.g. https://api.strata.paloaltonetworks.com/ngts), so path segments must be allowed.
         u = self._base_url
         if u.startswith('http://'):
             u = f"https://{u[7:]}"

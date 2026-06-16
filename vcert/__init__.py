@@ -61,9 +61,9 @@ def venafi_connection(url=None, api_key=None, user=None, password=None, access_t
     Return connection based on credentials list.
     CyberArk Platform (CyberArk Certificate Manager, Self-Hosted) requires URL and access_token (or user and password for getting a new access_token)
     Cloud requires api_key and optional URL
-    NGTS (Palo Alto Networks Next-Gen Trust Security) requires URL, token_url and OAuth2 service-account credentials (client_id, client_secret, tsg_id/scope)
+    NGTS (Palo Alto Networks Next-Gen Trust Security) requires OAuth2 service-account credentials (client_id, client_secret, tsg_id/scope); url and token_url are optional and default to the Palo Alto production endpoints
     Fake requires no parameters
-    :param str url: CyberArk Certificate Manager, Self-Hosted / SaaS / NGTS URL (for Cloud is optional, required for NGTS)
+    :param str url: CyberArk Certificate Manager, Self-Hosted / SaaS / NGTS URL (optional for Cloud and NGTS)
     :param str api_key: CyberArk Certificate Manager, SaaS API Key
     :param str user: CyberArk Certificate Manager, Self-Hosted username for getting new tokens
     :param str password: CyberArk Certificate Manager, Self-Hosted password for getting new tokens
@@ -74,7 +74,7 @@ def venafi_connection(url=None, api_key=None, user=None, password=None, access_t
     :param VenafiPlatform platform: The platform to be used with the Connector
     :param str client_id: NGTS OAuth2 service-account client id
     :param str client_secret: NGTS OAuth2 service-account client secret
-    :param str token_url: NGTS OAuth2 token endpoint (differs per environment)
+    :param str token_url: NGTS OAuth2 token endpoint (optional; defaults to the Palo Alto production endpoint, override for non-production environments)
     :param str scope: NGTS OAuth2 scope (``tsg_id:<TSG_ID>``); derived from tsg_id when omitted
     :param str tsg_id: NGTS tenant service group id
     :rtype CommonConnection:
@@ -97,8 +97,9 @@ def venafi_connection(url=None, api_key=None, user=None, password=None, access_t
         if fake:
             return FakeConnection()
         # NGTS is detected before the TPP/Cloud branches so its OAuth service-account credentials
-        # are not shadowed by them.
-        if token_url and client_id and client_secret:
+        # are not shadowed by them. client_id + client_secret are NGTS-specific (TPP/Cloud use
+        # neither); token_url is optional now that it defaults to the production endpoint.
+        if client_id and client_secret:
             return NGTSConnection(client_id=client_id, client_secret=client_secret, token_url=token_url, scope=scope,
                                   tsg_id=tsg_id, access_token=access_token, url=url,
                                   http_request_kwargs=http_request_kwargs)
