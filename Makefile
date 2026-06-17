@@ -2,11 +2,14 @@
 PYTHONPATH=./:$PYTHONPATH
 PIP_TOOLS_VERSION=7.5.3
 
+.PHONY: lock test publish
+
 lock:
 	docker run --rm -v "$$(pwd)":/work -w /work python:3.9 \
-	  sh -c "pip install --quiet pip-tools==$(PIP_TOOLS_VERSION) && \
+	  sh -c "pip install pip-tools==$(PIP_TOOLS_VERSION) && \
 	         pip-compile --generate-hashes --output-file requirements.txt requirements.in && \
-	         pip-compile --generate-hashes --output-file requirements-build.txt requirements-build.in"
+	         pip-compile --generate-hashes --output-file requirements-build.txt requirements-build.in && \
+	         chown $$(id -u):$$(id -g) requirements.txt requirements-build.txt"
 
 test:
 	docker build -t vcert-tests .
