@@ -1,5 +1,12 @@
 .EXPORT_ALL_VARIABLES:
 PYTHONPATH=./:$PYTHONPATH
+PIP_TOOLS_VERSION=7.5.3
+
+lock:
+	docker run --rm -v "$$(pwd)":/work -w /work python:3.9 \
+	  sh -c "pip install --quiet pip-tools==$(PIP_TOOLS_VERSION) && \
+	         pip-compile --generate-hashes --output-file requirements.txt requirements.in && \
+	         pip-compile --generate-hashes --output-file requirements-build.txt requirements-build.in"
 
 test:
 	docker build -t vcert-tests .
