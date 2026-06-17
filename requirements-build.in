@@ -1,5 +1,5 @@
 -r requirements.in
-pytest==7.4.3
-pytest-cov==4.1.0
-safety==2.3.5
+pytest>=8.2
+pytest-cov>=6.0
+safety>=3.2
 bandit==1.7.7
