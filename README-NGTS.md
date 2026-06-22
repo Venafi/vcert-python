@@ -110,10 +110,6 @@ non-production environments:
 The production token endpoint is taken from the Palo Alto SASE auth API
 ([reference](https://pan.dev/sase/api/auth/post-auth-v-1-oauth-2-access-token/)).
 
-> **Note:** Defaulting `token_url` is a deliberate divergence from the Go VCert
-> implementation, which still requires the token URL. It is a planned-but-not-yet-upstreamed
-> change.
-
 #### Safeguards around `token_url`
 
 `token_url` is the **credential sink** — your service-account `client_id`/`client_secret` are
