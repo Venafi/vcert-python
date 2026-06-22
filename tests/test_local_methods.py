@@ -15,14 +15,19 @@
 # limitations under the License.
 #
 import json
+import logging
 import unittest
+from unittest import mock
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 
 from assets import POLICY_CLOUD1, POLICY_TPP1, EXAMPLE_CSR, EXAMPLE_CHAIN
 from vcert import (CloudConnection, KeyType, TPPConnection, CertificateRequest, ZoneConfig, CertField, FakeConnection,
-                   logger)
+                   NGTSConnection, logger)
+from vcert.connection_ngts import (_parse_ngts_zone, DEFAULT_API_URL, DEFAULT_TOKEN_URL,
+                                   TRUSTED_TOKEN_HOST_SUFFIX)
+from vcert.errors import ClientBadData, ServerUnexptedBehavior
 from vcert.pem import parse_pem, Certificate
 
 pkcs12_enc_cert = """-----BEGIN CERTIFICATE-----
@@ -346,3 +351,157 @@ class TestLocalMethods(unittest.TestCase):
         cert = Certificate(cert=pkcs12_plain_cert, chain=chain, key=pkcs12_plain_pk)
         output = cert.as_pkcs12()
         log.info(f"PKCS12 created successfully:\n{output}")
+
+    # -- NGTS (offline) -----------------------------------------------------------------------
+
+    @staticmethod
+    def _ngts_conn(**kwargs):
+        defaults = dict(
+            client_id="cid",
+            client_secret="csecret",
+            token_url="https://auth.example.com/oauth2/token",
+            tsg_id="1000000001",
+            url="https://api.strata.paloaltonetworks.com/ngts",
+        )
+        defaults.update(kwargs)
+        return NGTSConnection(**defaults)
+
+    def test_parse_ngts_zone(self):
+        # CIT-only: the whole (trimmed) string is the template alias, no backslash split.
+        self.assertEqual(_parse_ngts_zone("MyTemplate"), "MyTemplate")
+        self.assertEqual(_parse_ngts_zone("  MyTemplate  "), "MyTemplate")
+        # A backslash is NOT a separator for NGTS - it is part of the alias.
+        self.assertEqual(_parse_ngts_zone("App\\CIT"), "App\\CIT")
+        with self.assertRaises(ClientBadData):
+            _parse_ngts_zone("")
+        with self.assertRaises(ClientBadData):
+            _parse_ngts_zone(None)
+
+    def test_ngts_scope_from_tsg_id(self):
+        conn = self._ngts_conn()
+        self.assertEqual(conn._scope, "tsg_id:1000000001")
+
+    def test_ngts_explicit_scope_wins(self):
+        conn = self._ngts_conn(scope="tsg_id:9999999999", tsg_id=None)
+        self.assertEqual(conn._scope, "tsg_id:9999999999")
+
+    def test_ngts_url_defaults_to_palo_alto_production(self):
+        # Omitting url falls back to the published production endpoint (matches Go's normalizeURL);
+        # CloudConnection's normalizer appends a trailing slash.
+        conn = self._ngts_conn(url=None)
+        self.assertEqual(conn._base_url, DEFAULT_API_URL + "/")
+
+    def test_ngts_token_url_defaults_to_palo_alto_production(self):
+        # Omitting token_url falls back to the published production OAuth2 endpoint. (Deliberate
+        # divergence from Go, which still requires the token URL.)
+        conn = self._ngts_conn(token_url=None)
+        self.assertEqual(conn._token_url, DEFAULT_TOKEN_URL)
+
+    def test_ngts_requires_scope_or_tsg_id(self):
+        with self.assertRaises(ClientBadData):
+            self._ngts_conn(tsg_id=None, scope=None)
+
+    def test_ngts_rejects_non_10_digit_tsg_id(self):
+        # Palo Alto TSG IDs are 10-digit integers (matches Go's validateScope regex).
+        with self.assertRaises(ClientBadData):
+            self._ngts_conn(tsg_id="123")
+
+    def test_ngts_rejects_malformed_scope(self):
+        with self.assertRaises(ClientBadData):
+            self._ngts_conn(scope="1000000001", tsg_id=None)  # missing tsg_id: prefix
+        with self.assertRaises(ClientBadData):
+            self._ngts_conn(scope="tsg_id:notdigits", tsg_id=None)
+
+    def test_ngts_scope_is_anchored(self):
+        # fullmatch (not search): too-many digits or surrounding garbage must be rejected.
+        with self.assertRaises(ClientBadData):
+            self._ngts_conn(scope="tsg_id:10000000011", tsg_id=None)  # 11 digits
+        with self.assertRaises(ClientBadData):
+            self._ngts_conn(scope="x tsg_id:1000000001 x", tsg_id=None)  # embedded
+
+    def test_ngts_token_url_forced_to_https(self):
+        # Credentials are sent to token_url via Basic auth, so an http:// URL is upgraded.
+        conn = self._ngts_conn(token_url="http://auth.example.com/oauth2/token")
+        self.assertEqual(conn._token_url, "https://auth.example.com/oauth2/token")
+        # A scheme-less URL is assumed to be https.
+        conn = self._ngts_conn(token_url="auth.example.com/oauth2/token")
+        self.assertEqual(conn._token_url, "https://auth.example.com/oauth2/token")
+
+    def test_ngts_token_url_fallback_warns(self):
+        # Omitting token_url silently used to be impossible (it errored); now it defaults, so the
+        # fallback must be logged - a non-prod tenant whose token_url is unset would otherwise send
+        # its credentials to production unnoticed.
+        with self.assertLogs("vcert.connection-ngts", level="WARNING") as cm:
+            self._ngts_conn(token_url=None)
+        self.assertTrue(any("defaulting to the production endpoint" in m for m in cm.output))
+
+    def test_ngts_token_url_untrusted_host_warns(self):
+        # token_url is a credential sink; a host outside the trusted Palo Alto domain is flagged.
+        with self.assertLogs("vcert.connection-ngts", level="WARNING") as cm:
+            self._ngts_conn(token_url="https://auth.evil.example.com/oauth2/token")
+        self.assertTrue(any("is outside" in m and TRUSTED_TOKEN_HOST_SUFFIX in m for m in cm.output))
+
+    def test_ngts_trusted_token_host_does_not_warn(self):
+        # A token_url inside paloaltonetworks.com (prod or documented non-prod) is not flagged.
+        # (assertNoLogs is 3.10+; collect records manually so this also runs on 3.9.)
+        records = []
+        handler = logging.Handler()
+        handler.setLevel(logging.WARNING)
+        handler.emit = records.append
+        ngts_log = logging.getLogger("vcert.connection-ngts")
+        ngts_log.addHandler(handler)
+        try:
+            for url in ("https://auth.apps.paloaltonetworks.com/auth/v1/oauth2/access_token",
+                        "https://auth.dev.appsvc.paloaltonetworks.com/auth/v1/oauth2/access_token"):
+                self._ngts_conn(token_url=url)
+        finally:
+            ngts_log.removeHandler(handler)
+        self.assertEqual([], [r.getMessage() for r in records])
+
+    def test_ngts_get_access_token(self):
+        conn = self._ngts_conn()
+        fake_resp = mock.MagicMock()
+        fake_resp.status_code = 200
+        fake_resp.json.return_value = {
+            'access_token': 'abc.def.ghi',
+            'token_type': 'Bearer',
+            'expires_in': 900,
+            'scope': 'tsg_id:1000000001',
+        }
+        with mock.patch('vcert.connection_ngts.requests.post', return_value=fake_resp) as post:
+            token = conn._get_access_token()
+
+        self.assertEqual(token, 'abc.def.ghi')
+        self.assertEqual(conn._access_token, 'abc.def.ghi')
+        self.assertIsNotNone(conn._token_expires)
+        # client_id/client_secret go through HTTP Basic auth; the body carries grant_type + scope.
+        _, kwargs = post.call_args
+        self.assertEqual(kwargs['auth'], ('cid', 'csecret'))
+        self.assertEqual(kwargs['data']['grant_type'], 'client_credentials')
+        self.assertEqual(kwargs['data']['scope'], 'tsg_id:1000000001')
+
+    def test_ngts_access_token_rejects_non_bearer(self):
+        conn = self._ngts_conn()
+        fake_resp = mock.MagicMock()
+        fake_resp.status_code = 200
+        fake_resp.json.return_value = {'access_token': 'x', 'token_type': 'mac', 'expires_in': 900}
+        with mock.patch('vcert.connection_ngts.requests.post', return_value=fake_resp):
+            with self.assertRaises(ServerUnexptedBehavior):
+                conn._get_access_token()
+
+    def test_ngts_auth_header_is_bearer(self):
+        conn = self._ngts_conn(access_token='pre.issued.token', token_url=None)
+        headers = conn._auth_headers('application/json')
+        self.assertEqual(headers['Authorization'], 'Bearer pre.issued.token')
+        self.assertNotIn('tppl-api-key', headers)
+
+    def test_ngts_get_sends_bearer_header(self):
+        conn = self._ngts_conn(access_token='pre.issued.token', token_url=None)
+        fake_resp = mock.MagicMock()
+        fake_resp.status_code = 200
+        fake_resp.headers = {'content-type': 'application/json'}
+        fake_resp.json.return_value = {}
+        with mock.patch('vcert.connection_ngts.requests.get', return_value=fake_resp) as get:
+            conn._get("v1/certificateissuingtemplates")
+        _, kwargs = get.call_args
+        self.assertEqual(kwargs['headers']['Authorization'], 'Bearer pre.issued.token')

@@ -162,5 +162,13 @@ secrets.json
 venv
 venv3
 venv27
+.venv
 vcert/example_cert.py
 credentials
+
+# Generated certificate material from example scripts / live tests (never commit)
+/cert.pem
+/cert.key
+/key.pem
+/chain.pem
+/renewed_cert.pem

@@ -40,5 +40,14 @@ CLOUD_DIGICERT_CA_NAME = environ.get('CLOUD_DIGICERT_CA_NAME')
 
 TPP_SSH_CADN = environ.get('TPP_SSH_CADN')
 
+# NGTS (Palo Alto Networks Next-Gen Trust Security)
+NGTS_URL = environ.get('NGTS_URL')
+NGTS_TOKEN_URL = environ.get('NGTS_TOKEN_URL')
+NGTS_CLIENT_ID = environ.get('NGTS_CLIENT_ID')
+NGTS_CLIENT_SECRET = environ.get('NGTS_CLIENT_SECRET')
+NGTS_TSG_ID = environ.get('NGTS_TSG_ID')
+NGTS_SCOPE = environ.get('NGTS_SCOPE')
+NGTS_ZONE = environ.get('NGTS_ZONE')
+
 if RANDOM_DOMAIN and not isinstance(RANDOM_DOMAIN, text_type):
     RANDOM_DOMAIN = RANDOM_DOMAIN.decode()

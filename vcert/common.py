@@ -609,7 +609,8 @@ class RetireRequest:
 
 class Authentication:
     def __init__(self, user=None, password=None, access_token=None, refresh_token=None, api_key=None, state=None,
-                 token_expires=None, client_id=CLIENT_ID, scope=SCOPE_CM):
+                 token_expires=None, client_id=CLIENT_ID, scope=SCOPE_CM, client_secret=None, token_url=None,
+                 tsg_id=None):
         self.user = user
         self.password = password
         self.access_token = access_token
@@ -617,6 +618,13 @@ class Authentication:
         self.token_expires = token_expires
         self.api_key = api_key
         self.client_id = client_id
+        self.client_secret = client_secret
+        self.token_url = token_url
+        self.tsg_id = tsg_id
+        # NGTS OAuth scope is structured as "tsg_id:<TSG_ID>" (tenant service group id).
+        # Derive it from tsg_id when an explicit scope was not supplied.
+        if tsg_id and scope == SCOPE_CM:
+            scope = f"tsg_id:{tsg_id}"
         self.scope = scope
         self.state = state
 
@@ -772,4 +780,5 @@ class VenafiPlatform(IntEnum):
 
     FAKE = 100, "Connector for testing purposes"
     TPP = 200, "Trust Protection Platform"
+    NGTS = 300, "Next-Gen Trust Security"
     VAAS = 400, "Venafi as a Service"
