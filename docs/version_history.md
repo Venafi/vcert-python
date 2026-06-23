@@ -2,6 +2,12 @@
 
 ## Version History
 
+#### 0.20.0
+* Added policy management (`get_policy`/`set_policy`) for NGTS (Strata Cloud Manager), operating on the CIT-only zone
+
+#### 0.19.0
+* Added support for NGTS (Strata Cloud Manager)
+
 #### 0.18.0
 * Added support for CyberArk Certificate Manager, Self-Hosted 25.1
 * Upgraded dependencies

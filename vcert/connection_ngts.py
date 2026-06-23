@@ -26,6 +26,8 @@ from .errors import (VenafiConnectionError, ServerUnexptedBehavior, ClientBadDat
                      CertificateRenewError, VenafiError)
 from .http_status import HTTPStatus
 from .logger import get_child
+from .policy.pm_cloud import build_policy_spec, build_cit_request, validate_policy_spec
+from .policy.policy_spec import DEFAULT_CA
 
 # OAuth2 access tokens issued by Strata Cloud Manager live ~15 minutes. Refresh a little
 # ahead of expiry so in-flight calls never race the boundary (mirrors Go's
@@ -456,13 +458,71 @@ class NGTSConnection(CloudConnection):
         )
         return z
 
-    # -- Out of scope for NGTS ----------------------------------------------------------------
+    # -- Policy management (deltas vs Cloud) --------------------------------------------------
 
     def get_policy(self, zone):
-        raise NotImplementedError
+        """
+        Build a PolicySpecification from the NGTS Certificate Issuing Template (CIT) named by
+        ``zone``. Mirrors Go's NGTS ``GetPolicy`` and Cloud's ``_get_policy`` minus the
+        Application-owner resolution: NGTS has no Application layer, so there are no owners/users
+        to resolve and ``users``/``owners`` stay empty (parity with Go NGTS).
+
+        :param str zone: the CIT alias (NGTS zones are a CIT alias only - no Application\\CIT split)
+        :rtype: PolicySpecification
+        """
+        cit_data = self._get_cit_or_fail(zone)
+        cit = self._parse_policy_response_to_object(cit_data)
+
+        info = self._get_ca_info(cit.cert_authority, cit.cert_authority_account_id,
+                                 cit.cert_authority_product_option_id)
+        if not info:
+            raise VenafiError("Certificate Authority info not found")
+
+        ps = build_policy_spec(cit, info, subject_cn_to_str=True)
+        return ps
 
     def set_policy(self, zone, policy_spec):
-        raise NotImplementedError
+        """
+        Create or update the NGTS Certificate Issuing Template (CIT) named by ``zone`` from
+        ``policy_spec``. Mirrors Go's NGTS ``SetPolicy`` and Cloud's ``set_policy`` with the
+        Application create/link and owner handling removed: NGTS has no Application layer, so the
+        CIT is created/updated directly on the global issuing-template endpoint and
+        ``policy_spec.users`` is ignored (parity with Go NGTS).
+
+        :param str zone: the CIT alias (NGTS zones are a CIT alias only - no Application\\CIT split)
+        :param PolicySpecification policy_spec:
+        """
+        validate_policy_spec(policy_spec)
+        cit_alias = _parse_ngts_zone(zone)
+
+        if not policy_spec.policy:
+            raise VenafiError("Policy is required")
+        if not policy_spec.policy.certificate_authority:
+            # Default the CA exactly as Go's NGTS SetPolicy does when none is supplied.
+            policy_spec.policy.certificate_authority = DEFAULT_CA
+
+        ca_details = self._get_ca_details(policy_spec.policy.certificate_authority)
+        if not ca_details:
+            raise VenafiError(f"CA [{policy_spec.policy.certificate_authority}] not found in "
+                              f"Strata Cloud Manager")
+
+        request = build_cit_request(policy_spec, ca_details)
+        request['name'] = cit_alias
+
+        cit_data = self._get_cit(cit_alias)
+        if cit_data:
+            # Issuing Template exists. Update
+            status, _ = self._put(URLS.ISSUING_TEMPLATES_UPDATE.format(cit_data['id']), request)
+            if status != HTTPStatus.OK:
+                raise VenafiError(f"Failed to update issuing template [{cit_data['id']}] for zone [{zone}]")
+        else:
+            # Issuing Template does not exist. Create one
+            status, _ = self._post(URLS.ISSUING_TEMPLATES, request)
+            if status != HTTPStatus.CREATED:
+                raise VenafiError(f"Failed to create issuing template for zone [{zone}]")
+        return
+
+    # -- Out of scope for NGTS ----------------------------------------------------------------
 
     def get_version(self):
         raise NotImplementedError

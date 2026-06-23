@@ -25,10 +25,13 @@ from cryptography.hazmat.backends import default_backend
 from assets import POLICY_CLOUD1, POLICY_TPP1, EXAMPLE_CSR, EXAMPLE_CHAIN
 from vcert import (CloudConnection, KeyType, TPPConnection, CertificateRequest, ZoneConfig, CertField, FakeConnection,
                    NGTSConnection, logger)
+from vcert.connection_cloud import URLS
 from vcert.connection_ngts import (_parse_ngts_zone, DEFAULT_API_URL, DEFAULT_TOKEN_URL,
                                    TRUSTED_TOKEN_HOST_SUFFIX)
-from vcert.errors import ClientBadData, ServerUnexptedBehavior
+from vcert.errors import ClientBadData, ServerUnexptedBehavior, VenafiError
 from vcert.pem import parse_pem, Certificate
+from vcert.policy.pm_cloud import CertificateAuthorityDetails, CertificateAuthorityInfo
+from vcert.policy.policy_spec import DEFAULT_CA, Policy, PolicySpecification
 
 pkcs12_enc_cert = """-----BEGIN CERTIFICATE-----
 MIICljCCAX6gAwIBAgIRAO8Qp6LUsgVDQrxHXX1LUV4wDQYJKoZIhvcNAQENBQAw
@@ -505,3 +508,122 @@ class TestLocalMethods(unittest.TestCase):
             conn._get("v1/certificateissuingtemplates")
         _, kwargs = get.call_args
         self.assertEqual(kwargs['headers']['Authorization'], 'Bearer pre.issued.token')
+
+    # -- NGTS policy management (offline) -----------------------------------------------------
+    #
+    # NGTS reuses Cloud's CIT/CA/policy-spec helpers (validate_policy_spec, build_cit_request,
+    # build_policy_spec - already covered by tests/test_pm.py) and only differs in the
+    # NGTS-specific delta: CIT-only zone, the global certificateissuingtemplates endpoint, and
+    # NO Application/owner layer. These tests pin that delta. We mock at the helper-method
+    # boundary so we exercise the NGTS orchestration without a live backend.
+
+    @staticmethod
+    def _ngts_policy_spec():
+        ps = PolicySpecification()
+        ps.policy = Policy()
+        ps.policy.certificate_authority = "DIGICERT\\acct-key\\Product"
+        return ps
+
+    def test_ngts_set_policy_creates_cit_on_global_endpoint(self):
+        # No existing CIT -> POST to the global issuing-templates endpoint, named by the zone.
+        conn = self._ngts_conn(access_token='t', token_url=None)
+        with mock.patch.object(conn, '_get_ca_details', return_value=CertificateAuthorityDetails('po-1', 'org-1')), \
+                mock.patch('vcert.connection_ngts.validate_policy_spec'), \
+                mock.patch('vcert.connection_ngts.build_cit_request', return_value={}), \
+                mock.patch.object(conn, '_get_cit', return_value=None), \
+                mock.patch.object(conn, '_post', return_value=(201, {})) as post, \
+                mock.patch.object(conn, '_put') as put:
+            conn.set_policy("my-template", self._ngts_policy_spec())
+
+        post.assert_called_once()
+        url, = post.call_args[0][:1]
+        self.assertEqual(url, URLS.ISSUING_TEMPLATES)
+        self.assertEqual(post.call_args[0][1]['name'], "my-template")
+        put.assert_not_called()
+
+    def test_ngts_set_policy_updates_existing_cit(self):
+        # Existing CIT -> PUT to the per-id update endpoint, no create.
+        conn = self._ngts_conn(access_token='t', token_url=None)
+        with mock.patch.object(conn, '_get_ca_details', return_value=CertificateAuthorityDetails('po-1', 'org-1')), \
+                mock.patch('vcert.connection_ngts.validate_policy_spec'), \
+                mock.patch('vcert.connection_ngts.build_cit_request', return_value={}), \
+                mock.patch.object(conn, '_get_cit', return_value={'id': 'cit-123', 'name': 'my-template'}), \
+                mock.patch.object(conn, '_put', return_value=(200, {})) as put, \
+                mock.patch.object(conn, '_post') as post:
+            conn.set_policy("my-template", self._ngts_policy_spec())
+
+        put.assert_called_once()
+        self.assertEqual(put.call_args[0][0], URLS.ISSUING_TEMPLATES_UPDATE.format('cit-123'))
+        post.assert_not_called()
+
+    def test_ngts_set_policy_never_touches_application_endpoints(self):
+        # The Application/owner layer (Cloud-only) must never be exercised on NGTS.
+        conn = self._ngts_conn(access_token='t', token_url=None)
+        with mock.patch.object(conn, '_get_ca_details', return_value=CertificateAuthorityDetails('po-1', 'org-1')), \
+                mock.patch('vcert.connection_ngts.validate_policy_spec'), \
+                mock.patch('vcert.connection_ngts.build_cit_request', return_value={}), \
+                mock.patch.object(conn, '_get_cit', return_value=None), \
+                mock.patch.object(conn, '_post', return_value=(201, {})), \
+                mock.patch.object(conn, '_put'), \
+                mock.patch.object(conn, '_get_user_details') as user_details, \
+                mock.patch.object(conn, '_get_app_details_by_name') as app_details, \
+                mock.patch.object(conn, 'resolve_owners') as resolve_owners:
+            conn.set_policy("my-template", self._ngts_policy_spec())
+
+        user_details.assert_not_called()
+        app_details.assert_not_called()
+        resolve_owners.assert_not_called()
+
+    def test_ngts_set_policy_defaults_ca_when_absent(self):
+        # Parity with Go NGTS: an unset certificate_authority defaults to DEFAULT_CA.
+        conn = self._ngts_conn(access_token='t', token_url=None)
+        ps = PolicySpecification()
+        ps.policy = Policy()  # certificate_authority left as None
+        with mock.patch.object(conn, '_get_ca_details',
+                               return_value=CertificateAuthorityDetails('po-1', 'org-1')) as ca_details, \
+                mock.patch('vcert.connection_ngts.validate_policy_spec'), \
+                mock.patch('vcert.connection_ngts.build_cit_request', return_value={}), \
+                mock.patch.object(conn, '_get_cit', return_value=None), \
+                mock.patch.object(conn, '_post', return_value=(201, {})), \
+                mock.patch.object(conn, '_put'):
+            conn.set_policy("my-template", ps)
+
+        ca_details.assert_called_once_with(DEFAULT_CA)
+        self.assertEqual(ps.policy.certificate_authority, DEFAULT_CA)
+
+    def test_ngts_get_policy_builds_spec_without_owners(self):
+        # get_policy builds a real PolicySpecification from the CIT + CA info and, unlike Cloud,
+        # never resolves Application owners (none exist on NGTS) -> users/owners stay empty.
+        conn = self._ngts_conn(access_token='t', token_url=None)
+        cit_dict = {
+            'id': 'cit-123',
+            'name': 'my-template',
+            'certificateAuthority': 'DIGICERT',
+            'certificateAuthorityAccountId': 'acct-1',
+            'certificateAuthorityProductOptionId': 'po-1',
+            'subjectCNRegexes': ['.*\\.example\\.com'],
+            'sanRegexes': ['.*\\.example\\.com'],
+            'keyReuse': False,
+            'validityPeriod': 'P90D',
+            'csrUploadAllowed': True,
+            'keyGeneratedByVenafiAllowed': True,
+            'keyTypes': [{'keyType': 'RSA', 'keyLengths': [2048]}],
+        }
+        info = CertificateAuthorityInfo('DIGICERT', 'acct-key', 'Product')
+        with mock.patch.object(conn, '_get_cit', return_value=cit_dict), \
+                mock.patch.object(conn, '_get_ca_info', return_value=info), \
+                mock.patch.object(conn, 'resolve_cloud_owners_names') as resolve_owners:
+            ps = conn.get_policy("my-template")
+
+        resolve_owners.assert_not_called()
+        self.assertIsInstance(ps, PolicySpecification)
+        self.assertEqual(ps.policy.max_valid_days, 90)
+        self.assertEqual(ps.policy.certificate_authority, "DIGICERT\\acct-key\\Product")
+        self.assertEqual(ps.users, [])
+        self.assertEqual(ps.owners, [])
+
+    def test_ngts_get_policy_missing_cit_raises(self):
+        conn = self._ngts_conn(access_token='t', token_url=None)
+        with mock.patch.object(conn, '_get_cit', return_value=None):
+            with self.assertRaises(VenafiError):
+                conn.get_policy("does-not-exist")

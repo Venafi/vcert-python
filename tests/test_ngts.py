@@ -29,6 +29,7 @@ from test_env import (NGTS_URL, NGTS_TOKEN_URL, NGTS_CLIENT_ID, NGTS_CLIENT_SECR
 from test_utils import random_word, enroll, renew, renew_by_thumbprint
 from vcert import NGTSConnection, KeyType, logger
 from vcert.common import RetireRequest
+from vcert.policy.policy_spec import Policy, PolicySpecification
 
 log = logger.get_child("test-ngts")
 
@@ -81,6 +82,36 @@ class TestNGTSMethods(unittest.TestCase):
     def test_ngts_read_zone_invalid_zone(self):
         with self.assertRaises(Exception):
             self.ngts_conn.read_zone_conf(f"non-existent-cit-{random_word(8)}")
+
+    def test_ngts_get_policy(self):
+        # Read-only: get_policy on the configured zone. NGTS has no Application layer, so users
+        # are always empty (parity with Go NGTS).
+        ps = self.ngts_conn.get_policy(self.ngts_zone)
+        self.assertIsNotNone(ps.policy)
+        self.assertTrue(ps.policy.certificate_authority)
+        self.assertEqual(ps.users, [])
+
+    def test_ngts_set_get_policy_roundtrip(self):
+        # set_policy mutates a CIT by alias, so use a THROWAWAY alias - never self.ngts_zone,
+        # which the other tests depend on. The CA is read from the existing zone so it is
+        # guaranteed valid for this tenant.
+        existing = self.ngts_conn.get_policy(self.ngts_zone)
+        ca = existing.policy.certificate_authority
+
+        ps = PolicySpecification()
+        ps.policy = Policy(
+            domains=["venafi.example"],
+            max_valid_days=90,
+            cert_auth=ca,
+        )
+        throwaway_zone = f"vcert-python-pmtest-{random_word(8)}"
+        self.ngts_conn.set_policy(throwaway_zone, ps)
+
+        result = self.ngts_conn.get_policy(throwaway_zone)
+        self.assertEqual(result.policy.certificate_authority, ca)
+        self.assertEqual(result.policy.max_valid_days, 90)
+        self.assertIn("venafi.example", result.policy.domains)
+        self.assertEqual(result.users, [])
 
 
 if __name__ == '__main__':
