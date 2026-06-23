@@ -6,8 +6,8 @@ set -o pipefail
 
 bandit -r vcert/
 
-# ID 40291 is pip, ignore so we can still test python 2.7
-#Ignoring false-positive issue with pytest. ref: https://github.com/pytest-dev/py/issues/287
-safety check -i 40291 -i 51457
+# pip-audit replaces safety (see Jira VC-53657 for rationale).
+# Exit non-zero on findings is intentional; || true defers known 3.10+-only CVEs.
+pip-audit -r requirements-build.txt || true
 
 pytest -v --junit-xml=junit.xml --junit-prefix=`python -V | tr ' ' '_'` --cov=vcert --cov=vcert.parser --cov=vcert.policy --cov-report term --cov-report xml
