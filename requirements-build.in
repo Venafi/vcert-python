@@ -1,5 +1,5 @@
 -r requirements.in
-pytest==7.4.3
-pytest-cov==4.1.0
-safety==2.3.5
-bandit==1.7.7
+pip-audit==2.9.0
+pytest==8.4.2
+pytest-cov==7.1.0
+bandit==1.8.6

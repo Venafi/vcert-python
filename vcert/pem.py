@@ -110,7 +110,7 @@ class Certificate:
             p_key = serialization.load_pem_private_key(data=self.key.encode(), password=b_pass,
                                                        backend=default_backend())
         except Exception as e:
-            get_logger().error(msg=f"Error parsing Private Key: {e.message}")
+            get_logger().error(msg=f"Error parsing Private Key: {str(e)}")
             return
 
         name = random_word(10).encode()
