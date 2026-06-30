@@ -27,7 +27,7 @@ from six.moves.urllib import parse as url_parse
 from .common import CertField, CommonConnection, CertificateRequest, CSR_ORIGIN_LOCAL, CSR_ORIGIN_PROVIDED, \
     CSR_ORIGIN_SERVICE, KeyType, CHAIN_OPTION_LAST, CHAIN_OPTION_FIRST, CHAIN_OPTION_IGNORE, Policy, ZoneConfig
 from .errors import VenafiError, ServerUnexptedBehavior, ClientBadData, RetrieveCertificateTimeoutError, \
-    CertificateRequestError, CertificateRenewError
+    RetrieveCertificateNotFoundError, CertificateRequestError, CertificateRenewError
 from .http_status import HTTPStatus
 from .pem import parse_pem
 from .policy import RPA, SPA
@@ -223,9 +223,13 @@ class AbstractTPPConnection(CommonConnection):
             try:
                 # TODO: Change _post() with post(args)
                 status, data = self._post(URLS.CERTIFICATE_RETRIEVE, data=retrieve_request)
-            except VenafiError:
-                log.debug(f"Certificate with id {cert_request.id} not found")
-                status = 0
+            except VenafiError as error:
+                log.debug(error.content)
+                status = error.status_code
+                if status == HTTPStatus.NOT_FOUND:
+                    raise RetrieveCertificateNotFoundError(f"Certificate with id {cert_request.id} not found")
+                elif status == HTTPStatus.BAD_REQUEST:
+                    raise ClientBadData(error.content)
 
             if status == HTTPStatus.OK:
                 pem64 = data['CertificateData']
