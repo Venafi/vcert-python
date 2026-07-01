@@ -30,18 +30,16 @@ from test_pm import get_policy_obj, get_defaults_obj
 from test_utils import random_word, enroll, renew, renew_by_thumbprint, renew_without_key_reuse, simple_enroll, \
     get_vaas_zone
 from vcert import CloudConnection, KeyType, CertificateRequest, CustomField, logger, CSR_ORIGIN_SERVICE
-from vcert.policy import KeyPair, DefaultKeyPair, PolicySpecification
 from vcert.common import RetireRequest
 
 log = logger.get_child("test-vaas")
 
 
 class TestVaaSMethods(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
+    def setUp(self):
         self.cloud_zone = CLOUD_ZONE
         self.vaas_zone_ec = VAAS_ZONE_ONLY_EC
         self.cloud_conn = CloudConnection(token=CLOUD_APIKEY, url=CLOUD_URL)
-        super(TestVaaSMethods, self).__init__(*args, **kwargs)
 
     def test_cloud_enroll(self):
         cn = f"{random_word(10)}.venafi.example.com"

@@ -32,11 +32,10 @@ SSH_CERT_DATA_ERROR = "Certificate data is empty for Certificate {}"  # type: st
 
 
 class TestTPPTokenSSHCertificate(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
+    def setUp(self):
         self.tpp_conn = TPPTokenConnection(url=TPP_TOKEN_URL, http_request_kwargs={'verify': "/tmp/chain.pem"})
         auth = Authentication(user=TPP_USER, password=TPP_PASSWORD, scope=SCOPE_SSH)
         self.tpp_conn.get_access_token(auth)
-        super(TestTPPTokenSSHCertificate, self).__init__(*args, **kwargs)
 
     def test_enroll_local_generated_keypair(self):
         keypair = SSHKeyPair()
@@ -83,9 +82,8 @@ class TestTPPTokenSSHCertificate(unittest.TestCase):
 
 
 class TestTPPSSHCertificate(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
+    def setUp(self):
         self.tpp_conn = TPPConnection(TPP_USER, TPP_PASSWORD, TPP_URL, http_request_kwargs={'verify': "/tmp/chain.pem"})
-        super(TestTPPSSHCertificate, self).__init__(*args, **kwargs)
 
     def test_retrieve_ca_public_key_and_principals(self):
         ssh_config = _retrieve_ssh_config(self.tpp_conn)
