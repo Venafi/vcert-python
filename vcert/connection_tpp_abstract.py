@@ -17,12 +17,12 @@ import base64
 import logging as log
 import re
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.x509 import SignatureAlgorithmOID as AlgOID
-from six.moves.urllib import parse as url_parse
+from urllib import parse as url_parse
 
 from .common import CertField, CommonConnection, CertificateRequest, CSR_ORIGIN_LOCAL, CSR_ORIGIN_PROVIDED, \
     CSR_ORIGIN_SERVICE, KeyType, CHAIN_OPTION_LAST, CHAIN_OPTION_FIRST, CHAIN_OPTION_IGNORE, Policy, ZoneConfig
@@ -147,7 +147,7 @@ class AbstractTPPConnection(CommonConnection):
             else:
                 exp_date_attr = IssuerHint.DEFAULT.json_value
 
-            expiration_date = datetime.utcnow() + timedelta(hours=request.validity_hours)
+            expiration_date = datetime.now(timezone.utc) + timedelta(hours=request.validity_hours)
             formatted_expiration_date = expiration_date.strftime("%Y-%m-%d %H:%M:%S")
 
             expiration_date = {'Name': exp_date_attr, 'Value': formatted_expiration_date}

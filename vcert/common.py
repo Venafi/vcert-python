@@ -28,7 +28,6 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID, ExtensionOID
-from six import string_types, binary_type
 
 from .errors import VenafiConnectionError, ServerUnexptedBehavior, BadData, ClientBadData
 from .http_status import HTTPStatus
@@ -346,16 +345,16 @@ class CertificateRequest:
 
     def __setattr__(self, key, value):
         if key == "key_password":
-            if isinstance(value, string_types):
+            if isinstance(value, str):
                 value = value.encode()
         elif key == "common_name":
-            if isinstance(value, binary_type):
+            if isinstance(value, bytes):
                 value = value.decode()
         elif key == "key_type":
             if value is not None and not isinstance(value, KeyType):
                 raise ClientBadData("key_type should be instance of vcert.KeyType")
         elif key == "private_key":
-            if isinstance(value, string_types):
+            if isinstance(value, str):
                 value = serialization.load_pem_private_key(value.encode(),
                                                            password=self.key_password, backend=default_backend())
             if isinstance(value, rsa.RSAPrivateKey):
@@ -368,9 +367,9 @@ class CertificateRequest:
                 raise ClientBadData(f"invalid private key type {type(value)}")
         elif key == "csr":
             self.csr_origin = CSR_ORIGIN_PROVIDED
-            if isinstance(value, binary_type):
+            if isinstance(value, bytes):
                 value = value.decode()
-            elif not (isinstance(value, string_types) or value is None):
+            elif not (isinstance(value, str) or value is None):
                 raise ClientBadData(f"invalid csr type {type(value)}")
             if value:
                 csr = x509.load_pem_x509_csr(value.encode(), default_backend())
@@ -433,7 +432,7 @@ class CertificateRequest:
         if self.organization:
             subject.append(x509.NameAttribute(NameOID.ORGANIZATION_NAME, self.organization))
         if self.organizational_unit:
-            if isinstance(self.organizational_unit, string_types):
+            if isinstance(self.organizational_unit, str):
                 subject.append(x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, self.organizational_unit))
             elif isinstance(self.organizational_unit, list):
                 for u in self.organizational_unit:

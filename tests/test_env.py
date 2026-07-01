@@ -16,7 +16,6 @@
 #
 from os import environ
 
-from six import text_type
 
 FAKE = environ.get('FAKE')
 RANDOM_DOMAIN = environ.get('RANDOM_DOMAIN')
@@ -49,5 +48,5 @@ NGTS_TSG_ID = environ.get('NGTS_TSG_ID')
 NGTS_SCOPE = environ.get('NGTS_SCOPE')
 NGTS_ZONE = environ.get('NGTS_ZONE')
 
-if RANDOM_DOMAIN and not isinstance(RANDOM_DOMAIN, text_type):
+if RANDOM_DOMAIN and not isinstance(RANDOM_DOMAIN, str):
     RANDOM_DOMAIN = RANDOM_DOMAIN.decode()

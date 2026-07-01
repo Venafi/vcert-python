@@ -24,7 +24,6 @@ from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.x509.oid import NameOID
-from six import string_types
 
 from test_env import RANDOM_DOMAIN
 from vcert import CertificateRequest, FakeConnection, TPPConnection, TPPTokenConnection, CSR_ORIGIN_SERVICE
@@ -141,7 +140,7 @@ def enroll(conn, zone, cn=None, private_key=None, public_key=None, password=None
         encoding=serialization.Encoding.PEM,
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     ).decode()
-    if isinstance(public_key, string_types):
+    if isinstance(public_key, str):
         public_key = public_key.encode()
     if public_key:
         source_public_key_pem = serialization.load_pem_public_key(

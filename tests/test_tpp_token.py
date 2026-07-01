@@ -17,7 +17,7 @@
 import binascii
 import time
 import unittest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -48,7 +48,7 @@ class TestTPPTokenMethods(unittest.TestCase):
             cert_config = self.tpp_conn._get_certificate_details(cert_guid)
             self.assertEqual(cert_config['Origin'], "Venafi VCert-Python")
         except Exception as err:
-            self.fail(f"Error in test: {err.message}")
+            self.fail(f"Error in test: {str(err)}")
 
     def test_tpp_token_enroll_with_service_generated_csr(self):
         cn = f"{random_word(10)}.venafi.example.com"
@@ -58,7 +58,7 @@ class TestTPPTokenMethods(unittest.TestCase):
             cert_config = self.tpp_conn._get_certificate_details(cert_guid)
             self.assertEqual(cert_config['Origin'], "Venafi VCert-Python")
         except Exception as err:
-            self.fail(f"Error in test: {err.message}")
+            self.fail(f"Error in test: {str(err)}")
 
     def test_tpp_token_enroll_with_custom_fields(self):
         cn = f"{random_word(10)}.venafi.example.com"
@@ -213,14 +213,14 @@ class TestTPPTokenMethods(unittest.TestCase):
         request.custom_fields = custom_fields
         request.validity_hours = 144
         request.issuer_hint = IssuerHint.MICROSOFT
-        expected_date = datetime.utcnow() + timedelta(hours=request.validity_hours)
+        expected_date = datetime.now(timezone.utc) + timedelta(hours=request.validity_hours)
 
         self.tpp_conn.request_cert(request, self.tpp_zone)
         cert = self.tpp_conn.retrieve_cert(request)
 
         cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
         assert isinstance(cert, x509.Certificate)
-        expiration_date = cert.not_valid_after
+        expiration_date = cert.not_valid_after_utc
         # Due to some roundings and delays in operations on the server side, the certificate expiration date
         # is not exactly the same as the one used in the request. A gap is allowed in this scenario to compensate
         # this delays and roundings.
