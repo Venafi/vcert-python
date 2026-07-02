@@ -27,8 +27,8 @@ from cryptography.hazmat.primitives import hashes
 from test_env import (NGTS_URL, NGTS_TOKEN_URL, NGTS_CLIENT_ID, NGTS_CLIENT_SECRET, NGTS_TSG_ID, NGTS_SCOPE,
                       NGTS_ZONE)
 from test_utils import random_word, enroll, renew, renew_by_thumbprint
-from vcert import NGTSConnection, KeyType, logger
-from vcert.common import RetireRequest
+from vcert import NGTSConnection, KeyType, logger, CertificateRevokeError
+from vcert.common import RetireRequest, RevocationRequest
 from vcert.policy.policy_spec import Policy, PolicySpecification
 
 log = logger.get_child("test-ngts")
@@ -73,6 +73,26 @@ class TestNGTSMethods(unittest.TestCase):
         fingerprint = binascii.hexlify(cert.fingerprint(hashes.SHA1())).decode()
         ret_request = RetireRequest(thumbprint=fingerprint)
         self.assertTrue(self.ngts_conn.retire_cert(ret_request))
+
+    def test_ngts_revoke_by_thumbprint(self):
+        # Cryptographic revocation via the GraphQL CA-operations mutation (thumbprint-keyed).
+        # revoke_cert uppercases the thumbprint internally, so a lowercase hexlify is fine here.
+        cn = f"{random_word(10)}.venafi.example.com"
+        cert_id, pkey, cert, _, _ = enroll(self.ngts_conn, self.ngts_zone, cn)
+        fingerprint = binascii.hexlify(cert.fingerprint(hashes.SHA1())).decode()
+        rev_request = RevocationRequest(thumbprint=fingerprint)
+        try:
+            result = self.ngts_conn.revoke_cert(rev_request)
+        except CertificateRevokeError as e:
+            # The whole request path (GraphQL revokeCertificate via the CA-operations service) is
+            # exercised end-to-end here. A tenant whose zone uses only the built-in CA gets back
+            # "revocation is not supported for CA type BUILTIN_CA" from the backend - skip the
+            # success assertion in that case (it needs a zone backed by a revocation-capable CA).
+            if "not supported for CA type" in str(e) or "BUILTIN" in str(e).upper():
+                self.skipTest(f"zone CA does not support revocation: {e}")
+            raise
+        self.assertIsNotNone(result)
+        self.assertIn("status", result)
 
     def test_ngts_read_zone_config(self):
         zone = self.ngts_conn.read_zone_conf(self.ngts_zone)
