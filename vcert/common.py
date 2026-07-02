@@ -580,16 +580,23 @@ class RevocationRequest:
         cessation_of_operation = 5  # OriginalUseNoLongerValid
 
     def __init__(self, req_id=None, thumbprint=None,  reason=RevocationReasons.NoReason,
-                 comments="Revoked via api with python bindings", disable=True):
+                 comments="Revoked via api with python bindings", disable=True, ca_account_name=None):
         """
         :param req_id:
         :param thumbprint:
+        :param reason:
+        :param comments:
+        :param disable: TPP-only; consumed by TPP revoke. Cloud/NGTS revoke ignores it (Go parity).
+        :param ca_account_name: Cloud/NGTS only. Optional CA-account name to target for revocation;
+            resolved to a CA-account id via GraphQL. Leave unset (the common case) for certificates
+            issued by CM SaaS itself, where the id stays null.
         """
         self.id = req_id
         self.thumbprint = thumbprint
         self.reason = reason
         self.comments = comments
         self.disable = disable
+        self.ca_account_name = ca_account_name
 
 
 class RetireRequest:

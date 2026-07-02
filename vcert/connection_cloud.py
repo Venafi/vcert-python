@@ -21,11 +21,11 @@ import requests
 import urllib.parse as urlparse
 from nacl.public import SealedBox
 
-from .common import (ZoneConfig, CertificateRequest, CommonConnection, Policy, get_ip_address, log_errors, MIME_JSON,
-                     MIME_TEXT, MIME_ANY, CertField, KeyType, DEFAULT_TIMEOUT,
+from .common import (ZoneConfig, CertificateRequest, CommonConnection, Policy, RevocationRequest, get_ip_address,
+                     log_errors, MIME_JSON, MIME_TEXT, MIME_ANY, CertField, KeyType, DEFAULT_TIMEOUT,
                      CSR_ORIGIN_SERVICE, CHAIN_OPTION_FIRST, CHAIN_OPTION_LAST)
 from .errors import (VenafiConnectionError, ServerUnexptedBehavior, ClientBadData, CertificateRequestError,
-                     CertificateRenewError, VenafiError, RetrieveCertificateTimeoutError)
+                     CertificateRenewError, CertificateRevokeError, VenafiError, RetrieveCertificateTimeoutError)
 from .http_status import HTTPStatus
 from .logger import get_child
 from .pem import parse_pem, Certificate
@@ -59,6 +59,47 @@ CSR_ATTR_KEY_LENGTH = 'keyLength'
 CSR_ATTR_KEY_CURVE = 'keyCurve'
 OWNER_TYPE_USER = "USER"
 OWNER_TYPE_TEAM = "TEAM"
+
+# -- GraphQL certificate revocation (Cloud / NGTS) -------------------------------------------
+# Cloud and NGTS revoke a certificate through a GraphQL CA-operations mutation; there is no REST
+# revoke endpoint. The Go reference does the same (vcert/pkg/webclient/caoperations). These
+# constants replicate that wire contract so it can be POSTed as raw JSON via the existing _post
+# helper -- no GraphQL client dependency is introduced.
+URL_GRAPHQL = "graphql"  # base_url is trailing-slash normalized, so base + "graphql"
+
+# Python RevocationRequest.RevocationReasons (int) -> GraphQL RevocationReason enum string.
+# Mirrors Go's RevocationReasonsMap (pkg/venafi/{cloud,ngts}/cloud.go). ca_compromise (2) is
+# intentionally absent: it has no GraphQL enum (ca-compromise is TPP-only in Go), so it is
+# rejected rather than silently mismapped. Keys are the bare ints 0,1,3,4,5 (RevocationReasons
+# attributes are plain ints), so an int reason hash-matches the map directly.
+REVOCATION_REASON_MAP = {
+    RevocationRequest.RevocationReasons.NoReason:               "UNSPECIFIED",
+    RevocationRequest.RevocationReasons.key_compromise:         "KEY_COMPROMISE",
+    RevocationRequest.RevocationReasons.affiliation_changed:    "AFFILIATION_CHANGED",
+    RevocationRequest.RevocationReasons.superseded:             "SUPERSEDED",
+    RevocationRequest.RevocationReasons.cessation_of_operation: "CESSATION_OF_OPERATION",
+}
+
+# Verbatim from vcert/pkg/webclient/caoperations/genqlient.graphql (whitespace is irrelevant to
+# the server). operationName must match the mutation name.
+REVOKE_CERTIFICATE_MUTATION = """\
+mutation RevokeCertificateRequest($fingerprint: ID!, $certificateAuthorityAccountId: UUID, $revocationReason: RevocationReason!, $revocationComment: String) {
+  revokeCertificate(fingerprint: $fingerprint, certificateAuthorityAccountId: $certificateAuthorityAccountId, revocationReason: $revocationReason, revocationComment: $revocationComment) {
+    id
+    fingerprint
+    revocation { status error { arguments code message } approvalDetails { rejectionReason } }
+    serialNumber
+  }
+}
+"""
+
+# From vcert/pkg/webclient/caaccounts: resolve a CA-account name to its id for the optional
+# certificateAuthorityAccountId revocation variable.
+LIST_CA_ACCOUNTS_QUERY = """\
+query ListCAAccounts {
+  certificateAuthorityAccounts { nodes { id name certificateAuthorityType } }
+}
+"""
 
 log = get_child("connection-vaas")
 
@@ -479,9 +520,126 @@ class CloudConnection(CommonConnection):
         else:
             raise ServerUnexptedBehavior
 
+    def _graphql(self, query, variables, operation_name):
+        """
+        POST a GraphQL operation as raw JSON and return its parsed ``data`` object.
+
+        Reuses the connector's own ``_post`` (so Cloud sends the ``tppl-api-key`` header and NGTS,
+        via its override, sends ``Authorization: Bearer`` with a fresh token) against the
+        ``<base_url>graphql`` endpoint. ``_post`` funnels through
+        ``CommonConnection.process_server_response``, which RAISES ``VenafiConnectionError`` for any
+        status outside {200, 201, 202, 409} before control returns here -- so a 4xx/5xx GraphQL
+        response surfaces as that error, which we rewrap to ``CertificateRevokeError``. The only
+        statuses that reach this method are 200/201/202/409. GraphQL also reports failures as a
+        top-level ``errors`` array on an HTTP 200, so that is checked explicitly.
+
+        :param str query: the GraphQL document
+        :param dict variables: the operation variables (nullable ones may be ``None``)
+        :param str operation_name: the operation name (must match the document)
+        :rtype: dict
+        """
+        body = {"operationName": operation_name, "query": query, "variables": variables}
+        try:
+            status, data = self._post(URL_GRAPHQL, body)
+        except VenafiConnectionError as e:
+            log.error(f"GraphQL {operation_name} failed at transport layer: {e}")
+            raise CertificateRevokeError(f"GraphQL {operation_name} transport error: {e}")
+        if status == HTTPStatus.CONFLICT:
+            raise CertificateRevokeError(f"GraphQL {operation_name} returned 409 CONFLICT: {data}")
+        if not isinstance(data, dict):
+            raise ServerUnexptedBehavior(f"GraphQL {operation_name} response was not a JSON object")
+        if data.get("errors"):
+            raise CertificateRevokeError(f"GraphQL {operation_name} errors: {data['errors']}")
+        return data.get("data")
+
     def revoke_cert(self, request):
-        # not supported in Venafi Cloud
-        raise NotImplementedError
+        """
+        Revoke a certificate via the GraphQL CA-operations ``revokeCertificate`` mutation.
+
+        Cloud/NGTS revoke is keyed by the certificate's SHA-1 thumbprint. Unlike TPP revoke (which
+        accepts an id or a thumbprint and honors ``disable``), it requires a thumbprint and ignores
+        ``request.disable`` -- matching the Go reference. ``request.reason`` maps to the GraphQL
+        ``RevocationReason`` enum; ``ca_compromise`` has no enum and is rejected.
+
+        :param RevocationRequest request:
+        :rtype: dict
+        """
+        # 1. thumbprint is mandatory (Go parity); unlike TPP, an id alone is not accepted. Normalize
+        #    to uppercase hex: Go's producer computes the fingerprint as ToUpper(hex(sha1(DER))), so
+        #    the backend's `fingerprint` ID is uppercase.
+        if not request.thumbprint:
+            log.error("certificate fingerprint (thumbprint) is required to revoke")
+            raise ClientBadData("certificate fingerprint(thumbprint) is required")
+        fingerprint = request.thumbprint.upper()
+
+        # 2. disable is a TPP-only field; Cloud/NGTS ignore it. Log when a non-default value is set
+        #    so the no-op is not silent.
+        if getattr(request, "disable", True) is not True:
+            log.debug("request.disable is ignored by Cloud/NGTS revoke (TPP-only field); no-op here")
+
+        # 3. map the reason to the GraphQL enum; ca_compromise / unknown -> ClientBadData.
+        try:
+            revocation_reason = REVOCATION_REASON_MAP[request.reason]
+        except (KeyError, TypeError):
+            log.error(f"unsupported revocation reason: {request.reason!r}")
+            raise ClientBadData(f"unsupported revocation reason: {request.reason!r}")
+
+        # 4. optional CA-account name -> id. Null by default (the common case: certs issued by CM
+        #    SaaS itself); a name is resolved to an id via ListCAAccounts.
+        ca_account_id = None
+        ca_account_name = getattr(request, "ca_account_name", None)
+        if ca_account_name:
+            ca_data = self._graphql(LIST_CA_ACCOUNTS_QUERY, {}, "ListCAAccounts")
+            accounts = (ca_data or {}).get("certificateAuthorityAccounts") or {}
+            nodes = accounts.get("nodes") or []
+            match = next((n for n in nodes if n.get("name") == ca_account_name), None)
+            if match is None:
+                raise VenafiError(f"failed to find CA account {ca_account_name!r}")
+            ca_account_id = match.get("id")
+
+        # 5. comment: send null when empty (matches Go).
+        comment = request.comments if request.comments else None
+
+        variables = {
+            "fingerprint": fingerprint,
+            "certificateAuthorityAccountId": ca_account_id,
+            "revocationReason": revocation_reason,
+            "revocationComment": comment,
+        }
+        data = self._graphql(REVOKE_CERTIFICATE_MUTATION, variables, "RevokeCertificateRequest")
+
+        # 6. interpret the response (error-first), mirroring Go cloud/connector.go.
+        result = (data or {}).get("revokeCertificate")
+        if result is None:
+            raise ServerUnexptedBehavior("revoke certificate response is empty")
+        revocation = result.get("revocation")
+        if revocation is None:
+            raise ServerUnexptedBehavior("revocation object in revoke certificate response is empty")
+
+        err = revocation.get("error")
+        if err is not None:
+            raise CertificateRevokeError(
+                f"revocation failed for {result.get('id')}/{result.get('fingerprint')}: "
+                f"{err.get('message')} (code={err.get('code')}, arguments={err.get('arguments')})"
+            )
+
+        status_value = revocation.get("status")
+        if status_value == "FAILED":
+            raise CertificateRevokeError(
+                f"revocation FAILED for {result.get('id')}/{result.get('fingerprint')}")
+
+        rejection_reason = None
+        approval = revocation.get("approvalDetails")
+        if approval is not None and approval.get("rejectionReason") is not None:
+            rejection_reason = approval.get("rejectionReason")
+
+        return {
+            "id": result.get("id"),
+            "thumbprint": result.get("fingerprint"),
+            "serial": result.get("serialNumber"),
+            "status": status_value,
+            "rejection_reason": rejection_reason,
+        }
 
     def retire_cert(self, request):
         cert_id = None

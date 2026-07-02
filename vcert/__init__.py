@@ -21,7 +21,7 @@ from .connection_ngts import NGTSConnection
 from .connection_tpp import TPPConnection
 from .connection_tpp_token import TPPTokenConnection
 from .connection_fake import FakeConnection
-from .errors import VenafiError
+from .errors import VenafiError, CertificateRevokeError
 from .logger import setup_logger, get_logger, get_child
 from .pem import Certificate
 from .ssh_utils import SSHCertRequest, SSHKeyPair, write_ssh_files, SSHCATemplateRequest, SSHConfig
