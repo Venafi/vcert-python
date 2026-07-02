@@ -31,7 +31,7 @@ from test_utils import random_word, enroll, renew, renew_by_thumbprint, renew_wi
     get_vaas_zone
 from vcert import CloudConnection, KeyType, CertificateRequest, CustomField, logger, CSR_ORIGIN_SERVICE
 from vcert.policy import KeyPair, DefaultKeyPair, PolicySpecification
-from vcert.common import RetireRequest
+from vcert.common import RetireRequest, RevocationRequest
 
 log = logger.get_child("test-vaas")
 
@@ -213,3 +213,15 @@ class TestVaaSMethods(unittest.TestCase):
             assert ret_data is True
         except Exception as e:
             log.error(msg=f"Error retiring certificate by thumbprint: {e.message}")
+
+    def test_cloud_revoke_by_thumbprint(self):
+        # Cryptographic revocation via the GraphQL CA-operations mutation (thumbprint-keyed).
+        # revoke_cert uppercases the thumbprint internally, so a lowercase hexlify is fine here.
+        req, cert = simple_enroll(self.cloud_conn, self.cloud_zone)
+        cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
+        fingerprint = binascii.hexlify(cert.fingerprint(hashes.SHA1())).decode()
+        time.sleep(1)
+        rev_request = RevocationRequest(thumbprint=fingerprint)
+        result = self.cloud_conn.revoke_cert(rev_request)
+        self.assertIsNotNone(result)
+        self.assertIn("status", result)

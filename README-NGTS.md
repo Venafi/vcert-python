@@ -31,6 +31,7 @@ enrollment. This guide covers using it against **Palo Alto Networks Next-Gen Tru
   - [Connect with a pre-issued access token](#connect-with-a-pre-issued-access-token)
   - [Request and retrieve a certificate](#request-and-retrieve-a-certificate)
   - [Renew a certificate](#renew-a-certificate)
+  - [Revoke a certificate](#revoke-a-certificate)
 
 ## Prerequisites
 
@@ -195,6 +196,34 @@ request = CertificateRequest(cert_id="{7428fac3-d0e8-4679-9f48-d9e867a326ca}")
 conn.renew_cert(request)
 cert = conn.retrieve_cert(request)
 ```
+
+### Revoke a certificate
+
+NGTS (and Cloud) revocation is keyed by the certificate's **SHA-1 thumbprint** and goes through the
+GraphQL CA-operations service. This differs from TPP revoke in three ways: an enrollment id alone is
+**not** accepted (a thumbprint is required), the `disable` flag is **ignored**, and `ca_compromise`
+is **not** a valid reason (it has no NGTS mapping). Valid reasons are `NoReason` (the default,
+"unspecified"), `key_compromise`, `affiliation_changed`, `superseded`, and `cessation_of_operation`.
+
+```python
+import binascii
+from cryptography.hazmat.primitives import hashes
+
+from vcert import RevocationRequest
+
+# `cert` is the issued certificate as a cryptography x509 object (e.g. parsed from retrieve_cert).
+thumbprint = binascii.hexlify(cert.fingerprint(hashes.SHA1())).decode()
+
+request = RevocationRequest(thumbprint=thumbprint,
+                           reason=RevocationRequest.RevocationReasons.key_compromise)
+result = conn.revoke_cert(request)
+print(result["status"])   # e.g. SUBMITTED / PENDING_APPROVAL
+```
+
+> `revoke_cert` revokes the certificate at the CA (CRL/OCSP). To instead withdraw the certificate
+> record from the inventory (lifecycle housekeeping, not CA revocation), use `retire_cert`. Set
+> `ca_account_name=` on the `RevocationRequest` only when the certificate was issued by an external
+> CA that requires it; for certificates issued by CM SaaS itself, leave it unset (the id stays null).
 
 ---
 

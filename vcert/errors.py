@@ -43,6 +43,11 @@ class CertificateRenewError(ServerUnexptedBehavior):
     pass
 
 
+class CertificateRevokeError(ServerUnexptedBehavior):
+    """Raised when the backend reports a certificate revocation failure."""
+    pass
+
+
 class AuthenticationError(VenafiError):
     pass
 
