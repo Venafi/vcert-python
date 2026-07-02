@@ -18,9 +18,8 @@ import re
 import time
 
 import requests
-import six.moves.urllib.parse as urlparse
+import urllib.parse as urlparse
 from nacl.public import SealedBox
-from six import string_types
 
 from .common import (ZoneConfig, CertificateRequest, CommonConnection, Policy, get_ip_address, log_errors, MIME_JSON,
                      MIME_TEXT, MIME_ANY, CertField, KeyType, DEFAULT_TIMEOUT,
@@ -934,7 +933,7 @@ class CloudConnection(CommonConnection):
             csr_attr_map[CSR_ATTR_ORG] = ps.defaults.subject.org
 
         if request.organizational_unit:
-            if isinstance(request.organizational_unit, string_types):
+            if isinstance(request.organizational_unit, str):
                 org_units = [request.organizational_unit]
             else:
                 org_units = request.organizational_unit

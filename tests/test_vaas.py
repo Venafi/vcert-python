@@ -17,7 +17,7 @@
 import binascii
 import time
 import unittest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -123,14 +123,14 @@ class TestVaaSMethods(unittest.TestCase):
         ]
         request.custom_fields = custom_fields
         request.validity_hours = 144
-        expected_date = datetime.utcnow() + timedelta(hours=request.validity_hours)
+        expected_date = datetime.now(timezone.utc) + timedelta(hours=request.validity_hours)
 
         self.cloud_conn.request_cert(request, self.cloud_zone)
         cert = self.cloud_conn.retrieve_cert(request)
 
         cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
         assert isinstance(cert, x509.Certificate)
-        expiration_date = cert.not_valid_after
+        expiration_date = cert.not_valid_after_utc
         # Due to some roundings and delays in operations on the server side, the certificate expiration date
         # is not exactly the same as the one used in the request. A gap is allowed in this scenario to compensate
         # this delays and roundings.
@@ -196,7 +196,7 @@ class TestVaaSMethods(unittest.TestCase):
             p_key = serialization.load_pem_private_key(data=cert.key.encode(), password=password.encode(),
                                                        backend=default_backend())
         except Exception as e:
-            log.error(msg=f"Error parsing Private Key: {e.message}")
+            log.error(msg=f"Error parsing Private Key: {str(e)}")
 
         if p_key:
             self.assertIsInstance(p_key, EllipticCurvePrivateKey, "returned private key is not of type Elliptic Curve")
@@ -212,4 +212,4 @@ class TestVaaSMethods(unittest.TestCase):
             ret_data = self.cloud_conn.retire_cert(ret_request)
             assert ret_data is True
         except Exception as e:
-            log.error(msg=f"Error retiring certificate by thumbprint: {e.message}")
+            log.error(msg=f"Error retiring certificate by thumbprint: {str(e)}")
