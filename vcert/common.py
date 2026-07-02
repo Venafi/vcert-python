@@ -42,13 +42,25 @@ MIME_CSV = 'text/csv'
 MIME_ANY = '*/*'
 MIME_OCTET_STREAM = 'application/octet-stream'
 LOCALHOST = '127.0.0.1'
-DEFAULT_TIMEOUT = 180
+DEFAULT_TIMEOUT = 30  # DEBUG BRANCH ONLY: reduced from 180s to capture all test failures within Jenkins 2hr limit
 CSR_ORIGIN_PROVIDED = 'provided'
 CSR_ORIGIN_LOCAL = 'local'
 CSR_ORIGIN_SERVICE = 'service'
 CHAIN_OPTION_FIRST = 'first'
 CHAIN_OPTION_LAST = 'last'
 CHAIN_OPTION_IGNORE = 'ignore'
+
+SENSITIVE_KEYS = frozenset({
+    'Authorization', 'password', 'Password', 'refresh_token',
+    'client_secret', 'PrivateKeyPassphrase', 'access_token',
+    'api_key', 'Username', 'username', 'token', 'tppl-api-key',
+})
+
+
+def _mask_dict(data):
+    if not isinstance(data, dict):
+        return data
+    return {k: ('***' if k in SENSITIVE_KEYS else v) for k, v in data.items()}
 
 
 class Scope(Enum):
@@ -735,6 +747,16 @@ class CommonConnection:
         :param requests.Response r:
         :rtype: str or dict
         """
+        try:
+            elapsed = f"{r.elapsed.total_seconds():.2f}s"
+        except (TypeError, AttributeError):
+            elapsed = "?s"
+        log.debug(
+            f"← {r.request.method} {r.request.url} "
+            f"→ HTTP {r.status_code} ({elapsed})\n"
+            f"  Response headers: {dict(r.headers)}\n"
+            f"  Response body: {r.text[:2000] if r.text else '(empty)'}"
+        )
         if r.status_code not in (HTTPStatus.OK, HTTPStatus.ACCEPTED, HTTPStatus.CREATED, HTTPStatus.CONFLICT):
             try:
                 log_errors(r.json())

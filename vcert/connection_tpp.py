@@ -19,7 +19,7 @@ import time
 
 import requests
 
-from .common import MIME_JSON
+from .common import MIME_JSON, _mask_dict
 from .connection_tpp_abstract import AbstractTPPConnection, URLS
 from .errors import (ServerUnexptedBehavior, ClientBadData, AuthenticationError)
 from .http_status import HTTPStatus
@@ -95,10 +95,10 @@ class TPPConnection(AbstractTPPConnection):
             self.auth()
             log.debug(f"Token is [REDACTED], timeout is {self._token[1]}")
 
+        headers = {TOKEN_HEADER_NAME: self._token[0], 'content-type': MIME_JSON, 'cache-control': 'no-cache'}
+        log.debug(f"→ GET {self._base_url}{url}\n  Headers: {_mask_dict(headers)}")
         r = requests.get(f"{self._base_url}{url}",
-                         headers={TOKEN_HEADER_NAME: self._token[0],
-                                  'content-type': MIME_JSON,
-                                  'cache-control': 'no-cache'},
+                         headers=headers,
                          params=params,
                          **self._http_request_kwargs)  # nosec B113
         return self.process_server_response(r)
@@ -109,10 +109,10 @@ class TPPConnection(AbstractTPPConnection):
             log.debug(f"Token is [REDACTED], timeout is {self._token[1]}")
 
         if isinstance(data, dict):
+            headers = {TOKEN_HEADER_NAME: self._token[0], 'content-type': MIME_JSON, 'cache-control': "no-cache"}
+            log.debug(f"→ POST {self._base_url}{url}\n  Headers: {_mask_dict(headers)}\n  Body: {_mask_dict(data)}")
             r = requests.post(f"{self._base_url}{url}",
-                              headers={TOKEN_HEADER_NAME: self._token[0],
-                                       'content-type': MIME_JSON,
-                                       'cache-control': "no-cache"},
+                              headers=headers,
                               json=data,
                               **self._http_request_kwargs)  # nosec B113
         else:
@@ -126,10 +126,10 @@ class TPPConnection(AbstractTPPConnection):
             log.debug(f"Token is [REDACTED], timeout is {self._token[1]}")
 
         if isinstance(data, dict):
+            headers = {TOKEN_HEADER_NAME: self._token[0], 'content-type': MIME_JSON, 'cache-control': "no-cache"}
+            log.debug(f"→ PUT {self._base_url}{url}\n  Headers: {_mask_dict(headers)}\n  Body: {_mask_dict(data)}")
             r = requests.put(f"{self._base_url}{url}",
-                              headers={TOKEN_HEADER_NAME: self._token[0],
-                                       'content-type': MIME_JSON,
-                                       'cache-control': "no-cache"},
+                              headers=headers,
                               json=data,
                               **self._http_request_kwargs)  # nosec B113
         else:

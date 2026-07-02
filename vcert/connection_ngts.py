@@ -20,7 +20,7 @@ from urllib.parse import urlsplit
 import requests
 
 from .common import (ZoneConfig, CertField, CertificateRequest, KeyType, get_ip_address, MIME_JSON, MIME_ANY,
-                     CSR_ORIGIN_SERVICE)
+                     CSR_ORIGIN_SERVICE, _mask_dict)
 from .connection_cloud import CloudConnection, URLS, APPLICATION_SERVER_TYPE_ID
 from .errors import (VenafiConnectionError, ServerUnexptedBehavior, ClientBadData, CertificateRequestError,
                      CertificateRenewError, VenafiError)
@@ -281,6 +281,7 @@ class NGTSConnection(CloudConnection):
     def _get(self, url, params=None):
         self._ensure_token()
         headers = self._auth_headers(MIME_ANY)
+        log.debug(f"→ GET {self._base_url + url}\n  Headers: {_mask_dict(headers)}")
         r = requests.get(self._base_url + url, params=params, headers=headers,
                          **self._http_request_kwargs)  # nosec B113
         return self.process_server_response(r)
@@ -289,6 +290,7 @@ class NGTSConnection(CloudConnection):
         self._ensure_token()
         headers = self._auth_headers(MIME_JSON)
         if isinstance(data, dict):
+            log.debug(f"→ POST {self._base_url + url}\n  Headers: {_mask_dict(headers)}\n  Body: {_mask_dict(data)}")
             r = requests.post(self._base_url + url, json=data, headers=headers,
                               **self._http_request_kwargs)  # nosec B113
         else:
@@ -300,6 +302,7 @@ class NGTSConnection(CloudConnection):
         self._ensure_token()
         headers = self._auth_headers(MIME_JSON)
         if isinstance(data, dict):
+            log.debug(f"→ PUT {self._base_url + url}\n  Headers: {_mask_dict(headers)}\n  Body: {_mask_dict(data)}")
             r = requests.put(self._base_url + url, json=data, headers=headers,
                              **self._http_request_kwargs)  # nosec B113
         else:

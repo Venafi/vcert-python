@@ -8,4 +8,4 @@ bandit -r vcert/
 
 pip-audit -r requirements-build.txt || true
 
-pytest -v --junit-xml=junit.xml --junit-prefix=`python -V | tr ' ' '_'` --cov=vcert --cov=vcert.parser --cov=vcert.policy --cov-report term --cov-report xml
+pytest -v -s --log-cli-level=DEBUG --junit-xml=junit.xml --junit-prefix=`python -V | tr ' ' '_'` --cov=vcert --cov=vcert.parser --cov=vcert.policy --cov-report term --cov-report xml

@@ -19,7 +19,7 @@ import time
 
 import requests
 
-from .common import MIME_JSON, TokenInfo, Authentication
+from .common import MIME_JSON, TokenInfo, Authentication, _mask_dict
 from .connection_tpp_abstract import AbstractTPPConnection, URLS
 from .errors import (ClientBadData, ServerUnexptedBehavior, AuthenticationError)
 from .http_status import HTTPStatus
@@ -113,6 +113,7 @@ class TPPTokenConnection(AbstractTPPConnection):
             token = self._get_auth_header_value(self._auth.access_token)
             headers[HEADER_AUTHORIZATION] = token
 
+        log.debug(f"→ GET {self._base_url + url}\n  Headers: {_mask_dict(headers)}")
         r = requests.get(self._base_url + url, headers=headers, params=params, **self._http_request_kwargs)  # nosec B113
         return self.process_server_response(r)
 
@@ -129,9 +130,7 @@ class TPPTokenConnection(AbstractTPPConnection):
             headers[HEADER_AUTHORIZATION] = token
 
         if isinstance(data, dict):
-            safe_headers = {k: ('***' if k == HEADER_AUTHORIZATION else v) for k, v in headers.items()}
-            safe_data = {k: ('***' if k in ('password', 'Password', 'refresh_token', 'client_secret', 'PrivateKeyPassphrase') else v) for k, v in data.items()}
-            log.debug(f"POST Request\n\tURL: {self._base_url+url}\n\tHeaders:{safe_headers}\n\tBody:{safe_data}\n")
+            log.debug(f"→ POST {self._base_url + url}\n  Headers: {_mask_dict(headers)}\n  Body: {_mask_dict(data)}")
             r = requests.post(self._base_url + url, headers=headers, json=data,  **self._http_request_kwargs)  # nosec B113
         else:
             log.error(f"Unexpected client data type: {type(data)} for {url}")
@@ -151,9 +150,7 @@ class TPPTokenConnection(AbstractTPPConnection):
             headers[HEADER_AUTHORIZATION] = token
 
         if isinstance(data, dict):
-            safe_headers = {k: ('***' if k == HEADER_AUTHORIZATION else v) for k, v in headers.items()}
-            safe_data = {k: ('***' if k in ('password', 'Password', 'refresh_token', 'client_secret', 'PrivateKeyPassphrase') else v) for k, v in data.items()}
-            log.debug(f"POST Request\n\tURL: {self._base_url + url}\n\tHeaders:{safe_headers}\n\tBody:{safe_data}\n")
+            log.debug(f"→ PUT {self._base_url + url}\n  Headers: {_mask_dict(headers)}\n  Body: {_mask_dict(data)}")
             r = requests.put(self._base_url + url, headers=headers, json=data,
                               **self._http_request_kwargs)  # nosec B113
         else:

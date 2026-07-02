@@ -23,7 +23,7 @@ from nacl.public import SealedBox
 
 from .common import (ZoneConfig, CertificateRequest, CommonConnection, Policy, get_ip_address, log_errors, MIME_JSON,
                      MIME_TEXT, MIME_ANY, CertField, KeyType, DEFAULT_TIMEOUT,
-                     CSR_ORIGIN_SERVICE, CHAIN_OPTION_FIRST, CHAIN_OPTION_LAST)
+                     CSR_ORIGIN_SERVICE, CHAIN_OPTION_FIRST, CHAIN_OPTION_LAST, _mask_dict)
 from .errors import (VenafiConnectionError, ServerUnexptedBehavior, ClientBadData, CertificateRequestError,
                      CertificateRenewError, VenafiError, RetrieveCertificateTimeoutError)
 from .http_status import HTTPStatus
@@ -172,6 +172,7 @@ class CloudConnection(CommonConnection):
             'accept': MIME_ANY,
             'cache-control': "no-cache"
         }
+        log.debug(f"→ GET {self._base_url + url}\n  Headers: {_mask_dict(headers)}")
         r = requests.get(self._base_url + url, params=params, headers=headers, **self._http_request_kwargs)  # nosec B113
         return self.process_server_response(r)
 
@@ -188,6 +189,7 @@ class CloudConnection(CommonConnection):
             'cache-control': "no-cache"
         }
         if isinstance(data, dict):
+            log.debug(f"→ POST {self._base_url + url}\n  Headers: {_mask_dict(headers)}\n  Body: {_mask_dict(data)}")
             r = requests.post(self._base_url + url, json=data, headers=headers, **self._http_request_kwargs)  # nosec B113
         else:
             log.error(f"Unexpected client data type: {type(data)} for {url}")
@@ -207,6 +209,7 @@ class CloudConnection(CommonConnection):
             'accept': MIME_JSON
         }
         if isinstance(data, dict):
+            log.debug(f"→ PUT {self._base_url + url}\n  Headers: {_mask_dict(headers)}\n  Body: {_mask_dict(data)}")
             r = requests.put(self._base_url + url, json=data, headers=headers, **self._http_request_kwargs)  # nosec B113
         else:
             log.error(f"Unexpected client data type: {type(data)} for {url}")
