@@ -82,6 +82,7 @@ class TestTPPTokenSSHCertificate(unittest.TestCase):
         log.debug(f"{TPP_SSH_CADN} default principals: {ssh_config.ca_principals}")
 
 
+@unittest.skip("TPPConnection uses API key auth (/vedsdk/authorize/) which is not supported on TPP 22.2+. Use TPPTokenConnection instead.")
 class TestTPPSSHCertificate(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         self.tpp_conn = TPPConnection(TPP_USER, TPP_PASSWORD, TPP_URL, http_request_kwargs={'verify': "/tmp/chain.pem"})

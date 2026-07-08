@@ -41,6 +41,7 @@ class TestFakeMethods(unittest.TestCase):
         enroll(conn, zone, cn)
 
 
+@unittest.skip("TPPConnection uses API key auth (/vedsdk/authorize/) which is not supported on TPP 22.2+. Use TPPTokenConnection instead.")
 class TestTPPMethods(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         self.tpp_zone = TPP_ZONE
