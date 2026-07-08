@@ -74,14 +74,14 @@ class TestTPPTokenMethods(unittest.TestCase):
             cert_config = self.tpp_conn._get_certificate_details(cert_guid)
             self.assertEqual(cert_config['Origin'], "Venafi VCert-Python")
         except Exception as err:
-            self.fail(f"Error in test: {err.__str__}")
+            self.fail(f"Error in test: {str(err)}")
 
     def test_tpp_token_enroll_origin(self):
         cn = f"{random_word(10)}.venafi.example.com"
         try:
             cert_id, pkey, cert, _, _ = enroll(self.tpp_conn, self.tpp_zone, cn)
         except Exception as err:
-            self.fail(f"Error in test: {err.__str__()}")
+            self.fail(f"Error in test: {str(err)}")
 
     def test_tpp_token_renew(self):
         cn = f"{random_word(10)}.venafi.example.com"
@@ -242,7 +242,7 @@ class TestTPPTokenMethods(unittest.TestCase):
         except ClientBadData:
             self.fail("Error in Test Data")
         except ServerUnexptedBehavior as sub:
-            self.fail(f"Error from server: {sub.__str__()}")
+            self.fail(f"Error from server: {str(sub)}")
 
     def test_refresh_access_token(self):
         try:
@@ -255,7 +255,7 @@ class TestTPPTokenMethods(unittest.TestCase):
         except ClientBadData:
             self.fail("Error in Test Data")
         except ServerUnexptedBehavior as sub:
-            self.fail(f"Error from server: {sub.__str__()}")
+            self.fail(f"Error from server: {str(sub)}")
 
     def test_revoke_access_token(self):
         try:
@@ -263,7 +263,7 @@ class TestTPPTokenMethods(unittest.TestCase):
             status, resp = self.tpp_conn.revoke_access_token()
             self.assertEqual(status, 200)
         except Exception as err:
-            self.fail(f"Error happened: {err.__str__()}")
+            self.fail(f"Error happened: {str(err)}")
 
         cn = f"{random_word(10)}.venafi.example.com"
         with self.assertRaises(Exception):
