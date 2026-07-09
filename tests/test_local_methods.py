@@ -24,11 +24,13 @@ from cryptography.hazmat.backends import default_backend
 
 from assets import POLICY_CLOUD1, POLICY_TPP1, EXAMPLE_CSR, EXAMPLE_CHAIN
 from vcert import (CloudConnection, KeyType, TPPConnection, CertificateRequest, ZoneConfig, CertField, FakeConnection,
-                   NGTSConnection, logger)
+                   NGTSConnection, RevocationRequest, logger)
 from vcert.connection_cloud import URLS
 from vcert.connection_ngts import (_parse_ngts_zone, DEFAULT_API_URL, DEFAULT_TOKEN_URL,
                                    TRUSTED_TOKEN_HOST_SUFFIX)
-from vcert.errors import ClientBadData, ServerUnexptedBehavior, VenafiError
+from vcert.errors import (ClientBadData, ServerUnexptedBehavior, VenafiError, VenafiConnectionError,
+                          CertificateRevokeError)
+from vcert.http_status import HTTPStatus
 from vcert.pem import parse_pem, Certificate
 from vcert.policy.pm_cloud import CertificateAuthorityDetails, CertificateAuthorityInfo
 from vcert.policy.policy_spec import DEFAULT_CA, Policy, PolicySpecification
@@ -627,3 +629,161 @@ class TestLocalMethods(unittest.TestCase):
         with mock.patch.object(conn, '_get_cit', return_value=None):
             with self.assertRaises(VenafiError):
                 conn.get_policy("does-not-exist")
+
+    # -- Cloud / NGTS revoke (offline) --------------------------------------------------------
+    #
+    # Cloud and NGTS revoke via the GraphQL CA-operations `revokeCertificate` mutation (no REST
+    # endpoint). `revoke_cert` + `_graphql` live on CloudConnection; NGTS inherits them unchanged
+    # and only differs in transport (Bearer auth + strata host), which the boundary tests pin.
+    # The logic tests patch `_graphql`/`_post`; the boundary tests patch `requests.post`.
+
+    @staticmethod
+    def _cloud_conn(**kwargs):
+        defaults = dict(token="apikey", url="https://api.venafi.cloud/")
+        defaults.update(kwargs)
+        return CloudConnection(**defaults)
+
+    @staticmethod
+    def _revoke_data(status="SUBMITTED", error=None, approval=None, fingerprint="AABB", cid="cid", serial="01"):
+        # The inner `data` object _graphql returns (after unwrapping the GraphQL envelope).
+        return {
+            "revokeCertificate": {
+                "id": cid,
+                "fingerprint": fingerprint,
+                "serialNumber": serial,
+                "revocation": {"status": status, "error": error, "approvalDetails": approval},
+            }
+        }
+
+    def test_revoke_requires_thumbprint(self):
+        conn = self._cloud_conn()
+        with self.assertRaises(ClientBadData):
+            conn.revoke_cert(RevocationRequest())
+
+    def test_revoke_rejects_ca_compromise_reason(self):
+        # ca_compromise has no GraphQL enum (TPP-only in Go) -> rejected, not silently mismapped.
+        conn = self._cloud_conn()
+        req = RevocationRequest(thumbprint="AABB", reason=RevocationRequest.RevocationReasons.ca_compromise)
+        with self.assertRaises(ClientBadData):
+            conn.revoke_cert(req)
+
+    def test_revoke_reason_mapping(self):
+        conn = self._cloud_conn()
+        cases = {
+            RevocationRequest.RevocationReasons.NoReason: "UNSPECIFIED",
+            RevocationRequest.RevocationReasons.key_compromise: "KEY_COMPROMISE",
+            RevocationRequest.RevocationReasons.affiliation_changed: "AFFILIATION_CHANGED",
+            RevocationRequest.RevocationReasons.superseded: "SUPERSEDED",
+            RevocationRequest.RevocationReasons.cessation_of_operation: "CESSATION_OF_OPERATION",
+        }
+        for reason, enum_name in cases.items():
+            with mock.patch.object(conn, '_graphql', return_value=self._revoke_data()) as gql:
+                conn.revoke_cert(RevocationRequest(thumbprint="aabb", reason=reason, comments=""))
+            variables = gql.call_args[0][1]
+            self.assertEqual(variables["revocationReason"], enum_name)
+            # all four variable keys are always present; nullable ones are None when unset.
+            self.assertEqual(set(variables), {"fingerprint", "certificateAuthorityAccountId",
+                                              "revocationReason", "revocationComment"})
+            self.assertEqual(variables["fingerprint"], "AABB")  # normalized to uppercase
+            self.assertIsNone(variables["certificateAuthorityAccountId"])
+            self.assertIsNone(variables["revocationComment"])
+
+    def test_revoke_success_returns_result(self):
+        conn = self._cloud_conn()
+        with mock.patch.object(conn, '_graphql', return_value=self._revoke_data(status="SUBMITTED")):
+            result = conn.revoke_cert(RevocationRequest(thumbprint="aabb"))
+        self.assertEqual(result["id"], "cid")
+        self.assertEqual(result["thumbprint"], "AABB")
+        self.assertEqual(result["status"], "SUBMITTED")
+        self.assertEqual(result["serial"], "01")
+        self.assertIsNone(result["rejection_reason"])
+
+    def test_revoke_surfaces_revocation_error(self):
+        conn = self._cloud_conn()
+        data = self._revoke_data(status=None, error={"message": "boom", "code": 7, "arguments": ["x"]})
+        with mock.patch.object(conn, '_graphql', return_value=data):
+            with self.assertRaises(CertificateRevokeError):
+                conn.revoke_cert(RevocationRequest(thumbprint="aabb"))
+
+    def test_revoke_failed_status(self):
+        conn = self._cloud_conn()
+        with mock.patch.object(conn, '_graphql', return_value=self._revoke_data(status="FAILED")):
+            with self.assertRaises(CertificateRevokeError):
+                conn.revoke_cert(RevocationRequest(thumbprint="aabb"))
+
+    def test_revoke_ca_account_not_found(self):
+        # A supplied CA-account name not returned by ListCAAccounts is a caller/input error:
+        # plain VenafiError, NOT CertificateRevokeError (reserved for backend/transport failures).
+        conn = self._cloud_conn()
+        req = RevocationRequest(thumbprint="aabb", ca_account_name="missing")
+        with mock.patch.object(conn, '_graphql',
+                               return_value={"certificateAuthorityAccounts": {"nodes": []}}):
+            with self.assertRaises(VenafiError) as ctx:
+                conn.revoke_cert(req)
+        self.assertNotIsInstance(ctx.exception, CertificateRevokeError)
+
+    def test_list_ca_accounts_failure(self):
+        # A transport failure of the ListCAAccounts call surfaces as CertificateRevokeError
+        # (distinct from the name-not-found VenafiError above).
+        conn = self._cloud_conn()
+        req = RevocationRequest(thumbprint="aabb", ca_account_name="acme")
+        with mock.patch.object(conn, '_post', side_effect=VenafiConnectionError("boom")):
+            with self.assertRaises(CertificateRevokeError):
+                conn.revoke_cert(req)
+
+    def test_graphql_raises_on_top_level_errors(self):
+        conn = self._cloud_conn()
+        with mock.patch.object(conn, '_post', return_value=(200, {"errors": [{"message": "bad"}]})):
+            with self.assertRaises(CertificateRevokeError):
+                conn._graphql("query {}", {}, "Op")
+
+    def test_graphql_raises_on_transport_error(self):
+        # Non-200/non-allowed statuses become VenafiConnectionError INSIDE process_server_response
+        # (before _graphql sees them); _graphql rewraps to CertificateRevokeError. Mock _post to
+        # RAISE (not return a tuple) to prove that path.
+        conn = self._cloud_conn()
+        with mock.patch.object(conn, '_post', side_effect=VenafiConnectionError("500")):
+            with self.assertRaises(CertificateRevokeError):
+                conn._graphql("query {}", {}, "Op")
+
+    def test_graphql_raises_on_conflict(self):
+        # 409 is the one non-2xx status process_server_response RETURNS (not raises), so _graphql
+        # must handle it explicitly.
+        conn = self._cloud_conn()
+        with mock.patch.object(conn, '_post', return_value=(HTTPStatus.CONFLICT, {"x": 1})):
+            with self.assertRaises(CertificateRevokeError):
+                conn._graphql("query {}", {}, "Op")
+
+    def test_cloud_revoke_post_boundary(self):
+        # Exercises the real _graphql -> _post -> process_server_response path for Cloud: asserts
+        # the graphql URL, the tppl-api-key header, and the {operationName, query, variables} body.
+        conn = self._cloud_conn()
+        fake_resp = mock.MagicMock()
+        fake_resp.status_code = 200
+        fake_resp.headers = {'content-type': 'application/json'}
+        fake_resp.json.return_value = {"data": self._revoke_data()}
+        with mock.patch('vcert.connection_cloud.requests.post', return_value=fake_resp) as post:
+            conn.revoke_cert(RevocationRequest(thumbprint="aabb"))
+        args, kwargs = post.call_args
+        self.assertEqual(args[0], "https://api.venafi.cloud/graphql")
+        self.assertEqual(kwargs['headers']['tppl-api-key'], "apikey")
+        body = kwargs['json']
+        self.assertEqual(body['operationName'], "RevokeCertificateRequest")
+        self.assertIn("revokeCertificate", body['query'])
+        self.assertEqual(set(body['variables']), {"fingerprint", "certificateAuthorityAccountId",
+                                                  "revocationReason", "revocationComment"})
+        self.assertEqual(body['variables']['fingerprint'], "AABB")
+
+    def test_ngts_revoke_post_boundary(self):
+        # The same path on NGTS proves inheritance + Bearer/strata transport with no override.
+        conn = self._ngts_conn(access_token='t', token_url=None)
+        fake_resp = mock.MagicMock()
+        fake_resp.status_code = 200
+        fake_resp.headers = {'content-type': 'application/json'}
+        fake_resp.json.return_value = {"data": self._revoke_data()}
+        with mock.patch('vcert.connection_ngts.requests.post', return_value=fake_resp) as post:
+            conn.revoke_cert(RevocationRequest(thumbprint="aabb"))
+        args, kwargs = post.call_args
+        self.assertEqual(args[0], "https://api.strata.paloaltonetworks.com/ngts/graphql")
+        self.assertEqual(kwargs['headers']['Authorization'], "Bearer t")
+        self.assertEqual(kwargs['json']['operationName'], "RevokeCertificateRequest")

@@ -2,6 +2,11 @@
 
 ## Version History
 
+#### 0.21.0
+* Added certificate revocation (`revoke_cert`) for CyberArk Certificate Manager, SaaS (Cloud/VaaS) and NGTS (Strata Cloud Manager), via the GraphQL CA-operations `revokeCertificate` mutation (keyed by SHA-1 thumbprint)
+* Cloud `revoke_cert` no longer raises `NotImplementedError`; NGTS inherits the same implementation
+* Added the public `CertificateRevokeError` exception and an optional `ca_account_name` field on `RevocationRequest`
+
 #### 0.20.0
 * Added policy management (`get_policy`/`set_policy`) for NGTS (Strata Cloud Manager), operating on the CIT-only zone
 
