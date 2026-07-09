@@ -19,10 +19,10 @@ import re
 import unittest
 
 from assets import SSH_CERT_DATA, SSH_PRIVATE_KEY, SSH_PUBLIC_KEY
-from test_env import TPP_TOKEN_URL, TPP_USER, TPP_PASSWORD, TPP_SSH_CADN, TPP_URL
+from test_env import TPP_TOKEN_URL, TPP_USER, TPP_PASSWORD, TPP_SSH_CADN
 from test_utils import timestamp
 from vcert import (CommonConnection, SSHCertRequest, TPPTokenConnection, Authentication,
-                   SCOPE_SSH, write_ssh_files, logger, venafi_connection, VenafiPlatform, TPPConnection)
+                   SCOPE_SSH, write_ssh_files, logger, venafi_connection, VenafiPlatform)
 from vcert.ssh_utils import SSHRetrieveResponse, SSHKeyPair, SSHCATemplateRequest
 
 log = logger.get_child("test-ssh")
@@ -73,20 +73,6 @@ class TestTPPTokenSSHCertificate(unittest.TestCase):
         self.assertIsNotNone(ssh_config.ca_public_key, f"{TPP_SSH_CADN} Public Key data is empty")
         self.assertIsNone(ssh_config.ca_principals, f"{TPP_SSH_CADN} default principals is not empty")
         log.debug(f"{TPP_SSH_CADN} Public Key data:\n{ssh_config.ca_public_key}")
-
-    def test_retrieve_ca_public_key_and_principals(self):
-        ssh_config = _retrieve_ssh_config(self.tpp_conn)
-        self.assertIsNotNone(ssh_config.ca_public_key, f"{TPP_SSH_CADN} Public Key data is empty")
-        self.assertIsNotNone(ssh_config.ca_principals, f"{TPP_SSH_CADN} default principals is empty")
-        log.debug(f"{TPP_SSH_CADN} Public Key data: {ssh_config.ca_public_key}")
-        log.debug(f"{TPP_SSH_CADN} default principals: {ssh_config.ca_principals}")
-
-
-@unittest.skip("TPPConnection uses API key auth (/vedsdk/authorize/) which is not supported on TPP 22.2+. Use TPPTokenConnection instead.")
-class TestTPPSSHCertificate(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        self.tpp_conn = TPPConnection(TPP_USER, TPP_PASSWORD, TPP_URL, http_request_kwargs={'verify': "/tmp/chain.pem"})
-        super(TestTPPSSHCertificate, self).__init__(*args, **kwargs)
 
     def test_retrieve_ca_public_key_and_principals(self):
         ssh_config = _retrieve_ssh_config(self.tpp_conn)
