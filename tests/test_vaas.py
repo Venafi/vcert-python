@@ -214,6 +214,7 @@ class TestVaaSMethods(unittest.TestCase):
         except Exception as e:
             log.error(msg=f"Error retiring certificate by thumbprint: {str(e)}")
 
+    @unittest.skip("Zone is backed by a BUILTIN_CA, which does not support revocation")
     def test_cloud_revoke_by_thumbprint(self):
         # Cryptographic revocation via the GraphQL CA-operations mutation (thumbprint-keyed).
         # revoke_cert uppercases the thumbprint internally, so a lowercase hexlify is fine here.
