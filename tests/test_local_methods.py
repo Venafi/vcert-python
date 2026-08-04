@@ -24,7 +24,7 @@ from cryptography.hazmat.backends import default_backend
 
 from assets import POLICY_CLOUD1, POLICY_TPP1, EXAMPLE_CSR, EXAMPLE_CHAIN
 from vcert import (CloudConnection, KeyType, TPPConnection, CertificateRequest, ZoneConfig, CertField, FakeConnection,
-                   NGTSConnection, RevocationRequest, logger)
+                   NGTSConnection, RevocationRequest, logger, CSR_ORIGIN_SERVICE)
 from vcert.connection_cloud import URLS
 from vcert.connection_ngts import (_parse_ngts_zone, DEFAULT_API_URL, DEFAULT_TOKEN_URL,
                                    TRUSTED_TOKEN_HOST_SUFFIX)
@@ -245,6 +245,55 @@ class TestLocalMethods(unittest.TestCase):
         )
         r.update_from_zone_config(z)
         self.assertEqual(r.organization, "Venafi")
+
+    def test_tpp_service_csr_sends_key_spec_vc56449(self):
+        # VC-56449: a service-generated CSR request must carry the key spec, otherwise TPP falls
+        # back to the policy-folder default and silently ignores the requested size. On TPP 25.1+
+        # this is PkixParameterSet (an OID); on older TPP the deprecated KeyAlgorithm/KeyBitSize/
+        # EllipticCurve fields.
+        def make_conn(version="25.3.0.2740"):
+            c = TPPConnection(url="http://example.com/", user="", password="")
+            c.read_zone_conf = mock.Mock(return_value=ZoneConfig(
+                organization=CertField(""), organizational_unit=CertField(""),
+                country=CertField(""), province=CertField(""), locality=CertField(""),
+                policy=None, key_type=None))
+            c.get_version = mock.Mock(return_value=version)
+            c.post = mock.Mock(return_value=(HTTPStatus.OK,
+                                             {'CertificateDN': r'\VED\Policy\z\cn', 'Guid': 'g'}))
+            return c
+
+        def sent_body(conn):
+            return conn.post.call_args.args[0][conn.ARG_DATA]
+
+        def request(conn, **kw):
+            conn.request_cert(CertificateRequest(common_name="test.example.com", **kw), r"\VED\Policy\z")
+            return sent_body(conn)
+
+        # TPP 25.1+ : RSA 4096 -> PkixParameterSet OID, no deprecated fields
+        body = request(make_conn("25.3.0.2740"), key_type=KeyType(KeyType.RSA, 4096),
+                       csr_origin=CSR_ORIGIN_SERVICE)
+        self.assertEqual(body.get('PkixParameterSet'), '1.3.6.1.4.1.28783.10.1.1.4096')
+        self.assertNotIn('KeyBitSize', body)
+        self.assertNotIn('KeyAlgorithm', body)
+
+        # TPP 25.1+ : ECDSA p384 -> PkixParameterSet ECC OID
+        body = request(make_conn("25.1.0.0"), key_type=KeyType(KeyType.ECDSA, "p384"),
+                       csr_origin=CSR_ORIGIN_SERVICE)
+        self.assertEqual(body.get('PkixParameterSet'), '1.3.6.1.4.1.28783.10.2.1.384')
+        self.assertNotIn('EllipticCurve', body)
+
+        # pre-25.1 : falls back to the deprecated fields
+        body = request(make_conn("24.4.0.1"), key_type=KeyType(KeyType.RSA, 4096),
+                       csr_origin=CSR_ORIGIN_SERVICE)
+        self.assertEqual(body.get('KeyAlgorithm'), 'RSA')
+        self.assertEqual(body.get('KeyBitSize'), 4096)
+        self.assertNotIn('PkixParameterSet', body)
+
+        # scope guard: a user-provided CSR must NOT carry key spec (the CSR is authoritative)
+        body = request(make_conn("25.3.0.2740"), csr=EXAMPLE_CSR)
+        self.assertNotIn('PkixParameterSet', body)
+        self.assertNotIn('KeyBitSize', body)
+        self.assertNotIn('KeyAlgorithm', body)
 
     def test_request_with_csr(self):
         req = CertificateRequest(common_name="test.example.com", csr=EXAMPLE_CSR)

@@ -125,6 +125,12 @@ class AbstractTPPConnection(CommonConnection):
         elif request.csr_origin == CSR_ORIGIN_SERVICE:
             request_data['Subject'] = request.common_name
             request_data['SubjectAltNames'] = self.wrap_alt_names(request)
+            # VC-56449: for a service-generated CSR the server generates the key, so the desired
+            # key spec must be sent explicitly; otherwise TPP uses the policy-folder default and
+            # silently ignores the requested size (e.g. RSA 4096), which then fails downstream
+            # key-size validation.
+            if request.key_type is not None:
+                self._apply_service_key_spec(request_data, request.key_type)
         else:
             log.error(f"CSR Origin option [{request.csr_origin}] is not valid")
             raise ClientBadData
@@ -188,6 +194,48 @@ class AbstractTPPConnection(CommonConnection):
 
         log.error(f"Request status is not {HTTPStatus.OK}. {status}")
         raise CertificateRequestError
+
+    # --- VC-56449 key-spec helpers -------------------------------------------------------------
+    # TPP 25.1 deprecated the KeyAlgorithm/KeyBitSize/EllipticCurve request fields in favour of
+    # PkixParameterSet (an OID). We send PkixParameterSet on 25.1+ and fall back to the deprecated
+    # fields on older TPP (where PkixParameterSet does not exist).
+    _PKIX_RSA_SIZES = (2048, 3072, 4096)
+    _PKIX_ECC_BITS = {"p256": "256", "p384": "384", "p521": "521"}
+
+    @staticmethod
+    def _pkix_parameter_set_oid(key_type):
+        if key_type.key_type == KeyType.RSA and key_type.option in AbstractTPPConnection._PKIX_RSA_SIZES:
+            return f"1.3.6.1.4.1.28783.10.1.1.{key_type.option}"
+        if key_type.key_type == KeyType.ECDSA:
+            bits = AbstractTPPConnection._PKIX_ECC_BITS.get(key_type.option)
+            if bits:
+                return f"1.3.6.1.4.1.28783.10.2.1.{bits}"
+        return None
+
+    def _supports_pkix_parameter_set(self):
+        # PkixParameterSet was introduced in TPP 25.1. Cached per connection; on any failure to
+        # determine the version, fall back to the (universally supported) deprecated fields.
+        cached = getattr(self, "_pkix_supported", None)
+        if cached is None:
+            cached = False
+            try:
+                major, minor = (int(x) for x in str(self.get_version()).split(".")[:2])
+                cached = (major, minor) >= (25, 1)
+            except Exception as e:
+                log.debug(f"Could not determine TPP version; using deprecated key fields: {e}")
+            self._pkix_supported = cached
+        return cached
+
+    def _apply_service_key_spec(self, request_data, key_type):
+        oid = self._pkix_parameter_set_oid(key_type)
+        if oid and self._supports_pkix_parameter_set():
+            request_data['PkixParameterSet'] = oid
+        elif key_type.key_type == KeyType.RSA:
+            request_data['KeyAlgorithm'] = 'RSA'
+            request_data['KeyBitSize'] = key_type.option
+        elif key_type.key_type == KeyType.ECDSA:
+            request_data['KeyAlgorithm'] = 'ECC'
+            request_data['EllipticCurve'] = key_type.option.upper()
 
     def retrieve_cert(self, cert_request):
         log.debug(f"Getting certificate status for id {cert_request.id}")
