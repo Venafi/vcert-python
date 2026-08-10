@@ -87,7 +87,7 @@ conn = venafi_connection(
 |---|---|---|
 | `client_id` | yes¹ | Service-account Client ID used to obtain an access token. |
 | `client_secret` | yes¹ | Service-account Client Secret used to obtain an access token. |
-| `tsg_id` | yes² | Tenant Service Group ID. Used to derive the OAuth scope as `tsg_id:<TSG_ID>`. Can be any TSG the service account is authorized for, including a sub-TSG — not just the TSG it was originally created under. |
+| `tsg_id` | yes² | Tenant Service Group ID. Used to derive the OAuth scope as `tsg_id:<TSG_ID>`. |
 | `scope` | yes² | OAuth scope (e.g. `tsg_id:<TSG_ID>`). Takes precedence over `tsg_id` when supplied. |
 | `access_token` | no¹ | A pre-issued OAuth access token. When supplied, `client_id`/`client_secret` become optional (but are still used to refresh the token if present). |
 | `token_url` | no | OAuth token endpoint. Defaults to the Palo Alto production endpoint (see below); override it for non-production environments. |
@@ -95,7 +95,9 @@ conn = venafi_connection(
 | `http_request_kwargs` | no | Passed through to `requests` (e.g. a trust bundle via `verify`). |
 
 ¹ Provide **either** `access_token`, **or** `client_id` + `client_secret`.
-² Provide **either** `scope`, **or** `tsg_id` (used to derive the scope).
+² Provide **either** `scope`, **or** `tsg_id` (used to derive the scope). Either can be any TSG the
+service account is authorized for, including a sub-TSG — not just the TSG it was originally created
+under.
 
 ### API URL and Token URL Defaults
 
