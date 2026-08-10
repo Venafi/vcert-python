@@ -95,7 +95,9 @@ conn = venafi_connection(
 | `http_request_kwargs` | no | Passed through to `requests` (e.g. a trust bundle via `verify`). |
 
 ¹ Provide **either** `access_token`, **or** `client_id` + `client_secret`.
-² Provide **either** `scope`, **or** `tsg_id` (used to derive the scope).
+² Provide **either** `scope`, **or** `tsg_id` (used to derive the scope). Either can be any TSG the
+service account is authorized for, including a sub-TSG — not just the TSG it was originally created
+under.
 
 ### API URL and Token URL Defaults
 
