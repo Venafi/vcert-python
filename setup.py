@@ -29,4 +29,3 @@ setup(name='vcert',
           'Operating System :: OS Independent',
           "License :: OSI Approved :: Apache Software License",
       ])
-
