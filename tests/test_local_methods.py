@@ -189,6 +189,26 @@ class TestLocalMethods(unittest.TestCase):
         self.assertEqual(p.key_types[1].option, 4096)
         self.assertTrue(len(p.key_types) == 2)
 
+    def test_parse_policy_skips_unsupported_key_entries(self):
+        # A CIT/policy may advertise key sizes/curves the client cannot represent (real example:
+        # DigiCert/ZTPKI zones on NGTS advertise RSA 1024). The parse must skip those entries, not
+        # raise BadData and brick read_zone_conf/get_policy/enrollment for the whole zone.
+        conn = CloudConnection(token="")
+        cit = {
+            "id": "cit-1",
+            "name": "RequestPolicyDC",
+            "certificateAuthority": "DIGICERT",
+            "keyTypes": [
+                {"keyType": "RSA", "keyLengths": [2048, 1024, 4096]},
+                {"keyType": "EC", "keyCurves": ["P256", "brainpoolP256r1", "P384"]},
+            ],
+        }
+        p = conn._parse_policy_response_to_object(cit)  # must not raise
+        rsa = [kt.option for kt in p.key_types if kt.key_type == KeyType.RSA]
+        ec = [kt.option for kt in p.key_types if kt.key_type == KeyType.ECDSA]
+        self.assertEqual(rsa, [2048, 4096])       # unsupported 1024 dropped
+        self.assertEqual(ec, ["p256", "p384"])    # unknown brainpool dropped; curves normalized lowercase
+
     #  cloud doesnt support ecdsa yet. may be can be enabled in the future
     # def test_parse_cloud_zone2(self):
     #     conn = CloudConnection(token="")

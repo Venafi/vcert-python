@@ -24,7 +24,7 @@ from nacl.public import SealedBox
 from .common import (ZoneConfig, CertificateRequest, CommonConnection, Policy, RevocationRequest, get_ip_address,
                      log_errors, MIME_JSON, MIME_TEXT, MIME_ANY, CertField, KeyType, DEFAULT_TIMEOUT,
                      CSR_ORIGIN_SERVICE, CHAIN_OPTION_FIRST, CHAIN_OPTION_LAST)
-from .errors import (VenafiConnectionError, ServerUnexptedBehavior, ClientBadData, CertificateRequestError,
+from .errors import (VenafiConnectionError, ServerUnexptedBehavior, ClientBadData, BadData, CertificateRequestError,
                      CertificateRenewError, CertificateRevokeError, VenafiError, RetrieveCertificateTimeoutError)
 from .http_status import HTTPStatus
 from .logger import get_child
@@ -326,11 +326,20 @@ class CloudConnection(CommonConnection):
         for kt in d.get('keyTypes', []):
             key_type = kt['keyType'].lower()
             if key_type == KeyType.RSA:
-                for s in kt['keyLengths']:
-                    policy.key_types.append(KeyType(key_type, s))
+                for s in kt.get('keyLengths', []):
+                    try:
+                        policy.key_types.append(KeyType(key_type, s))
+                    except (BadData, KeyError):
+                        # A policy may advertise key sizes the client cannot represent (e.g. RSA 1024).
+                        # Skip them instead of failing the whole policy parse - this keeps read_zone_conf /
+                        # get_policy / enrollment working against such zones (Go tolerates unknown sizes).
+                        log.warning(f"Ignoring unsupported RSA key length advertised by policy: {s}")
             elif key_type == KeyType.ECDSA:
-                for s in kt["keyCurves"]:
-                    policy.key_types.append(KeyType(key_type, s))
+                for s in kt.get("keyCurves", []):
+                    try:
+                        policy.key_types.append(KeyType(key_type, s))
+                    except (BadData, KeyError):
+                        log.warning(f"Ignoring unsupported EC curve advertised by policy: {s}")
             else:
                 log.error(f"Unknown key type: {kt['keyType']}")
                 raise ServerUnexptedBehavior
@@ -359,8 +368,12 @@ class CloudConnection(CommonConnection):
                 k_type = key['type']
                 kl = key['length'] if 'length' in key else None
                 kc = key['curve'] if 'curve' in key else None
-                kt = KeyType(k_type, kl or kc)
-                settings.keyType = kt
+                try:
+                    settings.keyType = KeyType(k_type, kl or kc)
+                except (BadData, KeyError):
+                    # Same resilience as the keyTypes loop: a recommended key the client cannot
+                    # represent must not abort the whole policy parse.
+                    log.warning(f"Ignoring unsupported recommended key in policy: {k_type} {kl or kc}")
 
             return settings
 
