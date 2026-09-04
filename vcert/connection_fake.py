@@ -188,9 +188,6 @@ class FakeConnection(CommonConnection):
         log.debug("Renew is not supported in test mode.")
         raise NotImplementedError
 
-    def read_zone_conf(self, tag):
-        raise NotImplementedError
-
     def import_cert(self, request):
         raise NotImplementedError
 
