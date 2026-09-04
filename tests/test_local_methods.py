@@ -32,7 +32,8 @@ from vcert.errors import (ClientBadData, ServerUnexptedBehavior, VenafiError, Ve
                           CertificateRevokeError)
 from vcert.http_status import HTTPStatus
 from vcert.pem import parse_pem, Certificate
-from vcert.policy.pm_cloud import CertificateAuthorityDetails, CertificateAuthorityInfo
+from vcert.policy.pm_cloud import (CertificateAuthorityDetails, CertificateAuthorityInfo, build_policy_spec,
+                                   validate_policy_spec, get_invalid_cloud_ec_value)
 from vcert.policy.policy_spec import DEFAULT_CA, Policy, PolicySpecification
 
 pkcs12_enc_cert = """-----BEGIN CERTIFICATE-----
@@ -197,6 +198,28 @@ class TestLocalMethods(unittest.TestCase):
     #     self.assertEqual(p.key_types[1].key_type, KeyType.RSA)
     #     self.assertEqual(p.key_types[0].key_type,   KeyType.ECDSA)
     #     self.assertEqual(p.key_types[0].key_curves,  ["p521"])
+
+    def test_ec_curve_casing_roundtrip(self):
+        # E6: KeyType lowercases EC curves, so build_policy_spec used to emit "p256"/... which
+        # validate_policy_spec then rejected ("not supported by VaaS") - breaking an EC
+        # get_policy -> set_policy round-trip (Cloud and NGTS share this code). build_policy_spec must
+        # emit uppercase curves and get_invalid_cloud_ec_value must be case-insensitive.
+        conn = CloudConnection(token="")
+        cit = conn._parse_policy_response_to_object({
+            "id": "cit-ec",
+            "certificateAuthority": "DIGICERT",
+            "subjectCNRegexes": [".*"], "subjectORegexes": [".*"], "subjectOURegexes": [".*"],
+            "subjectSTRegexes": [".*"], "subjectLRegexes": [".*"], "subjectCValues": [".*"],
+            "sanRegexes": [".*"],
+            "keyTypes": [{"keyType": "EC", "keyCurves": ["P256", "P384", "P521"]}],
+        })
+        info = CertificateAuthorityInfo("DIGICERT", "acct", "Product")
+        ps = build_policy_spec(cit, info)
+        self.assertEqual(ps.policy.key_pair.elliptic_curves, ["P256", "P384", "P521"])
+        validate_policy_spec(ps)  # round-trip: build output must pass its own validation
+        # get_invalid_cloud_ec_value is case-insensitive (also accepts a hand-written lowercase spec)
+        self.assertIsNone(get_invalid_cloud_ec_value(["p256", "P384", "ed25519"]))
+        self.assertEqual(get_invalid_cloud_ec_value(["bogus"]), "bogus")
 
     def test_parse_tpp_zone1(self):
         conn = TPPConnection(url="http://example.com/", user="", password="")
