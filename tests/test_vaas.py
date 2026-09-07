@@ -25,11 +25,12 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePrivateKey
 from cryptography.x509.oid import NameOID
 
-from test_env import CLOUD_ZONE, CLOUD_APIKEY, CLOUD_URL, RANDOM_DOMAIN, VAAS_ZONE_ONLY_EC
+from test_env import CLOUD_ZONE, CLOUD_ZONE_REVOKE, CLOUD_APIKEY, CLOUD_URL, RANDOM_DOMAIN, VAAS_ZONE_ONLY_EC
 from test_pm import get_policy_obj, get_defaults_obj
 from test_utils import random_word, enroll, renew, renew_by_thumbprint, renew_without_key_reuse, simple_enroll, \
     get_vaas_zone
-from vcert import CloudConnection, KeyType, CertificateRequest, CustomField, logger, CSR_ORIGIN_SERVICE
+from vcert import CloudConnection, KeyType, CertificateRequest, CustomField, logger, CSR_ORIGIN_SERVICE, \
+    CertificateRevokeError
 from vcert.policy import KeyPair, DefaultKeyPair, PolicySpecification
 from vcert.common import RetireRequest, RevocationRequest
 
@@ -214,15 +215,30 @@ class TestVaaSMethods(unittest.TestCase):
         except Exception as e:
             log.error(msg=f"Error retiring certificate by thumbprint: {str(e)}")
 
-    @unittest.skip("Zone is backed by a BUILTIN_CA, which does not support revocation")
     def test_cloud_revoke_by_thumbprint(self):
         # Cryptographic revocation via the GraphQL CA-operations mutation (thumbprint-keyed).
         # revoke_cert uppercases the thumbprint internally, so a lowercase hexlify is fine here.
-        req, cert = simple_enroll(self.cloud_conn, self.cloud_zone)
+        # Mirrors the NGTS sibling (test_ngts.py::test_ngts_revoke_by_thumbprint): enroll + the full
+        # GraphQL revoke POST run end-to-end; the success assertion is reactively skipped only when the
+        # zone's CA cannot revoke (e.g. the built-in CA). Prefer CLOUD_ZONE_REVOKE - a zone backed by a
+        # revocation-capable CA (DigiCert/Entrust) - and fall back to CLOUD_ZONE.
+        zone = CLOUD_ZONE_REVOKE or self.cloud_zone
+        req, cert = simple_enroll(self.cloud_conn, zone)
         cert = x509.load_pem_x509_certificate(cert.cert.encode(), default_backend())
         fingerprint = binascii.hexlify(cert.fingerprint(hashes.SHA1())).decode()
         time.sleep(1)
         rev_request = RevocationRequest(thumbprint=fingerprint)
-        result = self.cloud_conn.revoke_cert(rev_request)
+        try:
+            result = self.cloud_conn.revoke_cert(rev_request)
+        except CertificateRevokeError as e:
+            # A built-in-CA zone returns "revocation is not supported for CA type BUILTIN_CA" (backend
+            # code 11307). That error surfaces via _graphql's top-level errors path, which str()s the
+            # extensions dict, so the code appears as "'code': 11307" (not "code=11307") - match the
+            # bare number so a reworded backend message still self-skips. The full GraphQL POST still
+            # ran, so only the success assertion is skipped.
+            msg = str(e)
+            if "not supported for CA type" in msg or "BUILTIN" in msg.upper() or "11307" in msg:
+                self.skipTest(f"zone CA does not support revocation: {e}")
+            raise
         self.assertIsNotNone(result)
         self.assertIn("status", result)

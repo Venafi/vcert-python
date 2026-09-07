@@ -29,6 +29,9 @@ TPP_ACCESS_TOKEN = environ.get('TPP_ACCESS_TOKEN')
 CLOUD_URL = environ.get('CLOUD_URL')
 CLOUD_APIKEY = environ.get('CLOUD_APIKEY')
 CLOUD_ZONE = environ.get('CLOUD_ZONE')
+# Optional: a zone backed by a revocation-capable CA (e.g. DigiCert/Entrust) so the revoke test can
+# assert a real success. Falls back to CLOUD_ZONE (which may be a built-in-CA zone that can't revoke).
+CLOUD_ZONE_REVOKE = environ.get('CLOUD_ZONE_REVOKE')
 VAAS_ZONE_ONLY_EC = environ.get('VAAS_ZONE_ONLY_EC')
 CLOUD_TEAM = environ.get('CLOUD_TEAM')
 
