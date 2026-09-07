@@ -26,6 +26,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.asymmetric import ed25519
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID, ExtensionOID
 
@@ -361,6 +362,8 @@ class CertificateRequest:
                 self.key_type = KeyType(KeyType.RSA, value.key_size)
             elif isinstance(value, ec.EllipticCurvePrivateKey):
                 self.key_type = KeyType(KeyType.ECDSA, value.curve.name)
+            elif isinstance(value, ed25519.Ed25519PrivateKey):
+                self.key_type = KeyType(KeyType.ECDSA, 'ed25519')
             elif value is None:
                 self.public_key = None
             else:
@@ -402,17 +405,20 @@ class CertificateRequest:
                 backend=default_backend()
             )
         elif self.key_type.key_type == KeyType.ECDSA:
-            if self.key_type.option == 'p521':
-                curve = ec.SECP521R1()
-            elif self.key_type.option == 'p384':
-                curve = ec.SECP384R1()
-            elif self.key_type.option == 'p256':
-                curve = ec.SECP256R1()
+            if self.key_type.option == 'ed25519':
+                self.private_key = ed25519.Ed25519PrivateKey.generate()
             else:
-                curve = ec.SECP256R1()
-            self.private_key = ec.generate_private_key(
-                curve, default_backend()
-            )
+                if self.key_type.option == 'p521':
+                    curve = ec.SECP521R1()
+                elif self.key_type.option == 'p384':
+                    curve = ec.SECP384R1()
+                elif self.key_type.option == 'p256':
+                    curve = ec.SECP256R1()
+                else:
+                    curve = ec.SECP256R1()
+                self.private_key = ec.generate_private_key(
+                    curve, default_backend()
+                )
         else:
             raise ClientBadData
         self._public_key_from_private()
@@ -492,7 +498,10 @@ class CertificateRequest:
 
         csr_builder = csr_builder.add_extension(x509.SubjectAlternativeName(alt_names), critical=False)
 
-        csr_builder = csr_builder.sign(self.private_key, hashes.SHA256(), default_backend())
+        # Ed25519 is a self-contained signature scheme: cryptography requires algorithm=None for it
+        # (passing a hash raises). RSA/ECDSA continue to sign with SHA256.
+        sig_hash = None if isinstance(self.private_key, ed25519.Ed25519PrivateKey) else hashes.SHA256()
+        csr_builder = csr_builder.sign(self.private_key, sig_hash, default_backend())
         self.csr = csr_builder.public_bytes(serialization.Encoding.PEM).decode()
         return
 
