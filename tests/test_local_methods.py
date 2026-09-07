@@ -986,6 +986,45 @@ class TestLocalMethods(unittest.TestCase):
         self.assertEqual(f({}), KeyType(KeyType.RSA, 2048))                       # unknown -> safe default
         self.assertEqual(f({'encryptionType': 'RSA', 'keyStrength': 1024}), KeyType(KeyType.RSA, 2048))  # unsupported size -> default
 
+    # -- NGTS retire by id (offline) ----------------------------------------------------------
+    #
+    # NGTS request.id is a certificateRequestId, but the retirement endpoint expects the managed
+    # certificate id; passing the request id directly returns HTTP 500 (code 1000). The NGTS override
+    # resolves it via the request status first, and falls back to using the id as-is when it is not a
+    # request id (already a managed cert id).
+
+    def test_ngts_retire_by_id_resolves_request_id_to_managed_cert_id(self):
+        conn = self._ngts_conn(access_token='t', token_url=None)
+        posted = {}
+
+        def fake_post(url, data=None, **kwargs):
+            posted['url'] = url
+            posted['data'] = data
+            return HTTPStatus.OK, {'ok': True}
+
+        with mock.patch.object(conn, '_get_cert_status',
+                               return_value=mock.Mock(certificateIds=['managed-guid-1'])) as gcs, \
+                mock.patch.object(conn, '_post', side_effect=fake_post):
+            result = conn.retire_cert(CertificateRequest(cert_id='request-id-1'))
+        self.assertTrue(result)
+        self.assertEqual(gcs.call_args.args[0].id, 'request-id-1')          # resolved from the request id
+        self.assertEqual(posted['url'], URLS.CERTIFICATE_RETIRE)
+        self.assertEqual(posted['data'], {'certificateIds': ['managed-guid-1']})  # managed id, not the request id
+
+    def test_ngts_retire_by_id_falls_back_when_not_a_request_id(self):
+        conn = self._ngts_conn(access_token='t', token_url=None)
+        posted = {}
+
+        def fake_post(url, data=None, **kwargs):
+            posted['data'] = data
+            return HTTPStatus.OK, {'ok': True}
+
+        with mock.patch.object(conn, '_get_cert_status', side_effect=VenafiConnectionError("404")), \
+                mock.patch.object(conn, '_post', side_effect=fake_post):
+            result = conn.retire_cert(CertificateRequest(cert_id='already-managed-id'))
+        self.assertTrue(result)
+        self.assertEqual(posted['data'], {'certificateIds': ['already-managed-id']})
+
     # -- Cloud / NGTS revoke (offline) --------------------------------------------------------
     #
     # Cloud and NGTS revoke via the GraphQL CA-operations `revokeCertificate` mutation (no REST

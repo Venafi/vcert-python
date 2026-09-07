@@ -441,6 +441,26 @@ class NGTSConnection(CloudConnection):
             log.error(f"server unexpected status {status}")
             raise CertificateRenewError
 
+    def retire_cert(self, request):
+        """
+        Retire an NGTS certificate. When retiring by id, ``request.id`` is an NGTS
+        certificateRequestId, but the retirement endpoint expects the managed certificate id - passing
+        the request id directly returns HTTP 500 (code 1000). Resolve it via the request status first
+        (mirrors renew_cert and Go's RetireCertificate). The thumbprint path and Cloud behaviour are
+        unchanged; if ``request.id`` cannot be resolved as a request id (e.g. the caller already
+        passed a managed certificate id) it is used as-is.
+        """
+        if request.id:
+            managed_id = request.id
+            try:
+                prev = self._get_cert_status(CertificateRequest(cert_id=request.id))
+                if prev and prev.certificateIds:
+                    managed_id = prev.certificateIds[0]
+            except VenafiError:
+                pass  # request.id is likely already a managed certificate id
+            return super().retire_cert(CertificateRequest(cert_id=managed_id))
+        return super().retire_cert(request)
+
     def read_zone_conf(self, zone):
         cit = self._get_cit_or_fail(zone)
         policy = self._parse_policy_response_to_object(cit)
