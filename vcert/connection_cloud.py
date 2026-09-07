@@ -733,9 +733,10 @@ class CloudConnection(CommonConnection):
                 d['certificateSigningRequest'] = request.csr
                 d['reuseCSR'] = False
             else:
-                log.error("Certificate renew by reusing the CSR is not supported right now. "
-                          "Set [reuse_key] to False or just remove it")
-                raise VenafiError
+                # No caller CSR: reuse the existing certificate's CSR/key server-side, matching the Go
+                # SDK default (ReuseCSR=true). Previously this raised, so key reuse on renew was
+                # impossible without supplying a CSR.
+                d['reuseCSR'] = True
         else:
             c = data
             if c.get('subjectCN'):
@@ -750,7 +751,15 @@ class CloudConnection(CommonConnection):
                 request.locality = c['subjectL']
             if c.get('subjectAlternativeNameDns'):
                 request.san_dns = c['subjectAlternativeNameDns']
-            request.key_type = KeyType(KeyType.RSA, c['keyStrength'])
+            # Preserve the previous certificate's key algorithm instead of hardcoding RSA (which
+            # downgraded ECDSA certs and raised KeyError on EC certs that carry no keyStrength). Only
+            # derive when the caller did not request a specific key type.
+            if request.key_type is None:
+                request.key_type = self._key_type_from_prev_cert(c)
+            # Force a fresh key of the resolved type: build_csr only generates a key when private_key
+            # is unset, so a reused request object would re-send its original key and the server
+            # rejects that ("key reuse is not allowed").
+            request.private_key = None
             request.build_csr()
             d['certificateSigningRequest'] = request.csr
             d['reuseCSR'] = False
@@ -762,6 +771,23 @@ class CloudConnection(CommonConnection):
         else:
             log.error(f"server unexpected status {status}")
             raise CertificateRenewError
+
+    @staticmethod
+    def _key_type_from_prev_cert(cert_detail):
+        """Derive a KeyType from a certificate-detail response (CERTIFICATE_BY_ID) so a renewed
+        certificate keeps the previous key algorithm. RSA certs expose encryptionType=RSA plus
+        keyStrength; EC certs expose encryptionType=EC plus keyCurve. Falls back to RSA 2048 when the
+        algorithm can't be determined or isn't representable by the client (never raises)."""
+        enc = (cert_detail.get('encryptionType') or '').upper()
+        try:
+            if enc == 'EC' and cert_detail.get('keyCurve'):
+                return KeyType(KeyType.ECDSA, cert_detail['keyCurve'])
+            if enc == 'RSA' and cert_detail.get('keyStrength'):
+                return KeyType(KeyType.RSA, cert_detail['keyStrength'])
+        except (VenafiError, KeyError):
+            pass
+        log.warning("Could not derive key type from previous certificate; defaulting to RSA 2048")
+        return KeyType(KeyType.RSA, 2048)
 
     def search_by_thumbprint(self, thumbprint, timeout=DEFAULT_TIMEOUT):
         """

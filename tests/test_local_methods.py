@@ -929,6 +929,63 @@ class TestLocalMethods(unittest.TestCase):
             conn._retrieve_service_generated_cert(req, dek)
         self.assertEqual(captured['msg'], b"")
 
+    # -- Cloud / NGTS renew key handling (offline) --------------------------------------------
+    #
+    # renew_cert (reuse_key=False, no caller CSR) used to hardcode KeyType(RSA, c['keyStrength']),
+    # which downgraded ECDSA certs and raised KeyError on EC certs (no keyStrength), and it rebuilt
+    # the CSR from a possibly-stale in-memory key. reuse_key=True without a CSR used to raise.
+
+    @staticmethod
+    def _mock_ngts_renew(conn, cert_detail):
+        """Patch the three network calls renew_cert makes; return a dict that captures the POST body."""
+        posted = {}
+
+        def fake_post(url, data=None, **kwargs):
+            posted['d'] = data
+            return HTTPStatus.CREATED, {'certificateRequests': [{'id': 'new-req'}]}
+
+        status_resp = mock.Mock(certificateIds=['managed-1'], citId='cit-1', applicationId='app-1', csrId='req-1')
+        conn._get_cert_status = mock.Mock(return_value=status_resp)
+        conn._get = mock.Mock(return_value=(HTTPStatus.OK, cert_detail))
+        conn._post = mock.Mock(side_effect=fake_post)
+        return posted
+
+    def test_ngts_renew_preserves_ec_key_type(self):
+        conn = self._ngts_conn(access_token='t', token_url=None)
+        posted = self._mock_ngts_renew(conn, {'certificateRequestId': 'req-1', 'subjectCN': ['x.vfidev.com'],
+                                              'encryptionType': 'EC', 'keyCurve': 'P384'})
+        conn.renew_cert(CertificateRequest(cert_id='req-1'))
+        csr = x509.load_pem_x509_csr(posted['d']['certificateSigningRequest'].encode(), default_backend())
+        self.assertEqual(csr.public_key().curve.name, 'secp384r1')  # not downgraded to RSA
+        self.assertFalse(posted['d']['reuseCSR'])
+
+    def test_ngts_renew_no_reuse_mints_fresh_key(self):
+        conn = self._ngts_conn(access_token='t', token_url=None)
+        # A request object reused from the initial enroll already carries a private key.
+        req = CertificateRequest(cert_id='req-1', common_name='x.vfidev.com', key_type=KeyType(KeyType.RSA, 2048))
+        req.build_csr()
+        original_n = x509.load_pem_x509_csr(req.csr.encode(), default_backend()).public_key().public_numbers().n
+        posted = self._mock_ngts_renew(conn, {'certificateRequestId': 'req-1', 'subjectCN': ['x.vfidev.com'],
+                                              'encryptionType': 'RSA', 'keyStrength': 2048})
+        conn.renew_cert(req)
+        renewed_n = x509.load_pem_x509_csr(posted['d']['certificateSigningRequest'].encode(),
+                                           default_backend()).public_key().public_numbers().n
+        self.assertNotEqual(renewed_n, original_n)  # a fresh key was generated, not the stale one re-sent
+
+    def test_ngts_renew_reuse_key_no_csr_sends_reusecsr(self):
+        conn = self._ngts_conn(access_token='t', token_url=None)
+        posted = self._mock_ngts_renew(conn, {'certificateRequestId': 'req-1'})
+        conn.renew_cert(CertificateRequest(cert_id='req-1'), reuse_key=True)  # no caller CSR -> must not raise
+        self.assertTrue(posted['d']['reuseCSR'])
+        self.assertNotIn('certificateSigningRequest', posted['d'])
+
+    def test_key_type_from_prev_cert(self):
+        f = CloudConnection._key_type_from_prev_cert
+        self.assertEqual(f({'encryptionType': 'RSA', 'keyStrength': 4096}), KeyType(KeyType.RSA, 4096))
+        self.assertEqual(f({'encryptionType': 'EC', 'keyCurve': 'P256'}), KeyType(KeyType.ECDSA, 'p256'))
+        self.assertEqual(f({}), KeyType(KeyType.RSA, 2048))                       # unknown -> safe default
+        self.assertEqual(f({'encryptionType': 'RSA', 'keyStrength': 1024}), KeyType(KeyType.RSA, 2048))  # unsupported size -> default
+
     # -- Cloud / NGTS revoke (offline) --------------------------------------------------------
     #
     # Cloud and NGTS revoke via the GraphQL CA-operations `revokeCertificate` mutation (no REST
