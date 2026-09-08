@@ -470,6 +470,25 @@ class NGTSConnection(CloudConnection):
         :param str zone: the CIT alias (NGTS zones are a CIT alias only - no Application\\CIT split)
         :rtype: PolicySpecification
         """
+        return self._get_policy(zone, subject_cn_to_str=True)
+
+    def _get_policy(self, zone, subject_cn_to_str):
+        """
+        NGTS override of ``CloudConnection._get_policy``. Besides backing the public ``get_policy``
+        it is the method the inherited service-generated-CSR builder calls
+        (``_get_service_generated_csr_attr`` -> ``self._get_policy(zone, subject_cn_to_str=False)``).
+        Cloud's version splits the zone on a backslash (``Application\\CIT``) via
+        ``_get_template_by_id`` -> ``_parse_zone`` and then resolves Application owners
+        (``resolve_cloud_owners_names`` -> ``_get_app_details_by_name``); both are wrong for NGTS
+        (CIT-alias-only zone, no Application layer). This resolves the CIT through the NGTS CIT-only
+        path and builds the spec without owner resolution, matching Go's NGTS ``GetPolicyWithRegex``
+        (which passes ``subject_cn_to_str=false`` for the service-CSR path). Without this override,
+        ``csr_origin=service`` on NGTS raised "Invalid Zone [...]. The zone format is incorrect".
+
+        :param str zone: the CIT alias (NGTS zones are a CIT alias only - no Application\\CIT split)
+        :param bool subject_cn_to_str:
+        :rtype: PolicySpecification
+        """
         cit_data = self._get_cit_or_fail(zone)
         cit = self._parse_policy_response_to_object(cit_data)
 
@@ -478,8 +497,7 @@ class NGTSConnection(CloudConnection):
         if not info:
             raise VenafiError("Certificate Authority info not found")
 
-        ps = build_policy_spec(cit, info, subject_cn_to_str=True)
-        return ps
+        return build_policy_spec(cit, info, subject_cn_to_str=subject_cn_to_str)
 
     def set_policy(self, zone, policy_spec):
         """

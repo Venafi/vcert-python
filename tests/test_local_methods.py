@@ -25,7 +25,7 @@ from cryptography.hazmat.backends import default_backend
 from assets import POLICY_CLOUD1, POLICY_TPP1, EXAMPLE_CSR, EXAMPLE_CHAIN
 from vcert import (CloudConnection, KeyType, TPPConnection, CertificateRequest, ZoneConfig, CertField, FakeConnection,
                    NGTSConnection, RevocationRequest, logger, CSR_ORIGIN_SERVICE)
-from vcert.connection_cloud import URLS
+from vcert.connection_cloud import (URLS, CSR_ATTR_CN, CSR_ATTR_SANS_BY_TYPE, CSR_ATTR_SANS_IP_ADDR)
 from vcert.connection_ngts import (_parse_ngts_zone, DEFAULT_API_URL, DEFAULT_TOKEN_URL,
                                    TRUSTED_TOKEN_HOST_SUFFIX)
 from vcert.errors import (ClientBadData, ServerUnexptedBehavior, VenafiError, VenafiConnectionError,
@@ -741,6 +741,173 @@ class TestLocalMethods(unittest.TestCase):
         with mock.patch.object(conn, '_get_cit', return_value=None):
             with self.assertRaises(VenafiError):
                 conn.get_policy("does-not-exist")
+
+    # -- NGTS service-generated CSR (offline) -------------------------------------------------
+    #
+    # Regression guard for the "Invalid Zone [...]. The zone format is incorrect" bug: on a bare
+    # CIT-alias zone, csr_origin=service used to fall through to Cloud's _get_policy ->
+    # _get_template_by_id -> _parse_zone (backslash split) and then resolve_cloud_owners_names ->
+    # _get_app_details_by_name (Application API NGTS has no layer for). NGTS now overrides the
+    # PRIVATE _get_policy, so the service path resolves the CIT the CIT-only, owner-free way.
+
+    @staticmethod
+    def _ngts_cit_dict(name="openssl-360d-max", cn_regexes=None):
+        return {
+            'id': 'cit-123',
+            'name': name,
+            'certificateAuthority': 'DIGICERT',
+            'certificateAuthorityAccountId': 'acct-1',
+            'certificateAuthorityProductOptionId': 'po-1',
+            'subjectCNRegexes': cn_regexes or ['.*'],
+            'sanRegexes': ['.*'],
+            'keyReuse': False,
+            'validityPeriod': 'P90D',
+            'csrUploadAllowed': True,
+            'keyGeneratedByVenafiAllowed': True,
+            'keyTypes': [{'keyType': 'RSA', 'keyLengths': [2048, 4096]}],
+        }
+
+    def test_ngts_service_csr_uses_cit_only_zone(self):
+        # THE regression test: a bare CIT-alias zone must NOT raise "zone format is incorrect", and
+        # the owner-resolution landmine must stay dead.
+        conn = self._ngts_conn(access_token='t', token_url=None)
+        info = CertificateAuthorityInfo('DIGICERT', 'acct-key', 'Product')
+        captured = {}
+
+        def fake_post(url, data=None):
+            captured['url'] = url
+            captured['data'] = data
+            return HTTPStatus.CREATED, {'certificateRequests': [{'id': 'req-1', 'certificateIds': ['c1']}]}
+
+        req = CertificateRequest(common_name="host.example.com", csr_origin=CSR_ORIGIN_SERVICE)
+        with mock.patch.object(conn, '_get_cit', return_value=self._ngts_cit_dict()), \
+                mock.patch.object(conn, '_get_ca_info', return_value=info), \
+                mock.patch.object(conn, '_post', side_effect=fake_post), \
+                mock.patch.object(conn, 'resolve_cloud_owners_names') as resolve_owners:
+            result = conn.request_cert(req, "openssl-360d-max")  # bare CIT alias, no backslash
+
+        self.assertTrue(result)
+        body = captured['data']
+        self.assertTrue(body.get('isVaaSGenerated'))
+        self.assertIn('applicationServerTypeId', body)
+        self.assertEqual(body.get('certificateIssuingTemplateId'), 'cit-123')
+        self.assertNotIn('applicationId', body)              # NGTS has no Application layer
+        self.assertNotIn('certificateSigningRequest', body)  # service-generated: server makes the CSR
+        resolve_owners.assert_not_called()                   # owner-resolution landmine must stay dead
+        self.assertEqual(req.id, 'req-1')
+        # Assert the csrAttributes CONTENTS, not just the key's presence: a build that dropped or
+        # mangled the CN would still leave the key in place.
+        self.assertEqual(body['csrAttributes'][CSR_ATTR_CN], 'host.example.com')
+
+    def test_ngts_service_csr_includes_ip_only_sans(self):
+        # Regression guard for the SAN-gating bug: the service-CSR csrAttributes builder used to nest
+        # the whole subjectAlternativeNamesByType map under "if len(san_dns) > 0", silently dropping
+        # IP/email/URI-only SANs. Each SAN type must now be emitted independently (Go parity).
+        conn = self._ngts_conn(access_token='t', token_url=None)
+        info = CertificateAuthorityInfo('DIGICERT', 'acct-key', 'Product')
+        captured = {}
+
+        def fake_post(url, data=None):
+            captured['data'] = data
+            return HTTPStatus.CREATED, {'certificateRequests': [{'id': 'req-1', 'certificateIds': ['c1']}]}
+
+        req = CertificateRequest(common_name="host.example.com", csr_origin=CSR_ORIGIN_SERVICE)
+        req.ip_addresses = ['10.0.0.5']  # IP SAN only; no DNS SAN
+        with mock.patch.object(conn, '_get_cit', return_value=self._ngts_cit_dict()), \
+                mock.patch.object(conn, '_get_ca_info', return_value=info), \
+                mock.patch.object(conn, '_post', side_effect=fake_post), \
+                mock.patch.object(conn, 'resolve_cloud_owners_names'):
+            conn.request_cert(req, "openssl-360d-max")
+
+        sans = captured['data']['csrAttributes'][CSR_ATTR_SANS_BY_TYPE]
+        self.assertEqual(sans[CSR_ATTR_SANS_IP_ADDR], ['10.0.0.5'])
+
+    def test_ngts_private_get_policy_is_cit_only_and_ownerless(self):
+        # The PRIVATE _get_policy (used by the service-CSR path) resolves via the CIT-only path,
+        # never resolves owners, and honours subject_cn_to_str (the service path passes False).
+        conn = self._ngts_conn(access_token='t', token_url=None)
+        info = CertificateAuthorityInfo('DIGICERT', 'acct-key', 'Product')
+
+        def get_policy(subject_cn_to_str):
+            with mock.patch.object(conn, '_get_cit',
+                                   return_value=self._ngts_cit_dict(name='my-template',
+                                                                    cn_regexes=['.*\\.example\\.com'])), \
+                    mock.patch.object(conn, '_get_ca_info', return_value=info), \
+                    mock.patch.object(conn, 'resolve_cloud_owners_names') as resolve_owners:
+                ps = conn._get_policy("my-template", subject_cn_to_str=subject_cn_to_str)
+            resolve_owners.assert_not_called()  # no Application owners on NGTS, either way
+            return ps
+
+        # subject_cn_to_str=False (the service-CSR path): domains stay the RAW regexes so the
+        # inherited CN-vs-policy validation in _get_service_generated_csr_attr can re.match them.
+        ps_false = get_policy(subject_cn_to_str=False)
+        self.assertIsInstance(ps_false, PolicySpecification)
+        self.assertEqual(ps_false.policy.domains, ['.*\\.example\\.com'])
+
+        # subject_cn_to_str=True (the public get_policy path): the regex escaping is stripped to a
+        # human-readable domain string. This is what proves the argument is actually honoured.
+        ps_true = get_policy(subject_cn_to_str=True)
+        self.assertEqual(ps_true.policy.domains, ['.*.example.com'])
+
+    def test_ngts_service_csr_missing_cit_raises_clean_error(self):
+        # An unknown CIT alias must fail with the NGTS "issuing template not found" error, not a
+        # zone-format error. Two paths need covering:
+        conn = self._ngts_conn(access_token='t', token_url=None)
+
+        # (1) The NEW _get_policy override's own missing-CIT branch (this is the code the service-CSR
+        #     path reaches via _get_service_generated_csr_attr). Call it directly: request_cert would
+        #     short-circuit at its earlier _get_cit_or_fail and never enter _get_policy.
+        with mock.patch.object(conn, '_get_cit', return_value=None):
+            with self.assertRaises(VenafiError) as ctx:
+                conn._get_policy("no-such-cit", subject_cn_to_str=False)
+        self.assertIn("issuing template not found", str(ctx.exception))
+        self.assertNotIn("zone format", str(ctx.exception))
+
+        # (2) End-to-end request_cert also surfaces a clean error (from its line-327 guard), never a
+        #     zone-format error.
+        req = CertificateRequest(common_name="host.example.com", csr_origin=CSR_ORIGIN_SERVICE)
+        with mock.patch.object(conn, '_get_cit', return_value=None):
+            with self.assertRaises(VenafiError) as ctx:
+                conn.request_cert(req, "no-such-cit")
+        self.assertNotIn("zone format", str(ctx.exception))
+
+    def test_service_generated_retrieve_encodes_passphrase_to_bytes(self):
+        # Regression: SealedBox.encrypt requires bytes, but request.key_password is a str.
+        # Without encoding, service-generated-CSR retrieval raised "TypeError: input message
+        # must be bytes" (verified live on NGTS). The retrieve path is inherited from Cloud, so
+        # this also covers VaaS service-generated CSR.
+        conn = self._ngts_conn(access_token='t', token_url=None)
+        captured = {}
+
+        class _FakeBox:
+            def __init__(self, _pk):
+                pass
+
+            def encrypt(self, msg):
+                captured['type'] = type(msg).__name__
+                captured['msg'] = msg
+                return b'ciphertext'
+
+        dek = mock.Mock()
+        dek.public_key = b'pub'
+        req = CertificateRequest(common_name="x.example.com", csr_origin=CSR_ORIGIN_SERVICE)
+        req.key_password = "s3cret"
+        req.cert_guid = "guid-1"
+        with mock.patch('vcert.connection_cloud.SealedBox', _FakeBox), \
+                mock.patch('vcert.connection_cloud.zip_to_pem', return_value=("CERT", "CHAIN", "KEY")), \
+                mock.patch.object(conn, '_post', return_value=(HTTPStatus.OK, b'zipdata')):
+            cert = conn._retrieve_service_generated_cert(req, dek)
+        self.assertEqual(captured['type'], 'bytes')      # not str -> no TypeError
+        self.assertEqual(captured['msg'], b"s3cret")
+        self.assertEqual(cert.cert, "CERT")
+
+        # None passphrase must not blow up either (encodes to empty bytes).
+        req.key_password = None
+        with mock.patch('vcert.connection_cloud.SealedBox', _FakeBox), \
+                mock.patch('vcert.connection_cloud.zip_to_pem', return_value=("CERT", "CHAIN", "KEY")), \
+                mock.patch.object(conn, '_post', return_value=(HTTPStatus.OK, b'zipdata')):
+            conn._retrieve_service_generated_cert(req, dek)
+        self.assertEqual(captured['msg'], b"")
 
     # -- Cloud / NGTS revoke (offline) --------------------------------------------------------
     #

@@ -1162,17 +1162,20 @@ class CloudConnection(CommonConnection):
         elif ps.defaults and ps.defaults.subject and ps.defaults.subject.country:
             csr_attr_map[CSR_ATTR_COUNTRY] = ps.defaults.subject.country
 
-        if len(request.san_dns) > 0:
-            sans = dict()
-            if request.san_dns and len(request.san_dns) > 0:
-                sans[CSR_ATTR_SANS_DNS] = request.san_dns
-            if request.ip_addresses and len(request.ip_addresses) > 0:
-                sans[CSR_ATTR_SANS_IP_ADDR] = request.ip_addresses
-            if request.email_addresses and len(request.email_addresses) > 0:
-                sans[CSR_ATTR_SANS_EMAIL_ADDR] = request.email_addresses
-            if request.uniform_resource_identifiers and len(request.uniform_resource_identifiers) > 0:
-                sans[CSR_ATTR_SANS_URIS] = request.uniform_resource_identifiers
+        # Emit each SAN type independently (parity with Go's getCsrAttributes): gating the whole
+        # block on san_dns silently dropped IP/email/URI-only service CSRs. Only attach the map when
+        # at least one SAN type is present.
+        sans = dict()
+        if request.san_dns and len(request.san_dns) > 0:
+            sans[CSR_ATTR_SANS_DNS] = request.san_dns
+        if request.ip_addresses and len(request.ip_addresses) > 0:
+            sans[CSR_ATTR_SANS_IP_ADDR] = request.ip_addresses
+        if request.email_addresses and len(request.email_addresses) > 0:
+            sans[CSR_ATTR_SANS_EMAIL_ADDR] = request.email_addresses
+        if request.uniform_resource_identifiers and len(request.uniform_resource_identifiers) > 0:
+            sans[CSR_ATTR_SANS_URIS] = request.uniform_resource_identifiers
 
+        if sans:
             csr_attr_map[CSR_ATTR_SANS_BY_TYPE] = sans
 
         if request.key_type:
@@ -1276,7 +1279,12 @@ class CloudConnection(CommonConnection):
         :rtype: Certificate
         """
         box = SealedBox(dek_info.public_key)
-        encrypted_key_pass = box.encrypt(request.key_password)
+        # SealedBox.encrypt requires bytes; request.key_password is a str (or None). Encode it so
+        # service-generated-CSR retrieval doesn't raise "TypeError: input message must be bytes".
+        key_password = request.key_password or ""
+        if isinstance(key_password, str):
+            key_password = key_password.encode("utf-8")
+        encrypted_key_pass = box.encrypt(key_password)
         body = {
             'exportFormat': 'PEM',
             'encryptedPrivateKeyPassphrase': base64.b64encode(encrypted_key_pass).decode('utf-8'),
