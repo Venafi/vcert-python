@@ -368,6 +368,26 @@ class TestLocalMethods(unittest.TestCase):
         req._gen_key()
         self.assertEqual(req.public_key.curve.name, "secp384r1")
 
+    def test_generate_ed25519_key(self):
+        # B4: KeyType(ec, ed25519) previously fell through to a silent P-256 key. It must now produce
+        # a real Ed25519 key (and __setattr__ must accept an Ed25519 private key, not raise).
+        from cryptography.hazmat.primitives.asymmetric import ed25519 as _ed
+        req = CertificateRequest(common_name="test.example.com", key_type=KeyType("ecdsa", "ed25519"))
+        req._gen_key()
+        self.assertIsInstance(req.private_key, _ed.Ed25519PrivateKey)
+        self.assertIsInstance(req.public_key, _ed.Ed25519PublicKey)
+        self.assertEqual(req.key_type.option, "ed25519")
+
+    def test_generate_ed25519_csr(self):
+        # B5: build_csr must sign an Ed25519 key with algorithm=None and produce a valid CSR.
+        from cryptography.hazmat.primitives.asymmetric import ed25519 as _ed
+        req = CertificateRequest(common_name="test.example.com", san_dns=["test.example.com"],
+                                 key_type=KeyType("ecdsa", "ed25519"))
+        req.build_csr()
+        csr = x509.load_pem_x509_csr(req.csr.encode(), default_backend())
+        self.assertTrue(csr.is_signature_valid)
+        self.assertIsInstance(csr.public_key(), _ed.Ed25519PublicKey)
+
     def test_parse_key_arguments(self):
         k = KeyType("rsa", 2048)
         self.assertEqual(k.key_type, k.RSA)
