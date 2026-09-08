@@ -401,9 +401,10 @@ class NGTSConnection(CloudConnection):
                 d['certificateSigningRequest'] = request.csr
                 d['reuseCSR'] = False
             else:
-                log.error("Certificate renew by reusing the CSR is not supported right now. "
-                          "Set [reuse_key] to False or just remove it")
-                raise VenafiError
+                # No caller CSR: reuse the existing certificate's CSR/key server-side, matching the Go
+                # SDK default (ReuseCSR=true). Previously this raised, so key reuse on renew was
+                # impossible without supplying a CSR.
+                d['reuseCSR'] = True
         else:
             c = data
             if c.get('subjectCN'):
@@ -418,7 +419,16 @@ class NGTSConnection(CloudConnection):
                 request.locality = c['subjectL']
             if c.get('subjectAlternativeNameDns'):
                 request.san_dns = c['subjectAlternativeNameDns']
-            request.key_type = KeyType(KeyType.RSA, c['keyStrength'])
+            # Preserve the previous certificate's key algorithm instead of hardcoding RSA (which
+            # downgraded ECDSA certs and raised KeyError on EC certs that carry no keyStrength). Only
+            # derive when the caller did not request a specific key type. _key_type_from_prev_cert is
+            # inherited from CloudConnection.
+            if request.key_type is None:
+                request.key_type = self._key_type_from_prev_cert(c)
+            # Force a fresh key of the resolved type: build_csr only generates a key when private_key
+            # is unset, so a reused request object would re-send its original key and NGTS rejects it
+            # with "key reuse is not allowed" (code 10746).
+            request.private_key = None
             request.build_csr()
             d['certificateSigningRequest'] = request.csr
             d['reuseCSR'] = False
