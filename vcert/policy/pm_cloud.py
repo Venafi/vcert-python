@@ -100,7 +100,9 @@ def build_policy_spec(cit, ca_info, subject_cn_to_str=True):
             if kt.key_type.upper() == KeyType.RSA.upper():
                 rsa_key_sizes.append(kt.option)
             elif kt.key_type.upper() == KeyType.ECDSA.upper():
-                elliptic_curves.append(kt.option)
+                # KeyType lowercases the curve (e.g. "p256"); emit the API/spec casing ("P256") so a
+                # get_policy -> set_policy round-trip validates against supported_elliptic_curves.
+                elliptic_curves.append(kt.option.upper())
             # Only include one instance of the KeyType
             if kt.key_type.upper() not in key_types:
                 key_types.append(kt.key_type.upper())
@@ -178,7 +180,7 @@ def build_policy_spec(cit, ca_info, subject_cn_to_str=True):
                 if kt.key_type == KeyType.RSA:
                     dkp.rsa_key_size = kt.option
                 elif kt.key_type == KeyType.ECDSA:
-                    dkp.elliptic_curve = kt.option
+                    dkp.elliptic_curve = kt.option.upper()
 
             d.key_pair = dkp if create_dkp else None
 
@@ -385,7 +387,7 @@ def get_invalid_cloud_ec_value(elliptic_curves):
     :rtype: str
     """
     for v in elliptic_curves:
-        if v not in supported_elliptic_curves:
+        if str(v).upper() not in supported_elliptic_curves:
             return v
 
     return None
@@ -605,9 +607,9 @@ def build_cit_request(ps, ca_details):
             ec_kt['keyType'] = KeyType.ECDSA.upper()
 
             if ps.policy and ps.policy.key_pair and len(ps.policy.key_pair.elliptic_curves) > 0:
-                ec_kt['keyCurves'] = ps.policy.key_pair.elliptic_curves
+                ec_kt['keyCurves'] = [c.upper() for c in ps.policy.key_pair.elliptic_curves]
             elif ps.defaults and ps.defaults.key_pair and ps.defaults.key_pair.elliptic_curve:
-                ec_kt['keyCurves'] = [ps.defaults.key_pair.elliptic_curve]
+                ec_kt['keyCurves'] = [ps.defaults.key_pair.elliptic_curve.upper()]
             else:
                 ec_kt['keyCurves'] = ['P256']
 
@@ -659,7 +661,7 @@ def build_cit_request(ps, ca_details):
                     r_key['length'] = 2048
             elif default_kt == KeyType.ECDSA.upper():
                 if default_kp.elliptic_curve:
-                    r_key['curve'] = default_kp.elliptic_curve
+                    r_key['curve'] = default_kp.elliptic_curve.upper()
                 else:
                     r_key['curve'] = 'P256'
 
