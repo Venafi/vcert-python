@@ -372,6 +372,26 @@ class TestLocalMethods(unittest.TestCase):
         cert = conn.retrieve_cert(req)
         self.assertIn("BEGIN CERTIFICATE", cert.cert)
 
+    def test_fake_read_zone_conf_returns_zone_config(self):
+        # Regression: FakeConnection previously defined read_zone_conf twice; the second definition
+        # raised NotImplementedError and shadowed the working one, breaking test_mode enrollment.
+        conn = FakeConnection()
+        z = conn.read_zone_conf("")
+        self.assertIsInstance(z, ZoneConfig)
+        self.assertTrue(len(z.policy.key_types) > 0)
+        self.assertEqual(z.policy.key_types[0].key_type, KeyType.RSA)
+
+    def test_fake_enroll_reads_zone_conf(self):
+        # Mirrors the test_mode enroll flow used by the ansible collection: read the zone config,
+        # apply it to the request, then request + retrieve. Must not raise NotImplementedError.
+        conn = FakeConnection()
+        z = conn.read_zone_conf("")
+        req = CertificateRequest(common_name="test.example.com")
+        req.update_from_zone_config(z)
+        conn.request_cert(req, "")
+        cert = conn.retrieve_cert(req)
+        self.assertIn("BEGIN CERTIFICATE", cert.cert)
+
     def test_tpp_url_normalization(self):
         conn = TPPConnection(url="localhost", user="user", password="password")
         self.assertEqual(conn._base_url, "https://localhost/")
