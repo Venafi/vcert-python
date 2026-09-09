@@ -25,7 +25,8 @@ from cryptography.hazmat.backends import default_backend
 from assets import POLICY_CLOUD1, POLICY_TPP1, EXAMPLE_CSR, EXAMPLE_CHAIN
 from vcert import (CloudConnection, KeyType, TPPConnection, CertificateRequest, ZoneConfig, CertField, FakeConnection,
                    NGTSConnection, RevocationRequest, logger, CSR_ORIGIN_SERVICE)
-from vcert.connection_cloud import (URLS, CSR_ATTR_CN, CSR_ATTR_SANS_BY_TYPE, CSR_ATTR_SANS_IP_ADDR)
+from vcert.connection_cloud import (URLS, CSR_ATTR_CN, CSR_ATTR_SANS_BY_TYPE, CSR_ATTR_SANS_IP_ADDR,
+                                    CSR_ATTR_KEY_TYPE_PARAMS, CSR_ATTR_KEY_CURVE)
 from vcert.connection_ngts import (_parse_ngts_zone, DEFAULT_API_URL, DEFAULT_TOKEN_URL,
                                    TRUSTED_TOKEN_HOST_SUFFIX)
 from vcert.errors import (ClientBadData, ServerUnexptedBehavior, VenafiError, VenafiConnectionError,
@@ -240,6 +241,37 @@ class TestLocalMethods(unittest.TestCase):
         # get_invalid_cloud_ec_value is case-insensitive (also accepts a hand-written lowercase spec)
         self.assertIsNone(get_invalid_cloud_ec_value(["p256", "P384", "ed25519"]))
         self.assertEqual(get_invalid_cloud_ec_value(["bogus"]), "bogus")
+
+    def test_ec_service_csr_matches_uppercase_policy_curve(self):
+        # Regression guard for the EC service-CSR casing bug: KeyType lowercases the request curve
+        # ("P384" -> "p384") while build_policy_spec now emits the policy curve list uppercase
+        # ("P384"). value_matches_regex is case-sensitive, so before the fix
+        # _get_service_generated_csr_attr raised ClientBadData ("Request value: p384, CIT values:
+        # [P256, P384, P521]") for every EC service CSR. This exercises the exact interaction that
+        # was only covered by the live test_enroll_ec_key_certificate (skipped under `make test`).
+        conn = CloudConnection(token="")
+        cit = conn._parse_policy_response_to_object({
+            "id": "cit-ec",
+            "certificateAuthority": "DIGICERT",
+            "subjectCNRegexes": [".*"], "subjectORegexes": [".*"], "subjectOURegexes": [".*"],
+            "subjectSTRegexes": [".*"], "subjectLRegexes": [".*"], "subjectCValues": [".*"],
+            "sanRegexes": [".*"],
+            "keyTypes": [{"keyType": "EC", "keyCurves": ["P256", "P384", "P521"]}],
+        })
+        ps = build_policy_spec(cit, CertificateAuthorityInfo("DIGICERT", "acct", "Product"))
+        self.assertEqual(ps.policy.key_pair.elliptic_curves, ["P256", "P384", "P521"])  # uppercase
+
+        request = CertificateRequest(
+            common_name="host.venafi.example.com",
+            san_dns=["host.venafi.example.com"],
+            key_type=KeyType(KeyType.ECDSA, "P384"),
+            csr_origin=CSR_ORIGIN_SERVICE,
+        )
+        self.assertEqual(request.key_type.option, "p384")  # KeyType lowercases the option
+
+        with mock.patch.object(conn, "_get_policy", return_value=ps):
+            attrs = conn._get_service_generated_csr_attr(request, "any-zone")  # must not raise
+        self.assertEqual(attrs[CSR_ATTR_KEY_TYPE_PARAMS][CSR_ATTR_KEY_CURVE], "P384")
 
     def test_parse_tpp_zone1(self):
         conn = TPPConnection(url="http://example.com/", user="", password="")

@@ -1224,7 +1224,11 @@ class CloudConnection(CommonConnection):
                         raise ClientBadData
                 elif request.key_type.key_type.lower() == KeyType.ECDSA:
                     policy_ecs = ps.policy.key_pair.elliptic_curves
-                    valid = value_matches_regex(value=req_kt_option, pattern_list=policy_ecs)
+                    # KeyType stores the curve lowercase ("p384") but build_policy_spec now emits the
+                    # curve list uppercase ("P384"); value_matches_regex is case-sensitive, so compare
+                    # both sides upper-cased or EC service CSRs wrongly fail policy validation.
+                    valid = value_matches_regex(value=req_kt_option.upper(),
+                                                pattern_list=[str(c).upper() for c in policy_ecs])
                     if not valid:
                         ec_str = "Elliptic Curve"
                         log.error(MSG_VALUE_NOT_MATCH_POLICY.format(ec_str, f"{ec_str}s", req_kt_option, policy_ecs))
