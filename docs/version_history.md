@@ -2,6 +2,20 @@
 
 ## Version History
 
+#### 0.22.1
+* Fixed EC curve casing validation issue in service-generated CSR enrollment for Cloud/NGTS that caused `ClientBadData` errors with elliptic curve keys
+
+#### 0.22.0
+* Fixed NGTS certificate retirement to correctly resolve request IDs to managed certificate IDs
+* Fixed key algorithm preservation on certificate renewal - now generates fresh keys instead of potentially reusing old ones
+* Fixed Ed25519 key generation to produce actual Ed25519 keys instead of silently downgrading to P-256
+* Fixed NGTS service-generated CSR enrollment on CIT-only zones
+* Fixed EC curve casing normalization in Cloud/NGTS so `get_policy`/`set_policy` operations round-trip correctly
+* Fixed Cloud policy parsing to tolerate unsupported key sizes and curves in Certificate Issuing Template configuration
+* Fixed FakeConnection by removing duplicate `read_zone_conf` method that shadowed the working implementation
+* Enhanced NGTS documentation with expanded local-CSR enrollment example
+* Improved Cloud revocation tests to skip reactively when credentials are unavailable
+
 #### 0.21.0
 * Added certificate revocation (`revoke_cert`) for CyberArk Certificate Manager, SaaS (Cloud/VaaS) and NGTS (Strata Cloud Manager), via the GraphQL CA-operations `revokeCertificate` mutation (keyed by SHA-1 thumbprint)
 * Cloud `revoke_cert` no longer raises `NotImplementedError`; NGTS inherits the same implementation
