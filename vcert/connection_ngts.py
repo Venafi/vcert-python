@@ -66,8 +66,8 @@ SCOPE_PATTERN = re.compile(r"tsg_id:[0-9]{10}")
 # clear error rather than surfacing as an opaque NGTS API error.
 WORKSPACE_ID_PATTERN = re.compile(r"[0-9]{1,10}")
 
-# Query parameter carrying the workspace on every NGTS request (REST, GraphQL, and the OAuth token
-# exchange). The workspace is never part of the zone, the URL path, or a request body.
+# Query parameter carrying the workspace on every NGTS API request (REST and GraphQL). It is not sent
+# to the OAuth token endpoint, and is never part of the zone, the URL path, or a request body.
 WORKSPACE_QUERY_PARAM = "workspace_id"
 
 log = get_child("connection-ngts")
@@ -243,9 +243,8 @@ class NGTSConnection(CloudConnection):
         Scope every subsequent call to an NGTS workspace. A workspace is independent of the zone -
         the zone remains a bare Certificate Issuing Template alias.
 
-        Set this before the first request: the workspace also scopes the access token obtained by
-        :meth:`_get_access_token`, so setting it once a token already exists leaves that token
-        unscoped until it is renewed.
+        Takes effect on the next request. Access tokens are not workspace-scoped, so an existing
+        token keeps working after the workspace changes.
 
         :param str workspace: the workspace's numeric ID (1-10 digits), not its name
         """
@@ -289,10 +288,10 @@ class NGTSConnection(CloudConnection):
             'grant_type': 'client_credentials',
             'scope': self._scope,
         }
-        # The workspace scopes the token itself, so it goes on the token URL as well as on resource
-        # calls: the resulting access token is already workspace-scoped when issued.
-        token_url = _with_workspace_id(self._token_url, self._workspace)
-        r = requests.post(token_url, data=data, auth=(self._client_id, self._client_secret),
+        # The workspace is deliberately not sent here. The token endpoint ignores workspace_id (tokens
+        # minted with and without it carry identical claims); the tenant is selected by the scope, and
+        # the workspace is applied per API request instead.
+        r = requests.post(self._token_url, data=data, auth=(self._client_id, self._client_secret),
                           headers=headers, **self._http_request_kwargs)  # nosec B113
         if r.status_code != HTTPStatus.OK:
             log.error(f"Failed to obtain access token. Server status: {r.status_code}")

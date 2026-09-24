@@ -781,16 +781,16 @@ class TestLocalMethods(unittest.TestCase):
             conn._get("v1/certificateissuingtemplates")
         self.assertEqual(get.call_args[0][0], f"{DEFAULT_API_URL}/v1/certificateissuingtemplates")
 
-    def test_ngts_access_token_request_sends_workspace(self):
-        # The workspace scopes the minted token itself, so it rides on the token URL too.
+    def test_ngts_access_token_request_does_not_send_workspace(self):
+        # The token endpoint ignores workspace_id (tokens minted with and without it carry identical
+        # claims), so sending it would only imply a scoping that does not happen.
         conn = self._ngts_conn(workspace='1234567890')
         fake_resp = mock.MagicMock()
         fake_resp.status_code = 200
         fake_resp.json.return_value = {'access_token': 'a.b.c', 'token_type': 'Bearer', 'expires_in': 900}
         with mock.patch('vcert.connection_ngts.requests.post', return_value=fake_resp) as post:
             conn._get_access_token()
-        self.assertEqual(post.call_args[0][0],
-                         "https://auth.example.com/oauth2/token?workspace_id=1234567890")
+        self.assertEqual(post.call_args[0][0], "https://auth.example.com/oauth2/token")
 
     def test_ngts_access_token_request_preserves_token_url_query(self):
         conn = self._ngts_conn(token_url="https://auth.example.com/oauth2/token?foo=bar", workspace='7')
@@ -799,8 +799,7 @@ class TestLocalMethods(unittest.TestCase):
         fake_resp.json.return_value = {'access_token': 'a.b.c', 'token_type': 'Bearer', 'expires_in': 900}
         with mock.patch('vcert.connection_ngts.requests.post', return_value=fake_resp) as post:
             conn._get_access_token()
-        self.assertEqual(post.call_args[0][0],
-                         "https://auth.example.com/oauth2/token?foo=bar&workspace_id=7")
+        self.assertEqual(post.call_args[0][0], "https://auth.example.com/oauth2/token?foo=bar")
 
     def test_ngts_access_token_request_omits_workspace_when_unset(self):
         conn = self._ngts_conn()

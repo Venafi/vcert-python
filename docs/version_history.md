@@ -3,7 +3,7 @@
 ## Version History
 
 #### 0.23.0
-* Added NGTS workspace support: `NGTSConnection(workspace=...)`, `venafi_connection(workspace=...)` and `set_workspace()` scope every API, GraphQL, and token request to a workspace via the `workspace_id` query parameter. A workspace is identified by its numeric ID, is independent of the zone, and is optional — omitting it leaves requests unchanged
+* Added NGTS workspace support: `NGTSConnection(workspace=...)`, `venafi_connection(workspace=...)` and `set_workspace()` scope every API and GraphQL request to a workspace via the `workspace_id` query parameter. A workspace is identified by its numeric ID, is independent of the zone, and is optional — omitting it leaves requests unchanged
 * NGTS `set_policy` raises `ClientBadData` on a workspace-scoped connection: issuing templates belong to the tenant and are read-only within a workspace, so policy management must use a connection without a workspace
 
 #### 0.22.1

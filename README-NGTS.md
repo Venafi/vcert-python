@@ -166,11 +166,12 @@ Equivalently, on an existing connection:
 conn.set_workspace("1234567890")
 ```
 
-Set the workspace **before the first request**. It scopes the access token the SDK mints as well as
-the resource calls, so setting it once a token already exists leaves that token unscoped until it is
-renewed.
+The workspace applies to every request made after it is set. Access tokens are not
+workspace-scoped: the tenant is selected by `scope`/`tsg_id`, and the workspace is applied per
+request, so an existing token keeps working when the workspace changes.
 
-When a workspace is set, VCert appends `?workspace_id=<id>` to API, GraphQL, and token requests.
+When a workspace is set, VCert appends `?workspace_id=<id>` to API and GraphQL requests (not to the
+OAuth token request, which ignores it).
 Any query string a request already carries is preserved. When no workspace is set, requests are
 unchanged — omit the parameter and NGTS applies its own default.
 
