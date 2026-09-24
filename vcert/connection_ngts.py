@@ -15,7 +15,7 @@
 #
 import re
 from datetime import datetime, timedelta
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 
 import requests
 
@@ -61,6 +61,15 @@ TRUSTED_TOKEN_HOST_SUFFIX = ".paloaltonetworks.com"  # nosec B105
 # garbage.
 SCOPE_PATTERN = re.compile(r"tsg_id:[0-9]{10}")
 
+# NGTS workspaces are identified by a numeric ID (a uint32 rendered as a string, so 1-10 digits),
+# never by name. Validated in the connector so that passing a workspace *name* fails locally with a
+# clear error rather than surfacing as an opaque NGTS API error.
+WORKSPACE_ID_PATTERN = re.compile(r"[0-9]{1,10}")
+
+# Query parameter carrying the workspace on every NGTS request (REST, GraphQL, and the OAuth token
+# exchange). The workspace is never part of the zone, the URL path, or a request body.
+WORKSPACE_QUERY_PARAM = "workspace_id"
+
 log = get_child("connection-ngts")
 
 
@@ -98,6 +107,29 @@ def _warn_if_untrusted_token_host(url):
                     "there - verify this endpoint is trusted", host, TRUSTED_TOKEN_HOST_SUFFIX)
 
 
+def _with_workspace_id(url, workspace_id):
+    """
+    Append ``workspace_id=<id>`` to ``url``, preserving any query string it already carries.
+
+    Merging rather than overwriting matters: ``retrieve_cert`` hand-builds
+    ``?chainOrder=...&format=PEM`` (``connection_cloud.py``), and those parameters must survive.
+    The operation is idempotent, replaces a pre-existing ``workspace_id``, and returns the URL
+    untouched when no workspace is set.
+
+    :param str url:
+    :param str workspace_id:
+    :rtype: str
+    """
+    if not workspace_id:
+        return url
+    parts = urlsplit(url)
+    # doseq keeps repeated parameters intact; parse_qs with keep_blank_values preserves an
+    # existing "?foo=" rather than silently dropping it.
+    query = parse_qs(parts.query, keep_blank_values=True)
+    query[WORKSPACE_QUERY_PARAM] = [workspace_id]
+    return urlunsplit(parts._replace(query=urlencode(query, doseq=True)))
+
+
 def _parse_ngts_zone(zone):
     """
     NGTS zones are a Certificate Issuing Template alias only - the entire zone string is the
@@ -125,6 +157,10 @@ class NGTSConnection(CloudConnection):
     - Zones are a Certificate Issuing Template alias only (no ``Application\\CIT`` split), and
       request payloads omit ``applicationId``.
 
+    Calls can optionally be scoped to an NGTS *workspace* (see :meth:`set_workspace`). A workspace
+    is orthogonal to the zone: the zone stays a bare CIT alias, and the workspace rides along as a
+    ``workspace_id`` query parameter on every request.
+
     ``url`` is optional: when omitted it defaults to the published Palo Alto production API
     endpoint (:data:`DEFAULT_API_URL`), matching Go's ``normalizeURL`` fallback. ``token_url`` is
     likewise optional and defaults to the production OAuth2 token endpoint
@@ -140,7 +176,7 @@ class NGTSConnection(CloudConnection):
     """
 
     def __init__(self, client_id, client_secret, token_url=None, scope=None, tsg_id=None, access_token=None, url=None,
-                 http_request_kwargs=None):
+                 http_request_kwargs=None, workspace=None):
         # url defaults to the published Palo Alto production endpoint (Go defaults the base URL
         # too); it must be defaulted before the super().__init__ call, which normalizes whatever
         # base URL it receives. token_url likewise defaults to the production OAuth2 endpoint;
@@ -177,8 +213,13 @@ class NGTSConnection(CloudConnection):
         self._tsg_id = tsg_id
         self._access_token = access_token
         self._token_expires = None
+        self._workspace = None
+        if workspace:
+            self.set_workspace(workspace)
 
     def __str__(self):
+        if self._workspace:
+            return f"[NGTS] {self._base_url} (workspace {self._workspace})"
         return f"[NGTS] {self._base_url}"
 
     def _normalize_and_verify_base_url(self):
@@ -194,6 +235,41 @@ class NGTSConnection(CloudConnection):
         if not re.match(r"^https://[a-z\d]+[-a-z\d.]+[a-z\d][:\d]*(/[-a-zA-Z\d._~]+)*/$", u):
             raise ClientBadData
         self._base_url = u
+
+    # -- Workspaces ------------------------------------------------------------------------------
+
+    def set_workspace(self, workspace):
+        """
+        Scope every subsequent call to an NGTS workspace. A workspace is independent of the zone -
+        the zone remains a bare Certificate Issuing Template alias.
+
+        Set this before the first request: the workspace also scopes the access token obtained by
+        :meth:`_get_access_token`, so setting it once a token already exists leaves that token
+        unscoped until it is renewed.
+
+        :param str workspace: the workspace's numeric ID (1-10 digits), not its name
+        """
+        if workspace and not WORKSPACE_ID_PATTERN.fullmatch(workspace):
+            raise ClientBadData(f'invalid workspace "{workspace}". A workspace is identified by its '
+                                f"numeric ID, not its name")
+        self._workspace = workspace or None
+
+    def _resolve_url(self, url):
+        """
+        Turn a relative resource path into the absolute URL to call, carrying the workspace when
+        one is set.
+
+        The workspace is applied here - after the base URL is joined and after callers have
+        substituted their ``{}`` placeholders and appended any hand-built query (e.g.
+        ``retrieve_cert``'s ``?chainOrder=...&format=PEM``) - so that query is merged with rather
+        than clobbered. This is the single choke point for both REST and GraphQL: Cloud's
+        ``_graphql`` posts through ``_post`` too, so there is no separate GraphQL URL builder to keep
+        in sync.
+
+        :param str url:
+        :rtype: str
+        """
+        return _with_workspace_id(self._base_url + url, self._workspace)
 
     # -- Authentication --------------------------------------------------------------------------
 
@@ -213,7 +289,10 @@ class NGTSConnection(CloudConnection):
             'grant_type': 'client_credentials',
             'scope': self._scope,
         }
-        r = requests.post(self._token_url, data=data, auth=(self._client_id, self._client_secret),
+        # The workspace scopes the token itself, so it goes on the token URL as well as on resource
+        # calls: the resulting access token is already workspace-scoped when issued.
+        token_url = _with_workspace_id(self._token_url, self._workspace)
+        r = requests.post(token_url, data=data, auth=(self._client_id, self._client_secret),
                           headers=headers, **self._http_request_kwargs)  # nosec B113
         if r.status_code != HTTPStatus.OK:
             log.error(f"Failed to obtain access token. Server status: {r.status_code}")
@@ -281,7 +360,7 @@ class NGTSConnection(CloudConnection):
     def _get(self, url, params=None):
         self._ensure_token()
         headers = self._auth_headers(MIME_ANY)
-        r = requests.get(self._base_url + url, params=params, headers=headers,
+        r = requests.get(self._resolve_url(url), params=params, headers=headers,
                          **self._http_request_kwargs)  # nosec B113
         return self.process_server_response(r)
 
@@ -289,7 +368,7 @@ class NGTSConnection(CloudConnection):
         self._ensure_token()
         headers = self._auth_headers(MIME_JSON)
         if isinstance(data, dict):
-            r = requests.post(self._base_url + url, json=data, headers=headers,
+            r = requests.post(self._resolve_url(url), json=data, headers=headers,
                               **self._http_request_kwargs)  # nosec B113
         else:
             log.error(f"Unexpected client data type: {type(data)} for {url}")
@@ -300,7 +379,7 @@ class NGTSConnection(CloudConnection):
         self._ensure_token()
         headers = self._auth_headers(MIME_JSON)
         if isinstance(data, dict):
-            r = requests.put(self._base_url + url, json=data, headers=headers,
+            r = requests.put(self._resolve_url(url), json=data, headers=headers,
                              **self._http_request_kwargs)  # nosec B113
         else:
             log.error(f"Unexpected client data type: {type(data)} for {url}")
@@ -537,9 +616,17 @@ class NGTSConnection(CloudConnection):
         CIT is created/updated directly on the global issuing-template endpoint and
         ``policy_spec.users`` is ignored (parity with Go NGTS).
 
+        Not supported on a workspace-scoped connection: issuing templates (Request Policies) belong
+        to the tenant and are read-only within a workspace, so NGTS rejects the write with 403/1002.
+        This raises locally instead, before any request is sent, with an actionable message.
+
         :param str zone: the CIT alias (NGTS zones are a CIT alias only - no Application\\CIT split)
         :param PolicySpecification policy_spec:
         """
+        if self._workspace:
+            raise ClientBadData(f"set_policy is not supported within a workspace (workspace {self._workspace}): "
+                                f"issuing templates belong to the tenant and are read-only in a workspace. "
+                                f"Use a connection without a workspace for policy management")
         validate_policy_spec(policy_spec)
         cit_alias = _parse_ngts_zone(zone)
 
