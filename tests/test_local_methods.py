@@ -24,10 +24,11 @@ from cryptography.hazmat.backends import default_backend
 
 from assets import POLICY_CLOUD1, POLICY_TPP1, EXAMPLE_CSR, EXAMPLE_CHAIN
 from vcert import (CloudConnection, KeyType, TPPConnection, CertificateRequest, ZoneConfig, CertField, FakeConnection,
-                   NGTSConnection, RevocationRequest, logger, CSR_ORIGIN_SERVICE)
+                   NGTSConnection, RevocationRequest, logger, CSR_ORIGIN_SERVICE, VenafiPlatform,
+                   venafi_connection)
 from vcert.connection_cloud import (URLS, CSR_ATTR_CN, CSR_ATTR_SANS_BY_TYPE, CSR_ATTR_SANS_IP_ADDR,
                                     CSR_ATTR_KEY_TYPE_PARAMS, CSR_ATTR_KEY_CURVE)
-from vcert.connection_ngts import (_parse_ngts_zone, DEFAULT_API_URL, DEFAULT_TOKEN_URL,
+from vcert.connection_ngts import (_parse_ngts_zone, _with_workspace_id, DEFAULT_API_URL, DEFAULT_TOKEN_URL,
                                    TRUSTED_TOKEN_HOST_SUFFIX)
 from vcert.errors import (ClientBadData, ServerUnexptedBehavior, VenafiError, VenafiConnectionError,
                           CertificateRevokeError)
@@ -674,6 +675,227 @@ class TestLocalMethods(unittest.TestCase):
             conn._get("v1/certificateissuingtemplates")
         _, kwargs = get.call_args
         self.assertEqual(kwargs['headers']['Authorization'], 'Bearer pre.issued.token')
+
+    # -- NGTS workspaces (offline) ------------------------------------------------------------
+    #
+    # A workspace is orthogonal to the zone: it never appears in the zone string, the URL path or
+    # a request body, only as a `workspace_id` query parameter.
+
+    def test_with_workspace_id_no_workspace_leaves_url_untouched(self):
+        # The regression that matters most: existing callers pass no workspace, so their URLs must
+        # be byte-for-byte what they were before workspaces existed.
+        for url in ("https://api.example.com/ngts/outagedetection/v1/certificaterequests",
+                    "https://api.example.com/ngts/x?chainOrder=EE_FIRST&format=PEM"):
+            self.assertEqual(_with_workspace_id(url, ""), url)
+            self.assertEqual(_with_workspace_id(url, None), url)
+
+    def test_with_workspace_id_appends_to_url_without_query(self):
+        self.assertEqual(_with_workspace_id("https://api.example.com/ngts/v1/x", "1234567890"),
+                         "https://api.example.com/ngts/v1/x?workspace_id=1234567890")
+
+    def test_with_workspace_id_preserves_existing_query(self):
+        # retrieve_cert hand-builds ?chainOrder=...&format=PEM; those must survive.
+        self.assertEqual(
+            _with_workspace_id("https://api.example.com/ngts/v1/x?chainOrder=EE_FIRST&format=PEM", "7"),
+            "https://api.example.com/ngts/v1/x?chainOrder=EE_FIRST&format=PEM&workspace_id=7")
+
+    def test_with_workspace_id_is_idempotent(self):
+        once = _with_workspace_id("https://api.example.com/ngts/v1/x?a=b", "7")
+        self.assertEqual(_with_workspace_id(once, "7"), once)
+
+    def test_with_workspace_id_overwrites_existing_workspace(self):
+        self.assertEqual(_with_workspace_id("https://api.example.com/ngts/v1/x?workspace_id=1", "2"),
+                         "https://api.example.com/ngts/v1/x?workspace_id=2")
+
+    def test_with_workspace_id_preserves_percent_encoding(self):
+        # Existing values must be kept byte-for-byte, not re-encoded (%20 must not become +).
+        self.assertEqual(_with_workspace_id("https://api.example.com/ngts/v1/x?q=a%20b&r=c+d&e=", "7"),
+                         "https://api.example.com/ngts/v1/x?q=a%20b&r=c+d&e=&workspace_id=7")
+
+    def test_ngts_workspace_accepts_numeric_ids(self):
+        # A uint32 rendered as a string: 1 to 10 digits, at most 4294967295.
+        for workspace in ("7", "1234567890", "4294967295"):
+            self.assertEqual(self._ngts_conn(workspace=workspace)._workspace, workspace)
+
+    def test_ngts_workspace_defaults_to_none(self):
+        self.assertIsNone(self._ngts_conn()._workspace)
+
+    def test_ngts_workspace_rejects_non_numeric_ids(self):
+        # A workspace is identified by its numeric ID, never its name.
+        for bad in ("12345678901", "4294967296", "9999999999", "my-workspace", "123abc", "-1", " 7"):
+            with self.assertRaises(ClientBadData):
+                self._ngts_conn(workspace=bad)
+
+    def test_ngts_workspace_rejects_falsy_and_non_string_values(self):
+        # Only None means "no workspace"; other falsy or non-string values must raise, not vanish.
+        for bad in ("", 0, False, 7):
+            with self.assertRaises(ClientBadData):
+                self._ngts_conn(workspace=bad)
+            with self.assertRaises(ClientBadData):
+                self._ngts_conn().set_workspace(bad)
+
+    def test_ngts_set_workspace_can_clear(self):
+        conn = self._ngts_conn(workspace="7")
+        conn.set_workspace(None)
+        self.assertIsNone(conn._workspace)
+        self.assertNotIn("workspace_id", conn._resolve_url("v1/certificateissuingtemplates"))
+
+    def test_ngts_get_sends_workspace(self):
+        conn = self._ngts_conn(access_token='pre.issued.token', token_url=None, workspace='1234567890')
+        fake_resp = mock.MagicMock()
+        fake_resp.status_code = 200
+        fake_resp.headers = {'content-type': 'application/json'}
+        fake_resp.json.return_value = {}
+        with mock.patch('vcert.connection_ngts.requests.get', return_value=fake_resp) as get:
+            conn._get("v1/certificateissuingtemplates")
+        args, _ = get.call_args
+        self.assertEqual(args[0], f"{DEFAULT_API_URL}/v1/certificateissuingtemplates"
+                                  f"?workspace_id=1234567890")
+
+    def test_ngts_get_sends_workspace_alongside_existing_query(self):
+        # The retrieve_cert path: Cloud appends its own query before _get sees the URL.
+        conn = self._ngts_conn(access_token='pre.issued.token', token_url=None, workspace='7')
+        fake_resp = mock.MagicMock()
+        fake_resp.status_code = 200
+        fake_resp.headers = {'content-type': 'application/json'}
+        fake_resp.json.return_value = {}
+        with mock.patch('vcert.connection_ngts.requests.get', return_value=fake_resp) as get:
+            conn._get("outagedetection/v1/certificates/abc/contents?chainOrder=EE_FIRST&format=PEM")
+        args, _ = get.call_args
+        self.assertEqual(args[0], f"{DEFAULT_API_URL}/outagedetection/v1/certificates/abc/contents"
+                                  f"?chainOrder=EE_FIRST&format=PEM&workspace_id=7")
+
+    def test_ngts_get_params_cannot_duplicate_workspace(self):
+        # The connection's workspace is already in the URL; a workspace_id in params is dropped so
+        # the request never carries two values. Other params pass through.
+        conn = self._ngts_conn(access_token='pre.issued.token', token_url=None, workspace='7')
+        fake_resp = mock.MagicMock()
+        fake_resp.status_code = 200
+        fake_resp.headers = {'content-type': 'application/json'}
+        fake_resp.json.return_value = {}
+        with mock.patch('vcert.connection_ngts.requests.get', return_value=fake_resp) as get:
+            conn._get("v1/x", params={'workspace_id': '9', 'a': 'b'})
+        args, kwargs = get.call_args
+        self.assertEqual(args[0], f"{DEFAULT_API_URL}/v1/x?workspace_id=7")
+        self.assertEqual(kwargs['params'], {'a': 'b'})
+
+    def test_ngts_post_and_put_send_workspace(self):
+        # _post also covers GraphQL (CloudConnection._graphql posts through it), so REST and
+        # GraphQL share this single choke point.
+        conn = self._ngts_conn(access_token='pre.issued.token', token_url=None, workspace='7')
+        fake_resp = mock.MagicMock()
+        fake_resp.status_code = 200
+        fake_resp.headers = {'content-type': 'application/json'}
+        fake_resp.json.return_value = {}
+        with mock.patch('vcert.connection_ngts.requests.post', return_value=fake_resp) as post:
+            conn._post(URLS.CERTIFICATE_REQUESTS, data={})
+        self.assertEqual(post.call_args[0][0],
+                         f"{DEFAULT_API_URL}/{URLS.CERTIFICATE_REQUESTS}?workspace_id=7")
+        with mock.patch('vcert.connection_ngts.requests.put', return_value=fake_resp) as put:
+            conn._put(URLS.ISSUING_TEMPLATES_UPDATE.format("cit-id"), data={})
+        self.assertEqual(put.call_args[0][0],
+                         f"{DEFAULT_API_URL}/v1/certificateissuingtemplates/cit-id?workspace_id=7")
+
+    def test_ngts_requests_omit_workspace_when_unset(self):
+        # Complements the helper-level check: no workspace means no query parameter is added at
+        # the verb level either.
+        conn = self._ngts_conn(access_token='pre.issued.token', token_url=None)
+        fake_resp = mock.MagicMock()
+        fake_resp.status_code = 200
+        fake_resp.headers = {'content-type': 'application/json'}
+        fake_resp.json.return_value = {}
+        with mock.patch('vcert.connection_ngts.requests.get', return_value=fake_resp) as get:
+            conn._get("v1/certificateissuingtemplates")
+        self.assertEqual(get.call_args[0][0], f"{DEFAULT_API_URL}/v1/certificateissuingtemplates")
+
+    def test_ngts_access_token_request_does_not_send_workspace(self):
+        # The token endpoint ignores workspace_id (tokens minted with and without it carry identical
+        # claims), so sending it would only imply a scoping that does not happen.
+        conn = self._ngts_conn(workspace='1234567890')
+        fake_resp = mock.MagicMock()
+        fake_resp.status_code = 200
+        fake_resp.json.return_value = {'access_token': 'a.b.c', 'token_type': 'Bearer', 'expires_in': 900}
+        with mock.patch('vcert.connection_ngts.requests.post', return_value=fake_resp) as post:
+            conn._get_access_token()
+        self.assertEqual(post.call_args[0][0], "https://auth.example.com/oauth2/token")
+
+    def test_ngts_access_token_request_preserves_token_url_query(self):
+        conn = self._ngts_conn(token_url="https://auth.example.com/oauth2/token?foo=bar", workspace='7')
+        fake_resp = mock.MagicMock()
+        fake_resp.status_code = 200
+        fake_resp.json.return_value = {'access_token': 'a.b.c', 'token_type': 'Bearer', 'expires_in': 900}
+        with mock.patch('vcert.connection_ngts.requests.post', return_value=fake_resp) as post:
+            conn._get_access_token()
+        self.assertEqual(post.call_args[0][0], "https://auth.example.com/oauth2/token?foo=bar")
+
+    def test_ngts_access_token_request_omits_workspace_when_unset(self):
+        conn = self._ngts_conn()
+        fake_resp = mock.MagicMock()
+        fake_resp.status_code = 200
+        fake_resp.json.return_value = {'access_token': 'a.b.c', 'token_type': 'Bearer', 'expires_in': 900}
+        with mock.patch('vcert.connection_ngts.requests.post', return_value=fake_resp) as post:
+            conn._get_access_token()
+        self.assertEqual(post.call_args[0][0], "https://auth.example.com/oauth2/token")
+
+    def test_ngts_set_policy_rejected_within_workspace(self):
+        # Issuing templates are tenant-owned and read-only inside a workspace, so set_policy must
+        # fail locally with a clear error rather than sending a request NGTS will reject (403/1002).
+        conn = self._ngts_conn(access_token='pre.issued.token', token_url=None, workspace='7')
+        ps = PolicySpecification()
+        ps.policy = Policy(domains=["venafi.example"])
+        with mock.patch('vcert.connection_ngts.requests.get') as get, \
+                mock.patch('vcert.connection_ngts.requests.post') as post, \
+                mock.patch('vcert.connection_ngts.requests.put') as put:
+            with self.assertRaises(ClientBadData) as cm:
+                conn.set_policy("MyTemplate", ps)
+        self.assertIn("workspace", str(cm.exception))
+        # Nothing may reach the network.
+        get.assert_not_called()
+        post.assert_not_called()
+        put.assert_not_called()
+
+    def test_ngts_get_policy_allowed_within_workspace(self):
+        # The read side stays available in a workspace (templates are read-only there, not hidden).
+        conn = self._ngts_conn(access_token='pre.issued.token', token_url=None, workspace='7')
+        with mock.patch.object(conn, '_get_cit_or_fail', return_value={}) as get_cit, \
+                mock.patch.object(conn, '_parse_policy_response_to_object'), \
+                mock.patch.object(conn, '_get_ca_info', return_value=mock.MagicMock()), \
+                mock.patch('vcert.connection_ngts.build_policy_spec', return_value="spec"):
+            self.assertEqual(conn.get_policy("MyTemplate"), "spec")
+        get_cit.assert_called_once_with("MyTemplate")
+
+    def test_venafi_connection_passes_workspace_to_ngts(self):
+        # Both NGTS paths: explicit platform, and auto-detection via client_id + client_secret.
+        conn = venafi_connection(platform=VenafiPlatform.NGTS, client_id="cid", client_secret="csecret",
+                                 tsg_id="1000000001", workspace="7")
+        self.assertEqual(conn._workspace, "7")
+        conn = venafi_connection(client_id="cid", client_secret="csecret", tsg_id="1000000001", workspace="7")
+        self.assertEqual(conn._workspace, "7")
+
+    def test_venafi_connection_rejects_workspace_for_non_ngts(self):
+        # A workspace on a non-NGTS connector is an error, not a no-op.
+        with self.assertRaises(VenafiError):
+            venafi_connection(platform=VenafiPlatform.VAAS, api_key="key", workspace="7")
+        with self.assertRaises(VenafiError):
+            venafi_connection(platform=VenafiPlatform.TPP, url="https://tpp.example.com",
+                              access_token="tok", workspace="7")
+        with self.assertRaises(VenafiError):
+            venafi_connection(fake=True, workspace="7")
+        # A falsy workspace is still a workspace: it must not slip past the platform check.
+        with self.assertRaises(VenafiError):
+            venafi_connection(platform=VenafiPlatform.VAAS, api_key="key", workspace="")
+
+    def test_venafi_connection_rejects_workspace_when_client_creds_do_not_select_ngts(self):
+        # client_id + client_secret only imply NGTS when nothing overrides them: an explicit
+        # non-NGTS platform, or fake=True (checked first during auto-detection), wins. The
+        # workspace would be silently dropped in those cases, so it must raise instead.
+        creds = dict(client_id="cid", client_secret="csecret", tsg_id="1000000001")
+        with self.assertRaises(VenafiError):
+            venafi_connection(platform=VenafiPlatform.VAAS, api_key="key", workspace="7", **creds)
+        with self.assertRaises(VenafiError):
+            venafi_connection(platform=VenafiPlatform.FAKE, workspace="7", **creds)
+        with self.assertRaises(VenafiError):
+            venafi_connection(fake=True, workspace="7", **creds)
 
     # -- NGTS policy management (offline) -----------------------------------------------------
     #

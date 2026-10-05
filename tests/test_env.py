@@ -50,6 +50,8 @@ NGTS_CLIENT_SECRET = environ.get('NGTS_CLIENT_SECRET')
 NGTS_TSG_ID = environ.get('NGTS_TSG_ID')
 NGTS_SCOPE = environ.get('NGTS_SCOPE')
 NGTS_ZONE = environ.get('NGTS_ZONE')
+# Optional: omitting sets the workspace to the tenant default
+NGTS_WORKSPACE = environ.get('NGTS_WORKSPACE') or None
 
 if RANDOM_DOMAIN and not isinstance(RANDOM_DOMAIN, str):
     RANDOM_DOMAIN = RANDOM_DOMAIN.decode()

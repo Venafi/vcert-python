@@ -56,7 +56,7 @@ def Connection(url=None, token=None, user=None, password=None, fake=False, http_
 
 def venafi_connection(url=None, api_key=None, user=None, password=None, access_token=None, refresh_token=None,
                       fake=False, http_request_kwargs=None, platform=None, client_id=None, client_secret=None,
-                      token_url=None, scope=None, tsg_id=None):
+                      token_url=None, scope=None, tsg_id=None, workspace=None):
     """
     Return connection based on credentials list.
     CyberArk Platform (CyberArk Certificate Manager, Self-Hosted) requires URL and access_token (or user and password for getting a new access_token)
@@ -77,8 +77,20 @@ def venafi_connection(url=None, api_key=None, user=None, password=None, access_t
     :param str token_url: NGTS OAuth2 token endpoint (optional; defaults to the Palo Alto production endpoint, override for non-production environments)
     :param str scope: NGTS OAuth2 scope (``tsg_id:<TSG_ID>``); derived from tsg_id when omitted
     :param str tsg_id: NGTS tenant service group id
+    :param str workspace: NGTS workspace numeric id (optional); scopes every call to that workspace
     :rtype CommonConnection:
     """
+    # A workspace is NGTS-only: specifying one for
+    # another platform is an error rather than a silently dropped argument. targets_ngts must
+    # mirror the dispatch below exactly: an explicit platform wins, and without one `fake` is
+    # checked before client_id + client_secret auto-detect NGTS.
+    if platform:
+        targets_ngts = platform == VenafiPlatform.NGTS
+    else:
+        targets_ngts = not fake and bool(client_id and client_secret)
+    if workspace is not None and not targets_ngts:
+        raise VenafiError("a workspace was specified but this connector does not support workspaces")
+
     if platform:
         if platform == VenafiPlatform.FAKE:
             return FakeConnection()
@@ -90,7 +102,7 @@ def venafi_connection(url=None, api_key=None, user=None, password=None, access_t
         elif platform == VenafiPlatform.NGTS:
             return NGTSConnection(client_id=client_id, client_secret=client_secret, token_url=token_url, scope=scope,
                                   tsg_id=tsg_id, access_token=access_token, url=url,
-                                  http_request_kwargs=http_request_kwargs)
+                                  http_request_kwargs=http_request_kwargs, workspace=workspace)
         else:
             raise VenafiError(f"Invalid Platform: {platform}. Cannot instantiate a Connector.")
     else:
@@ -102,7 +114,7 @@ def venafi_connection(url=None, api_key=None, user=None, password=None, access_t
         if client_id and client_secret:
             return NGTSConnection(client_id=client_id, client_secret=client_secret, token_url=token_url, scope=scope,
                                   tsg_id=tsg_id, access_token=access_token, url=url,
-                                  http_request_kwargs=http_request_kwargs)
+                                  http_request_kwargs=http_request_kwargs, workspace=workspace)
         if url and (access_token or refresh_token or (user and password)):
             return TPPTokenConnection(url=url, user=user, password=password, access_token=access_token,
                                       refresh_token=refresh_token, http_request_kwargs=http_request_kwargs)

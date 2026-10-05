@@ -15,9 +15,9 @@ enrollment. This guide covers using it against **Palo Alto Networks Next-Gen Tru
 (NGTS)**, also known as Strata Cloud Manager.
 
 > 📌 **NOTE:** Unlike the [Go VCert](https://github.com/Venafi/vcert) project, vcert-python is
-> **SDK-only** — there is no CLI, playbook, or certificate provisioning. NGTS support in this
-> SDK is **certificate-lifecycle only**: `get_policy`/`set_policy`, SSH, and `get_version`
-> raise `NotImplementedError`.
+> **SDK-only** — there is no CLI, playbook, or certificate provisioning. NGTS support covers the
+> certificate lifecycle plus `get_policy`/`set_policy`; SSH and `get_version` raise
+> `NotImplementedError`.
 
 ## Quick Links
 
@@ -26,6 +26,7 @@ enrollment. This guide covers using it against **Palo Alto Networks Next-Gen Tru
   - [Connection Parameters](#connection-parameters)
   - [API URL Default and Token URL](#api-url-default-and-token-url)
 - [Zone Format](#zone-format)
+- [Workspaces](#workspaces)
 - [Examples](#examples)
   - [Connect with service-account credentials](#connect-with-service-account-credentials)
   - [Connect with a pre-issued access token](#connect-with-a-pre-issued-access-token)
@@ -92,6 +93,7 @@ conn = venafi_connection(
 | `access_token` | no¹ | A pre-issued OAuth access token. When supplied, `client_id`/`client_secret` become optional (but are still used to refresh the token if present). |
 | `token_url` | no | OAuth token endpoint. Defaults to the Palo Alto production endpoint (see below); override it for non-production environments. |
 | `url` | no | NGTS API base URL. Defaults to the Palo Alto production endpoint (see below). |
+| `workspace` | no | Numeric ID of the NGTS workspace to operate in — a workspace is identified by its **ID, not its name**. When omitted, no workspace is sent and NGTS applies its own default. See [Workspaces](#workspaces). |
 | `http_request_kwargs` | no | Passed through to `requests` (e.g. a trust bundle via `verify`). |
 
 ¹ Provide **either** `access_token`, **or** `client_id` + `client_secret`.
@@ -141,6 +143,47 @@ separator.
 ```python
 zone = "PublicTrust"   # the Issuing Template API alias
 ```
+
+## Workspaces
+
+NGTS calls can optionally be scoped to a **workspace**. A workspace is **orthogonal to the zone** —
+the zone stays a bare Issuing Template alias — and is identified by its **numeric ID (1–10 digits),
+not its name**.
+
+```python
+conn = venafi_connection(
+    platform=VenafiPlatform.NGTS,
+    client_id="<client id>",
+    client_secret="<client secret>",
+    tsg_id="<tsg id>",
+    workspace="1234567890",
+)
+```
+
+Equivalently, on an existing connection:
+
+```python
+conn.set_workspace("1234567890")
+```
+
+The workspace applies to every request made after it is set. Access tokens are not
+workspace-scoped: the tenant is selected by `scope`/`tsg_id`, and the workspace is applied per
+request, so an existing token keeps working when the workspace changes.
+
+When a workspace is set, VCert appends `?workspace_id=<id>` to API and GraphQL requests (not to the
+OAuth token request, which ignores it).
+Any query string a request already carries is preserved. When no workspace is set, requests are
+unchanged — omit the parameter and NGTS applies its own default.
+
+A non-numeric, over-long or out-of-range (above 4294967295) workspace raises `ClientBadData` locally, and passing `workspace` to a
+non-NGTS platform raises `VenafiError`, since no other platform supports workspaces.
+
+> ⚠️ **`set_policy` must run without a workspace.** Issuing templates (Request Policies) belong to the
+> tenant, not to a workspace. Within a workspace they are read-only: `get_policy` works, but creating
+> or updating one requires the Superuser role at the tenant level. Calling `set_policy` on a
+> connection with a workspace set raises `ClientBadData` before any request is sent (NGTS would
+> otherwise reject it with `403`, code `1002`). Use a separate connection with no `workspace` for
+> policy management.
 
 ## Examples
 
