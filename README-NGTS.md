@@ -175,7 +175,7 @@ OAuth token request, which ignores it).
 Any query string a request already carries is preserved. When no workspace is set, requests are
 unchanged — omit the parameter and NGTS applies its own default.
 
-A non-numeric or over-long workspace raises `ClientBadData` locally, and passing `workspace` to a
+A non-numeric, over-long or out-of-range (above 4294967295) workspace raises `ClientBadData` locally, and passing `workspace` to a
 non-NGTS platform raises `VenafiError`, since no other platform supports workspaces.
 
 > ⚠️ **`set_policy` must run without a workspace.** Issuing templates (Request Policies) belong to the

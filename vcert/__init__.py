@@ -88,7 +88,7 @@ def venafi_connection(url=None, api_key=None, user=None, password=None, access_t
         targets_ngts = platform == VenafiPlatform.NGTS
     else:
         targets_ngts = not fake and bool(client_id and client_secret)
-    if workspace and not targets_ngts:
+    if workspace is not None and not targets_ngts:
         raise VenafiError("a workspace was specified but this connector does not support workspaces")
 
     if platform:

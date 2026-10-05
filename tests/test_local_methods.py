@@ -707,9 +707,14 @@ class TestLocalMethods(unittest.TestCase):
         self.assertEqual(_with_workspace_id("https://api.example.com/ngts/v1/x?workspace_id=1", "2"),
                          "https://api.example.com/ngts/v1/x?workspace_id=2")
 
+    def test_with_workspace_id_preserves_percent_encoding(self):
+        # Existing values must be kept byte-for-byte, not re-encoded (%20 must not become +).
+        self.assertEqual(_with_workspace_id("https://api.example.com/ngts/v1/x?q=a%20b&r=c+d&e=", "7"),
+                         "https://api.example.com/ngts/v1/x?q=a%20b&r=c+d&e=&workspace_id=7")
+
     def test_ngts_workspace_accepts_numeric_ids(self):
-        # A uint32 rendered as a string: 1 to 10 digits.
-        for workspace in ("7", "1234567890"):
+        # A uint32 rendered as a string: 1 to 10 digits, at most 4294967295.
+        for workspace in ("7", "1234567890", "4294967295"):
             self.assertEqual(self._ngts_conn(workspace=workspace)._workspace, workspace)
 
     def test_ngts_workspace_defaults_to_none(self):
@@ -717,9 +722,17 @@ class TestLocalMethods(unittest.TestCase):
 
     def test_ngts_workspace_rejects_non_numeric_ids(self):
         # A workspace is identified by its numeric ID, never its name.
-        for bad in ("12345678901", "my-workspace", "123abc", "-1", " 7"):
+        for bad in ("12345678901", "4294967296", "9999999999", "my-workspace", "123abc", "-1", " 7"):
             with self.assertRaises(ClientBadData):
                 self._ngts_conn(workspace=bad)
+
+    def test_ngts_workspace_rejects_falsy_and_non_string_values(self):
+        # Only None means "no workspace"; other falsy or non-string values must raise, not vanish.
+        for bad in ("", 0, False, 7):
+            with self.assertRaises(ClientBadData):
+                self._ngts_conn(workspace=bad)
+            with self.assertRaises(ClientBadData):
+                self._ngts_conn().set_workspace(bad)
 
     def test_ngts_set_workspace_can_clear(self):
         conn = self._ngts_conn(workspace="7")
@@ -751,6 +764,20 @@ class TestLocalMethods(unittest.TestCase):
         args, _ = get.call_args
         self.assertEqual(args[0], f"{DEFAULT_API_URL}/outagedetection/v1/certificates/abc/contents"
                                   f"?chainOrder=EE_FIRST&format=PEM&workspace_id=7")
+
+    def test_ngts_get_params_cannot_duplicate_workspace(self):
+        # The connection's workspace is already in the URL; a workspace_id in params is dropped so
+        # the request never carries two values. Other params pass through.
+        conn = self._ngts_conn(access_token='pre.issued.token', token_url=None, workspace='7')
+        fake_resp = mock.MagicMock()
+        fake_resp.status_code = 200
+        fake_resp.headers = {'content-type': 'application/json'}
+        fake_resp.json.return_value = {}
+        with mock.patch('vcert.connection_ngts.requests.get', return_value=fake_resp) as get:
+            conn._get("v1/x", params={'workspace_id': '9', 'a': 'b'})
+        args, kwargs = get.call_args
+        self.assertEqual(args[0], f"{DEFAULT_API_URL}/v1/x?workspace_id=7")
+        self.assertEqual(kwargs['params'], {'a': 'b'})
 
     def test_ngts_post_and_put_send_workspace(self):
         # _post also covers GraphQL (CloudConnection._graphql posts through it), so REST and
@@ -854,6 +881,9 @@ class TestLocalMethods(unittest.TestCase):
                               access_token="tok", workspace="7")
         with self.assertRaises(VenafiError):
             venafi_connection(fake=True, workspace="7")
+        # A falsy workspace is still a workspace: it must not slip past the platform check.
+        with self.assertRaises(VenafiError):
+            venafi_connection(platform=VenafiPlatform.VAAS, api_key="key", workspace="")
 
     def test_venafi_connection_rejects_workspace_when_client_creds_do_not_select_ngts(self):
         # client_id + client_secret only imply NGTS when nothing overrides them: an explicit

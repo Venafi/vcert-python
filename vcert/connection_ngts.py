@@ -15,7 +15,7 @@
 #
 import re
 from datetime import datetime, timedelta
-from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
+from urllib.parse import urlsplit, urlunsplit
 
 import requests
 
@@ -63,8 +63,10 @@ SCOPE_PATTERN = re.compile(r"tsg_id:[0-9]{10}")
 
 # NGTS workspaces are identified by a numeric ID (a uint32 rendered as a string, so 1-10 digits),
 # never by name. Validated in the connector so that passing a workspace *name* fails locally with a
-# clear error rather than surfacing as an opaque NGTS API error.
+# clear error rather than surfacing as an opaque NGTS API error. The pattern alone admits 10-digit
+# values above the uint32 range, so set_workspace also checks against WORKSPACE_ID_MAX.
 WORKSPACE_ID_PATTERN = re.compile(r"[0-9]{1,10}")
+WORKSPACE_ID_MAX = 0xFFFFFFFF
 
 # Query parameter carrying the workspace on every NGTS API request (REST and GraphQL). It is not sent
 # to the OAuth token endpoint, and is never part of the zone, the URL path, or a request body.
@@ -123,11 +125,13 @@ def _with_workspace_id(url, workspace_id):
     if not workspace_id:
         return url
     parts = urlsplit(url)
-    # doseq keeps repeated parameters intact; parse_qs with keep_blank_values preserves an
-    # existing "?foo=" rather than silently dropping it.
-    query = parse_qs(parts.query, keep_blank_values=True)
-    query[WORKSPACE_QUERY_PARAM] = [workspace_id]
-    return urlunsplit(parts._replace(query=urlencode(query, doseq=True)))
+    # Edit the raw query rather than round-tripping it through parse_qs/urlencode: re-encoding
+    # would rewrite existing values (e.g. %20 becomes +). Only workspace_id pairs are dropped; every
+    # other pair is kept byte-for-byte. The ID is digits only, so it needs no encoding.
+    pairs = [pair for pair in parts.query.split("&")
+             if pair and pair.split("=", 1)[0] != WORKSPACE_QUERY_PARAM]
+    pairs.append(f"{WORKSPACE_QUERY_PARAM}={workspace_id}")
+    return urlunsplit(parts._replace(query="&".join(pairs)))
 
 
 def _parse_ngts_zone(zone):
@@ -214,8 +218,7 @@ class NGTSConnection(CloudConnection):
         self._access_token = access_token
         self._token_expires = None
         self._workspace = None
-        if workspace:
-            self.set_workspace(workspace)
+        self.set_workspace(workspace)
 
     def __str__(self):
         if self._workspace:
@@ -246,12 +249,18 @@ class NGTSConnection(CloudConnection):
         Takes effect on the next request. Access tokens are not workspace-scoped, so an existing
         token keeps working after the workspace changes.
 
-        :param str workspace: the workspace's numeric ID (1-10 digits), not its name
+        :param str workspace: the workspace's numeric ID (1-10 digits, within the uint32 range), not
+            its name; ``None`` clears it
         """
-        if workspace and not WORKSPACE_ID_PATTERN.fullmatch(workspace):
+        # Only None clears the workspace. Any other value - including falsy ones like "", 0 or
+        # False - is validated, so a bad value raises instead of being silently dropped.
+        if workspace is not None and not (isinstance(workspace, str)
+                                          and WORKSPACE_ID_PATTERN.fullmatch(workspace)
+                                          and int(workspace) <= WORKSPACE_ID_MAX):
             raise ClientBadData(f'invalid workspace "{workspace}". A workspace is identified by its '
-                                f"numeric ID, not its name")
-        self._workspace = workspace or None
+                                f"numeric ID (a string of 1-10 digits, at most {WORKSPACE_ID_MAX}), "
+                                f"not its name")
+        self._workspace = workspace
 
     def _resolve_url(self, url):
         """
@@ -359,6 +368,10 @@ class NGTSConnection(CloudConnection):
     def _get(self, url, params=None):
         self._ensure_token()
         headers = self._auth_headers(MIME_ANY)
+        if params and self._workspace:
+            # _resolve_url already puts the connection's workspace in the URL. requests would append
+            # a workspace_id from params as a second value, so drop it: the connection's wins.
+            params = {k: v for k, v in params.items() if k != WORKSPACE_QUERY_PARAM}
         r = requests.get(self._resolve_url(url), params=params, headers=headers,
                          **self._http_request_kwargs)  # nosec B113
         return self.process_server_response(r)
