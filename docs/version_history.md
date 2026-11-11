@@ -3,6 +3,7 @@
 ## Version History
 
 #### 0.23.0
+* Updated certifi to 2026.10.23 and require certifi 2026.10.19 or later, which no longer trusts emSign ECC Root CA - G3, the root of the compromised eMudhra intermediate CAs
 * Added NGTS workspace support: `NGTSConnection(workspace=...)`, `venafi_connection(workspace=...)` and `set_workspace()` scope every API and GraphQL request to a workspace via the `workspace_id` query parameter. A workspace is identified by its numeric ID, is independent of the zone, and is optional — omitting it leaves requests unchanged
 * NGTS `set_policy` raises `ClientBadData` on a workspace-scoped connection: issuing templates belong to the tenant and are read-only within a workspace, so policy management must use a connection without a workspace
 
